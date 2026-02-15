@@ -31,9 +31,9 @@ def log():
 def main():
     ClientsApp = App()   
     ClientsApp.Start_connetion()
-    threading.Thread(target= ClientsApp._IO_read, daemon= False).start()
-    threading.Thread(target=ClientsApp._vision_station_2, daemon= False).start()
-    threading.Thread(target=ClientsApp._vision_station_1, daemon= False).start()
+    threading.Thread(target= ClientsApp._IO_read, daemon= True).start()
+    threading.Thread(target=ClientsApp._vision_station_2, daemon= True).start()
+    threading.Thread(target=ClientsApp._vision_station_1, daemon= True).start()
     #threading.Thread(target=ClientsApp.data_processing_station1, daemon= True).start()F
     #threading.Thread(target=ClientsApp.data_processing_station1, daemon=True).start()س
     

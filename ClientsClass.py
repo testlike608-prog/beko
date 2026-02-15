@@ -42,9 +42,9 @@ CMD_Read_Inputs=            "000300000006010300220001"                      #the
 
 #write single output ON
 ON_LIGHTING_S1 =            "00010000000601050000FF00" #D0 ON
-ON_BUZZER_S2   =            "00010000000601050001FF00" #D1 ON
+ON_LIGHTING_S2   =            "00010000000601050001FF00" #D1 ON 
 ON_BUZZER_S1   =            "00010000000601050002FF00" #D2 ON
-ON_LIGHTING_S2 =            "00010000000601050003FF00" #D3 ON
+ON_BUZZER_S2 =            "00010000000601050003FF00" #D3 ON
 ON_SCANNER_S1  =            "00010000000601050004FF00" #D4 ON
 ON_SCANNER_S2  =            "00010000000601050005FF00" #D5 ON
 ON_TESTDONE_S1 =            "00010000000601050006FF00" #D6 ON
@@ -141,7 +141,7 @@ def auto_load_csv_by_product_number(product_number: str, part: str, server_insta
         csv_data = hlb._load_csv_file(csv_path)
         
         if part == "S1":
-            order = ["Front Logo", "Color", "Data logo", "Inverter logo", "Power logo"]
+            order = ["Color", "Data logo", "Inverter logo", "Power logo","Front Logo"]
         else:
             order = ["Eva cover", "Drawer printing", "Color logo", "Fan cover", "Shelve color"]
             
@@ -361,7 +361,7 @@ class  TCPClient():
     
     def start_reconnection_watchdog(self):
         """تشغيل خيط المراقبة في الخلفية"""
-        thread = threading.Thread(target=self._connection_monitor, daemon=False)
+        thread = threading.Thread(target=self._connection_monitor, daemon=True)
         thread.start()
 
     def _connection_monitor(self):
@@ -496,7 +496,7 @@ class  TCPClient():
         :param callback: دالة اختيارية يتم استدعاؤها فور استلام بيانات
         """
         self.receive_queue = queue.Queue() # كيو لاستقبال البيانات
-        self.listen_thread = threading.Thread(target=self._listen_loop, args=(callback,), daemon=False)
+        self.listen_thread = threading.Thread(target=self._listen_loop, args=(callback,), daemon=True)
         self.listen_thread.start()
         self._log_add("INFO", f"[{self.ip}] : [{self.port}] Started listening for incoming data...")
         
@@ -627,18 +627,23 @@ class App():
         
 # servers handling
     def _IO_read (self):
-        
+         
+        last_DI0 = b"\0x00"
+        last_DI1 = b"\0x00"
         while self.client_read_io.connected:
             try:
 
                 DI0_respond=self.client_read_io.send_request(message= CMD_READ_DI0, is_hex= True)
-                if DI0_respond.decode('utf-8')[-1]== "1":
-                     threading.Thread(target =self._IO_Writer_station_1, daemon= False).start()
-                time.sleep(0.01)
-                DI1_respond = self.client_read_io.send_request(message= CMD_READ_DI1,is_hex= True)
-                if DI1_respond.decode('utf-8')[-1]== "1":
-                    threading.Thread(target =self._IO_Writer_station_2, daemon= False).start()
+                if DI0_respond [-1:]== b"\0x01" and  last_DI0 == b"\0x00" :
+                     threading.Thread(target =self._IO_Writer_station_1, daemon= True).start()
+                last_DI0 = DI0_respond [-1:]
                 
+                time.sleep(0.01)
+
+                DI1_respond = self.client_read_io.send_request(message= CMD_READ_DI1,is_hex= True)
+                if DI1_respond [-1:]== b"\0x01" and  last_DI1 == b"\0x00":
+                    threading.Thread(target =self._IO_Writer_station_2, daemon= True).start()
+                last_DI1 = DI1_respond [-1:]
             except:
                 self.client_read_io._log_add("INFO", f"زفت")
 
@@ -686,7 +691,7 @@ class App():
                     
                     time.sleep(1)
     
-                    thread = threading.Thread(target=self.data_processing_station1, daemon= False)
+                    thread = threading.Thread(target=self.data_processing_station1, daemon= True)
                     thread.start()
                     thread.join()
                     test_results_list.clear()
@@ -935,7 +940,6 @@ class App():
     def _SN_Proccess2():
          
          pass
-    
     def _IO_Writer_station_1(self):
         
        #self.client_write_io.send_request(message=CMD_ACTION_S1, is_hex=True)
@@ -948,19 +952,19 @@ class App():
         try:
             
             # ---- initial sequence ----
-            self.client_write_io.send_request(ON_LIGHTING_S1)   # lighting ON
-            self.client_write_io.send_request(ON_SCANNER_S1)    #  scanner ON
+            self.client_write_io.send_request(ON_LIGHTING_S1,is_hex=True)   # lighting ON
+            self.client_write_io.send_request(ON_SCANNER_S1,is_hex=True)    #  scanner ON
             time.sleep(0.5)
             try:
                 if not self.client_scanner_station1.shared_queue3.empty():
                      self.client_scanner_station1.shared_queue3.get()
                      self.client_scanner_station1.shared_queue3.task_done() 
-                     self.client_write_io.send_request(OFF_SCANNER_S1)    # scanner Off
+                     self.client_write_io.send_request(OFF_SCANNER_S1,is_hex=True)    # scanner Off
             except Exception as e:
                    self.client_scanner_station1.log_add("FATAL", f"ERROR WHILE SCANNING DUMMY NUMBER: {e}")
         except Exception as e:
             self._log_add("FATAL", f"S1 device init error: {e}")
-            self.send_to_device(CMD_OFF_ALL)
+            self.send_to_device(CMD_OFF_ALLis_hex=True)
             return
 
         # ✅ FIX: Capture the starting state before waiting
@@ -983,78 +987,22 @@ class App():
             # Check if we got a new image
             if image_SN1 is not None and image_SN1 != initial_image_state:
                 self._log_add("INFO", f"New image received: {image_SN1}")
-                self.client_write_io.send_request(OFF_LIGHTING_S1)   # lighting OFF
+                self.client_write_io.send_request(OFF_LIGHTING_S1,is_hex=True)   # lighting OFF
                 image_received = True
-                break
-            
+                
+            '''
             # Check for timeout
             if current_time - start_time > image_timeout:
                 self._log_add("WARNING", f"Image timeout after {image_timeout} seconds")
                 break
-            
+            '''
             # Wait a bit before checking again
             time.sleep(0.1)
-
-        # ---- Handle timeout cases ----
-        if not image_received:
-            # ===== case 1: no dummy captured =====
-            if last_dummy_number == hlb.last_dummy_extracted:
-                self.client_write_io._log_add("ERROR", "No new dummy detected - starting retry sequence")
-                
-                # Retry scanner 3 times
-                for retry_attempt in range(3):
-                    self.client_write_io._log_add("INFO", f"Scanner retry attempt {retry_attempt + 1}/3")
-                    
-                    try:
-                        self.client_write_io.send_request(ON_SCANNER_S1, is_hex=True)  # retrigger scanner
-                    except Exception as e:
-                        self._log_add("ERROR", f"Scanner retrigger error: {e}")
-                        self.client_write_io.send_request(CMD_OFF_ALL, is_hex=True)
-                        return
-
-                    time.sleep(1)
-
-                    # Check if dummy was captured during this retry
-                    if last_dummy_number != hlb.last_dummy_extracted:
-                        self.client_write_io._log_add("INFO", f"Dummy captured on retry {retry_attempt + 1}")
-                        return   # Success - dummy captured!
-
-                # All retries failed - manual scan required
-                self.client_write_io._log_add("ERROR", "All 3 scanner retries failed - Manual scanning required")
-                
-                try:
-                     self.client_write_io.send_request(ON_BUZZER_S1, is_hex=True) # buzzer ON
-                except Exception as e:
-                    self.client_write_io._log_add("ERROR", f"Buzzer error: {e}")
-
-                Manual_Scanner_MODE = True
-
-                if Buzzer_Flag_to_OFF:
-                    self.client_write_io.send_request(CMD_OFF_ALL, is_hex=True)
-                    Buzzer_Flag_to_OFF = False
-
-                return
-
-            # ===== case 2: dummy exists but no CSV =====
-            elif last_dummy_number != hlb.last_dummy_extracted:
-                self._log_add("ERROR", f"Dummy {last_dummy_number} detected but no CSV file found")
-                NO_CSV_ERROR = True
-
-                try:
-                    self.client_write_io.send_request(ON_BUZZER_S1, is_hex=True)  # buzzer ON
-                except Exception as e:
-                    self.client_write_io._log_add("ERROR", f"Buzzer error: {e}")
-
-                if Buzzer_Flag_to_OFF2:
-                    self.client_write_io.send_request(CMD_OFF_ALL, is_hex=True)
-                    Buzzer_Flag_to_OFF2 = False
-
-                return
 
         # ---- image received successfully ----
         last_image_SN1 = image_SN1
         self._log_add("INFO", f"Image processing complete for: {image_SN1}")
-        
+        '''
         station2_has_failure = hlb._failure_mode_station2_check(target_dummy=last_dummy_number)
     
         if station2_has_failure:
@@ -1078,11 +1026,97 @@ class App():
                 self.client_write_io._log_add("ERROR", f"S1 test done error: {e}")
                 self.client_write_io.send_request(CMD_OFF_ALL, is_hex=True)
 
-        
+        '''
     
     
     def _IO_Writer_station_2(self):
-      pass
+       #self.client_write_io.send_request(message=CMD_ACTION_S1, is_hex=True)
+        """
+            Handle Station 1 device action with proper image waiting logic
+            """
+        global Manual_Scanner_MODE, NO_CSV_ERROR, Buzzer_Flag_to_OFF, Buzzer_Flag_to_OFF2
+        global image_SN2, last_image_SN2  # Make sure we can access these
+
+        try:
+            
+            # ---- initial sequence ----
+            self.client_write_io.send_request(ON_LIGHTING_S2,is_hex=True)   # lighting ON
+            self.client_write_io.send_request(ON_SCANNER_S2,is_hex=True)    #  scanner ON
+            time.sleep(0.5)
+            try:
+                if not self.client_scanner_station2.shared_queue3.empty():
+                     self.client_scanner_station2.shared_queue3.get()
+                     self.client_scanner_station2.shared_queue3.task_done() 
+                     self.client_write_io.send_request(OFF_SCANNER_S2,is_hex=True)    # scanner Off
+            except Exception as e:
+                   self.client_scanner_station2.log_add("FATAL", f"ERROR WHILE SCANNING DUMMY NUMBER: {e}")
+        except Exception as e:
+            self._log_add("FATAL", f"S1 device init error: {e}")
+            self.send_to_device(CMD_OFF_ALLis_hex=True)
+            return
+
+        # ✅ FIX: Capture the starting state before waiting
+        start_time = time.time()
+        initial_image_state = image_SN2  # Remember what image_SN1 was at the start
+        image_timeout = hlb.TIME_SETTINGS['ImageTimeout']
+        
+        self._log_add("INFO", f"Waiting for new image. Current state: {initial_image_state}")
+
+        # ---- wait for NEW image ----
+        # ✅ FIX: Proper loop with three conditions:
+        # 1. Wait while we haven't received a new image
+        # 2. New image means: image_SN1 changed from initial_image_state
+        # 3. AND image_SN1 is not None
+        image_received = False
+        
+        while not image_received:
+            current_time = time.time()
+            
+            # Check if we got a new image
+            if image_SN2 is not None and image_SN2 != initial_image_state:
+                self._log_add("INFO", f"New image received: {image_SN2}")
+                self.client_write_io.send_request(OFF_LIGHTING_S2,is_hex=True)   # lighting OFF
+                image_received = True
+                
+            '''
+            # Check for timeout
+            if current_time - start_time > image_timeout:
+                self._log_add("WARNING", f"Image timeout after {image_timeout} seconds")
+                break
+            '''
+            # Wait a bit before checking again
+            time.sleep(0.1)
+
+        # ---- image received successfully ----
+        last_image_SN2 = image_SN2
+        self._log_add("INFO", f"Image processing complete for: {image_SN2}")
+        '''
+        station2_has_failure = hlb._failure_mode_station2_check(target_dummy=last_dummy_number)
+    
+        if station2_has_failure:
+            try:
+                self.client_write_io.send_request(ON_FAILURE, is_hex=True)
+                plc_signal_period = hlb.TIME_SETTINGS['PlcSignal']
+                time.sleep(plc_signal_period)
+                self.client_write_io.send_request(CMD_OFF_ALL, is_hex=True)
+                # Reset the flag after handling
+                Station2_failure = False
+            except Exception as e:
+                self._log_add("ERROR", f"S1 failure action error: {e}")
+                self.client_write_io.send_request(CMD_OFF_ALL, is_hex=True)
+        else:
+            try:
+                self.client_write_io.send_request(ON_TESTDONE_S1, is_hex=True)
+                plc_signal_period = hlb.TIME_SETTINGS['PlcSignal']
+                time.sleep(plc_signal_period)
+                self.client_write_io.send_request(CMD_OFF_ALL, is_hex=True)
+            except Exception as e:
+                self.client_write_io._log_add("ERROR", f"S1 test done error: {e}")
+                self.client_write_io.send_request(CMD_OFF_ALL, is_hex=True)
+
+        '''
+    
+    
 
     def decision_making(self):
         pass
