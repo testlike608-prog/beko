@@ -1,4 +1,4 @@
-from flask import Flask , render_template_string ,render_template,redirect,Blueprint
+from flask import Flask , render_template_string ,render_template,redirect,Blueprint ,url_for
 
 
 
@@ -48,13 +48,13 @@ def page_ManualPopup():
         </html>
         """
 
-    return redirect ("/home")
+    return url_for('home.page_index')
 @Manual.route('/ManualPopup/ack', methods=['POST'])
 def manual_popup_ack():
     global Manual_Scanner_MODE,Buzzer_Flag_to_OFF
     Buzzer_Flag_to_OFF = True
     Manual_Scanner_MODE = False   # 👈 الفلاج بيتقفل هنا
-    return redirect ("/home")
+    return url_for('home.page_index')
 @Manual.route('/NoCSV', methods=['GET'])
 def page_CSVPopup():
     global NO_CSV_ERROR, last_product_number
@@ -79,10 +79,10 @@ def page_CSVPopup():
         </html>
         """
 
-    return redirect ("/")
+    return url_for('home.page_index')
 @Manual.route('/NoCSV/ack', methods=['POST'])
 def csv_popup_ack():
     global NO_CSV_ERROR ,Buzzer_Flag_to_OFF2 
     Buzzer_Flag_to_OFF2 = True
     NO_CSV_ERROR = False   # 👈 يقفل الفلاج
-    return redirect ("/")
+    return url_for('home.page_index')

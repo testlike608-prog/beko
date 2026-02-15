@@ -464,7 +464,7 @@
     if (!value) return;
 
     try {
-        const response = await fetch('/add_to_queue', {
+        const response = await fetch('/home/add_to_queue', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ dummy_number: value })
@@ -489,7 +489,7 @@ document.getElementById('btnDummyStation2').addEventListener('click', async () =
     if (!value) return;
 
     try {
-        const response = await fetch('/add_to_queue2', {
+        const response = await fetch('/home/add_to_queue2', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ dummy_number: value })

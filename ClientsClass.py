@@ -13,9 +13,10 @@ from queue import Empty
 
 global queue_manual
 global queue_manual2 
-
-
-
+global NO_CSV_ERROR
+NO_CSV_ERROR = False
+global Buzzer_Flag_to_OFF
+global Buzzer_Flag_to_OFF2
 #Scanner_IP & Port
 Ip_Scanner1 = "192.168.1.16"  #"192.168.1.16"
 Port_Scanner1 = 7940         #7940
@@ -121,6 +122,7 @@ queue_manual2 = queue.Queue()
 # ---------------- Auto-load CSV by ProductNumber ----------------
 def auto_load_csv_by_product_number(product_number: str, part: str, server_instance , queue: queue): # server_instance = client intense
     """Automatically load CSV file based on ProductNumber"""
+    global NO_CSV_ERROR
     try:
         if not product_number:
             server_instance._log_add("ERROR", "No ProductNumber provided for CSV auto-load")
@@ -144,8 +146,19 @@ def auto_load_csv_by_product_number(product_number: str, part: str, server_insta
         
         if not os.path.isfile(csv_path):
             server_instance._log_add("WARNING", f"CSV file not found: {filename}")
+            NO_CSV_ERROR = True
+            server = TCPClient(Ip_write_IO, Port_write_IO )
+            if part == "S1":
+                server.send_request(ON_BUZZER_S1,is_hex=True)
+                
+            if part == "S2":
+               server.send_request(ON_BUZZER_S2,is_hex=True)
+            while True:
+                if Buzzer_Flag_to_OFF2:
+                    server.send_request(OFF_BUZZER_S2,is_hex=True)
+                    Buzzer_Flag_to_OFF2 = False
+                    break
             return False
-            
         csv_data = hlb._load_csv_file(csv_path)
         
         if part == "S1":
@@ -967,7 +980,7 @@ class App():
             try:
                 time.sleep(2)
                 if not self.client_scanner_station1.shared_queue3.empty():
-                     self.client_scanner_station1.shared_queue3.get()
+                     dummy = self.client_scanner_station1.shared_queue3.get()
                      self.client_scanner_station1.shared_queue3.task_done() 
                      self.client_write_io.send_request(OFF_SCANNER_S1,is_hex=True)    # scanner Off
                 else:
@@ -989,7 +1002,7 @@ class App():
                    self.client_scanner_station1.log_add("FATAL", f"ERROR WHILE SCANNING DUMMY NUMBER: {e}")
         except Exception as e:
             self._log_add("FATAL", f"S1 device init error: {e}")
-            self.send_to_device(CMD_OFF_ALLis_hex=True)
+            self.send_to_device(CMD_OFF_ALL,is_hex=True)
             return
 
         # ✅ FIX: Capture the starting state before waiting
@@ -1013,6 +1026,15 @@ class App():
             if image_SN1 is not None and image_SN1 != initial_image_state:
                 self._log_add("INFO", f"New image received: {image_SN1}")
                 self.client_write_io.send_request(OFF_LIGHTING_S1,is_hex=True)   # lighting OFF
+                self.client_write_io.send_request(ON_TESTDONE_S1,is_hex=True) 
+                plc_signal_period = hlb.TIME_SETTINGS['PlcSignal']
+                time.sleep(plc_signal_period)
+                self.client_write_io.send_request(OFF_TESTDONE_S1,is_hex=True) 
+                result =  hlb._failure_mode_station2_check(target_dummy=dummy, Client= self.client_scanner_station1)
+                if result == "FAIL" :
+                     self.client_write_io.send_request(ON_FAILURE,is_hex=True) 
+                     plc_signal_period = hlb.TIME_SETTINGS['PlcSignal']
+                     self.client_write_io.send_request(OFF_FAILURE,is_hex=True) 
                 image_received = True
                 
             '''
@@ -1027,31 +1049,7 @@ class App():
         # ---- image received successfully ----
         last_image_SN1 = image_SN1
         self._log_add("INFO", f"Image processing complete for: {image_SN1}")
-        '''
-        station2_has_failure = hlb._failure_mode_station2_check(target_dummy=last_dummy_number)
-    
-        if station2_has_failure:
-            try:
-                self.client_write_io.send_request(ON_FAILURE, is_hex=True)
-                plc_signal_period = hlb.TIME_SETTINGS['PlcSignal']
-                time.sleep(plc_signal_period)
-                self.client_write_io.send_request(CMD_OFF_ALL, is_hex=True)
-                # Reset the flag after handling
-                Station2_failure = False
-            except Exception as e:
-                self._log_add("ERROR", f"S1 failure action error: {e}")
-                self.client_write_io.send_request(CMD_OFF_ALL, is_hex=True)
-        else:
-            try:
-                self.client_write_io.send_request(ON_TESTDONE_S1, is_hex=True)
-                plc_signal_period = hlb.TIME_SETTINGS['PlcSignal']
-                time.sleep(plc_signal_period)
-                self.client_write_io.send_request(CMD_OFF_ALL, is_hex=True)
-            except Exception as e:
-                self.client_write_io._log_add("ERROR", f"S1 test done error: {e}")
-                self.client_write_io.send_request(CMD_OFF_ALL, is_hex=True)
-
-        '''
+        
     
     
     def _IO_Writer_station_2(self):
@@ -1101,6 +1099,7 @@ class App():
             if image_SN2 is not None and image_SN2 != initial_image_state:
                 self._log_add("INFO", f"New image received: {image_SN2}")
                 self.client_write_io.send_request(OFF_LIGHTING_S2,is_hex=True)   # lighting OFF
+
                 image_received = True
                 
             '''
@@ -1115,31 +1114,7 @@ class App():
         # ---- image received successfully ----
         last_image_SN2 = image_SN2
         self._log_add("INFO", f"Image processing complete for: {image_SN2}")
-        '''
-        station2_has_failure = hlb._failure_mode_station2_check(target_dummy=last_dummy_number)
-    
-        if station2_has_failure:
-            try:
-                self.client_write_io.send_request(ON_FAILURE, is_hex=True)
-                plc_signal_period = hlb.TIME_SETTINGS['PlcSignal']
-                time.sleep(plc_signal_period)
-                self.client_write_io.send_request(CMD_OFF_ALL, is_hex=True)
-                # Reset the flag after handling
-                Station2_failure = False
-            except Exception as e:
-                self._log_add("ERROR", f"S1 failure action error: {e}")
-                self.client_write_io.send_request(CMD_OFF_ALL, is_hex=True)
-        else:
-            try:
-                self.client_write_io.send_request(ON_TESTDONE_S1, is_hex=True)
-                plc_signal_period = hlb.TIME_SETTINGS['PlcSignal']
-                time.sleep(plc_signal_period)
-                self.client_write_io.send_request(CMD_OFF_ALL, is_hex=True)
-            except Exception as e:
-                self.client_write_io._log_add("ERROR", f"S1 test done error: {e}")
-                self.client_write_io.send_request(CMD_OFF_ALL, is_hex=True)
-
-        '''
+        
     
     
 
@@ -1169,8 +1144,12 @@ class App():
                     zero_values_list = [k for k, v in test_results_dict.items() if v == "0"]
                     failed_tests = ", ".join(zero_values_list)
                     station_name = "VisionOuterTest"
-                    station_result = "FAIL" if zero_values_list else "PASS"
+                    if zero_values_list:
 
+                        station_result = "FAIL" 
+                    else :
+                        station_result = "PASS" 
+                       
                     # 3. سحب رقم الـ Dummy (تأكد أن الكيو ده فيه داتا فعلاً)
                     try:
                         dummy = self.client_scanner_station1.shared_queue2.get_nowait()
@@ -1184,6 +1163,7 @@ class App():
                             Client=self.client_scanner_station1
                         )
                         
+
                         # تأكيد إتمام المهمة للكيو الخاص بالـ dummy
                         self.client_scanner_station1.shared_queue2.task_done()
                     except:
@@ -1223,7 +1203,8 @@ class App():
                                     station_result=station_result,
                                     failed_tests=failed_tests
                                     )
-    
+        hlb.insert_csv_station2_dummies(dummy=dummy,StationRes=station_result)
+   
     '''
 #database handling
     def auto_connect_db(self):
@@ -1273,139 +1254,3 @@ class App():
 
 
 
-'''
-
-def _device_actionS1(self):
-        """
-            Handle Station 1 device action with proper image waiting logic
-            """
-        global Manual_Scanner_MODE, NO_CSV_ERROR, Buzzer_Flag_to_OFF, Buzzer_Flag_to_OFF2
-        global image_SN1, last_image_SN1  # Make sure we can access these
-
-        try:
-            # ---- initial sequence ----
-            self.send_to_device(CMD_COMBINED_FIRST_S1)   # lighting ON
-            self.send_to_device(CMD_ACTION_S1)           # lighting & scanner ON
-            #cheak for new dummy
-            time.sleep(1) 
-            self.send_to_device(CMD_COMBINED_FIRST_S1)   # lighting ONLY ON
-
-        except Exception as e:
-            self._log_add("FATAL", f"S1 device init error: {e}")
-            self.send_to_device(CMD_OFF_ALL)
-            return
-
-        # ✅ FIX: Capture the starting state before waiting
-        start_time = time.time()
-        initial_image_state = image_SN1  # Remember what image_SN1 was at the start
-        image_timeout = hlb.TIME_SETTINGS['ImageTimeout']
-        
-        self._log_add("INFO", f"Waiting for new image. Current state: {initial_image_state}")
-
-        # ---- wait for NEW image ----
-        # ✅ FIX: Proper loop with three conditions:
-        # 1. Wait while we haven't received a new image
-        # 2. New image means: image_SN1 changed from initial_image_state
-        # 3. AND image_SN1 is not None
-        image_received = False
-        
-        while not image_received:
-            current_time = time.time()
-            
-            # Check if we got a new image
-            if image_SN1 is not None and image_SN1 != initial_image_state:
-                self._log_add("INFO", f"New image received: {image_SN1}")
-                image_received = True
-                break
-            
-            # Check for timeout
-            if current_time - start_time > image_timeout:
-                self._log_add("WARNING", f"Image timeout after {image_timeout} seconds")
-                break
-            
-            # Wait a bit before checking again
-            time.sleep(0.1)
-
-        # ---- Handle timeout cases ----
-        if not image_received:
-            # ===== case 1: no dummy captured =====
-            if last_dummy_number == last_dummy_extracted:
-                self._log_add("ERROR", "No new dummy detected - starting retry sequence")
-                
-                # Retry scanner 3 times
-                for retry_attempt in range(3):
-                    self._log_add("INFO", f"Scanner retry attempt {retry_attempt + 1}/3")
-                    
-                    try:
-                        self.send_to_device(CMD_ACTION_S1)  # retrigger scanner
-                    except Exception as e:
-                        self._log_add("ERROR", f"Scanner retrigger error: {e}")
-                        self.send_to_device(CMD_OFF_ALL)
-                        return
-
-                    time.sleep(1)
-
-                    # Check if dummy was captured during this retry
-                    if last_dummy_number != last_dummy_extracted:
-                        self._log_add("INFO", f"Dummy captured on retry {retry_attempt + 1}")
-                        return   # Success - dummy captured!
-
-                # All retries failed - manual scan required
-                self._log_add("ERROR", "All 3 scanner retries failed - Manual scanning required")
-                
-                try:
-                    self.send_to_device(CMD_IMMEDIATE)  # buzzer ON
-                except Exception as e:
-                    self._log_add("ERROR", f"Buzzer error: {e}")
-
-                Manual_Scanner_MODE = True
-
-                if Buzzer_Flag_to_OFF:
-                    self.send_to_device(CMD_OFF_ALL)
-                    Buzzer_Flag_to_OFF = False
-
-                return
-
-            # ===== case 2: dummy exists but no CSV =====
-            elif last_dummy_number != last_dummy_extracted:
-                self._log_add("ERROR", f"Dummy {last_dummy_number} detected but no CSV file found")
-                NO_CSV_ERROR = True
-
-                try:
-                    self.send_to_device(CMD_IMMEDIATE)  # buzzer ON
-                except Exception as e:
-                    self._log_add("ERROR", f"Buzzer error: {e}")
-
-                if Buzzer_Flag_to_OFF2:
-                    self.send_to_device(CMD_OFF_ALL)
-                    Buzzer_Flag_to_OFF2 = False
-
-                return
-
-        # ---- image received successfully ----
-        last_image_SN1 = image_SN1
-        self._log_add("INFO", f"Image processing complete for: {image_SN1}")
-        
-        station2_has_failure = hlb._failure_mode_station2_check(target_dummy=last_dummy_number)
-    
-        if station2_has_failure:
-            try:
-                self.send_to_device(CMD_Failure_Action)
-                plc_signal_period = hlb.TIME_SETTINGS['PlcSignal']
-                time.sleep(plc_signal_period)
-                self.send_to_device(CMD_OFF_ALL)
-                # Reset the flag after handling
-                Station2_failure = False
-            except Exception as e:
-                self._log_add("ERROR", f"S1 failure action error: {e}")
-                self.send_to_device(CMD_OFF_ALL)
-        else:
-            try:
-                self.send_to_device(CMD_TestDone_S1)
-                plc_signal_period = hlb.TIME_SETTINGS['PlcSignal']
-                time.sleep(plc_signal_period)
-                self.send_to_device(CMD_OFF_ALL)
-            except Exception as e:
-                self._log_add("ERROR", f"S1 test done error: {e}")
-                self.send_to_device(CMD_OFF_ALL)
-'''

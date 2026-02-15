@@ -2,6 +2,9 @@ import csv
 import os,re,json
 from typing import List,Tuple,Dict
 import threading
+import pandas as pd
+import ClientsClass
+
 #Globals
 CSV_CACHE: Dict[Tuple[str, str], Dict] = {}
 CSV_CACHE_MAX = 256
@@ -145,8 +148,30 @@ def insert_csv_station2(dummy, test, res):
         writer = csv.writer(file)
         writer.writerow([dummy, test, res])
 
+
+def delete_row_if_contains(file_path, target_element):
+    rows_to_keep = []
+    
+    with open(file_path, mode='r', encoding='utf-8') as file:
+        reader = csv.reader(file)
+        for row in reader:
+            if not row:
+                continue
+            
+            # لو العنصر مش موجود في أي مكان في الصف، هنحتفظ بيه
+            if target_element not in row:
+                rows_to_keep.append(row)
+
+    with open(file_path, mode='w', encoding='utf-8', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerows(rows_to_keep)
+
 def insert_csv_station2_dummies(dummy, StationRes):
     with open("Station2_dummies.csv", mode='a', newline='', encoding='utf-8') as file:
+        
+        
+
+        delete_row_if_contains("Station2_dummies.csv", dummy )
         writer = csv.writer(file)
         writer.writerow([dummy, StationRes])
 #-------------------Clear CSV when new dummy starts-----------
@@ -290,3 +315,41 @@ def _get_code(val: str) -> str:
     except Exception as e:
         server_instance._log_add("ERROR", f"Error in auto_load_csv_by_product_number: {e}")
         return False
+    
+
+
+
+
+def _failure_mode_station2_check(target_dummy=None , Client= None):
+    
+    """
+    Check if Station2 failed for the given dummy.
+    Returns: True if failed, False otherwise
+    """
+    try:
+        # Read the Station2 dummies CSV
+        station2_dummies_data = pd.read_csv(STATION2_dummies_FILE)
+        
+        if station2_dummies_data.empty:
+            return False
+        
+        # Filter for the specific dummy
+        if target_dummy:
+            dummy_row = station2_dummies_data[
+                station2_dummies_data['DummyNumber'] == target_dummy
+            ]
+            
+            if dummy_row.empty:
+                return False
+            
+            # Check the result column (assuming it's 'StationResult')
+            result = dummy_row.iloc[0]['StationResult']
+            
+            return result 
+        
+        return False
+        
+    except Exception as e:
+        Client._log_add("ERROR", f"Error checking Station2 failure: {e}")
+        return False
+    #عايزة اعمل او بين الريزيلتس لو واحدة فيهم pass يبقى pass 

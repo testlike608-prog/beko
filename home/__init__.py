@@ -1,9 +1,9 @@
-from flask import Blueprint
+from flask import Blueprint , jsonify
 from flask import render_template, request, redirect, url_for, session
 import  os
 import helpers as hlb
 from ClientsClass import queue_manual, queue_manual2
-import queue, jsonify
+import queue 
 
 home = Blueprint(
     "home",
@@ -13,7 +13,7 @@ home = Blueprint(
 )
 
 
-@home.route('/add_to_queue', methods=['POST'])
+@home.route('/home/add_to_queue', methods=['POST'])
 def add_to_queue():
     data = request.json
     dummy_number = data.get('dummy_number')
@@ -35,8 +35,8 @@ def add_to_queue():
     except queue.Full:
         return jsonify({"status": "error", "message": "Queue is full!"}), 500
     
-@home.route('/add_to_queue2', methods=['POST'])
-def add_to_queue():
+@home.route('/home/add_to_queue2', methods=['POST'])
+def add_to_queue2():
     data = request.json
     dummy_number = data.get('dummy_number')
     
