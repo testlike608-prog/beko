@@ -10,6 +10,12 @@ import re
 from typing import Dict
 import textwrap 
 from queue import Empty
+
+global queue_manual
+global queue_manual2 
+
+
+
 #Scanner_IP & Port
 Ip_Scanner1 = "192.168.1.16"  #"192.168.1.16"
 Port_Scanner1 = 7940         #7940
@@ -109,6 +115,8 @@ zero_values_list  = []
 db_lock = threading.Lock()
 
 
+queue_manual  = queue.Queue()
+queue_manual2 = queue.Queue()
 #functions 
 # ---------------- Auto-load CSV by ProductNumber ----------------
 def auto_load_csv_by_product_number(product_number: str, part: str, server_instance , queue: queue): # server_instance = client intense
@@ -940,6 +948,7 @@ class App():
     def _SN_Proccess2():
          
          pass
+    
     def _IO_Writer_station_1(self):
         
        #self.client_write_io.send_request(message=CMD_ACTION_S1, is_hex=True)
@@ -947,7 +956,7 @@ class App():
             Handle Station 1 device action with proper image waiting logic
             """
         global Manual_Scanner_MODE, NO_CSV_ERROR, Buzzer_Flag_to_OFF, Buzzer_Flag_to_OFF2
-        global image_SN1, last_image_SN1  # Make sure we can access these
+        global image_SN1, last_image_SN1, queue_manual  # Make sure we can access these
 
         try:
             
@@ -956,10 +965,26 @@ class App():
             self.client_write_io.send_request(ON_SCANNER_S1,is_hex=True)    #  scanner ON
             time.sleep(0.5)
             try:
+                time.sleep(2)
                 if not self.client_scanner_station1.shared_queue3.empty():
                      self.client_scanner_station1.shared_queue3.get()
                      self.client_scanner_station1.shared_queue3.task_done() 
                      self.client_write_io.send_request(OFF_SCANNER_S1,is_hex=True)    # scanner Off
+                else:
+                    self.client_write_io.send_request(OFF_SCANNER_S1,is_hex=True)    # scanner Off
+                    Manual_Scanner_MODE = True 
+                    while Manual_Scanner_MODE:
+                        if Buzzer_Flag_to_OFF:
+                            self.client_write_io.send_request(CMD_OFF_ALL,is_hex=True)
+                            Buzzer_Flag_to_OFF = False
+                    
+                    if not queue_manual.empty():
+                        queue_manual.get()
+                        queue_manual.task_done() 
+                        self.client_write_io.send_request(OFF_SCANNER_S1,is_hex=True)    # scanner Off
+                        
+
+                        
             except Exception as e:
                    self.client_scanner_station1.log_add("FATAL", f"ERROR WHILE SCANNING DUMMY NUMBER: {e}")
         except Exception as e:
@@ -1162,10 +1187,19 @@ class App():
                         # تأكيد إتمام المهمة للكيو الخاص بالـ dummy
                         self.client_scanner_station1.shared_queue2.task_done()
                     except:
+                        dummy = queue_manual.get_nowait()
+                        
+                        # 4. الرفع لقاعدة البيانات
+                        db.upload_tests_result_to_db(
+                            dummy=dummy,
+                            station_name=station_name,
+                            station_result=station_result,
+                            failed_tests=failed_tests,
+                            Client=self.client_scanner_station1)
                         self.client_scanner_station1._log_add("WARNING", "No dummy ID found in shared_queue2")
 
                     # تأكيد إتمام المهمة للكيو الخاص بالنتائج
-                    self.client_Vision_station1.shared_queue.task_done()
+                        queue_manual.task_done()
             
             except Exception as e:
                 self.client_scanner_station1._log_add("ERROR", f"Error in processing: {e}")

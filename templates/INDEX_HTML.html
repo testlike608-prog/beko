@@ -453,6 +453,59 @@
 
 
   <script>
+    
+
+    // 1. تعريف الـ Queue كمصفوفة فارغة
+    document.getElementById('btnDummyStation1').addEventListener('click', async () => {
+    const input = document.getElementById('dummyStation1');
+    const status = document.getElementById('dummyStation1Status');
+    const value = input.value.trim();
+
+    if (!value) return;
+
+    try {
+        const response = await fetch('/add_to_queue', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dummy_number: value })
+        });
+
+        if (response.ok) {
+            const res = await response.json();
+            status.innerText = `✅ Sent! Queue Size: ${res.current_count}`;
+            status.className = "text-xs mt-2 text-emerald-600 font-bold";
+            input.value = ""; // تصفير الخانة
+        }
+    } catch (err) {
+        status.innerText = "❌ Connection Failed";
+        status.className = "text-xs mt-2 text-red-500";
+    }
+});
+document.getElementById('btnDummyStation2').addEventListener('click', async () => {
+    const input = document.getElementById('dummyStation2');
+    const status = document.getElementById('dummyStation2Status');
+    const value = input.value.trim();
+
+    if (!value) return;
+
+    try {
+        const response = await fetch('/add_to_queue2', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dummy_number: value })
+        });
+
+        if (response.ok) {
+            const res = await response.json();
+            status.innerText = `✅ Sent! Queue Size: ${res.current_count}`;
+            status.className = "text-xs mt-2 text-emerald-600 font-bold";
+            input.value = ""; // تصفير الخانة
+        }
+    } catch (err) {
+        status.innerText = "❌ Connection Failed";
+        status.className = "text-xs mt-2 text-red-500";
+    }
+});
     window.__currentProgramS1 = { sku: null, part: null, file: null, label: null, data: null };
     window.__currentProgramS2 = { sku: null, part: null, file: null, label: null, data: null };
     let lastSeq = 0, AUTO_SEND_ENABLED = true, lastTriggerAt = 0;

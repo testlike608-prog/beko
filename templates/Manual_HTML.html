@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                .modal-overlay {
+                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                    background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center;
+                }
+                .modal-box {
+                    background: white; padding: 30px; border-radius: 10px; text-align: center;
+                    max-width: 400px; font-family: sans-serif;
+                }
+                .btn-close {
+                    background: #aa1f1a; color: white; border: none;
+                    padding: 10px 20px; border-radius: 5px;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="modal-overlay">
+                <div class="modal-box">
+                    <h2>⚠️ System Alert</h2>
+                    <p>{{ message }}</p>
+
+                    <form method="POST" action="/ManualPopup/ack">
+                        <button class="btn-close" type="submit">OK</button>
+                    </form>
+                </div>
+            </div>
+        </body>
+        </html>

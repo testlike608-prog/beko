@@ -6,6 +6,7 @@ from auth import auth
 from flash import flash
 from home import home 
 from SQL import SQL
+from Manual import Manual
 from CreateUser import CreateUser
 from CreateProgram import CreateProgram
 from ClientsClass import App
@@ -21,6 +22,7 @@ app.register_blueprint(home) #index
 app.register_blueprint(CreateProgram) #create program App
 app.register_blueprint(CreateUser) #create User App
 app.register_blueprint(SQL)
+app.register_blueprint(Manual)
 
 
 
