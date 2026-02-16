@@ -17,6 +17,8 @@ global NO_CSV_ERROR
 NO_CSV_ERROR = False
 global Buzzer_Flag_to_OFF
 global Buzzer_Flag_to_OFF2
+
+Buzzer_Flag_to_OFF = False
 #Scanner_IP & Port
 Ip_Scanner1 = "192.168.1.16"  #"192.168.1.16"
 Port_Scanner1 = 7940         #7940
@@ -116,8 +118,10 @@ zero_values_list  = []
 db_lock = threading.Lock()
 
 
-queue_manual  = queue.Queue()
-queue_manual2 = queue.Queue()
+queue_manual_FOR_FAILURE  = queue.Queue()
+queue_manual_FOR_Proessing  = queue.Queue()
+queue_manual2_FOR_FAILURE  = queue.Queue()
+queue_manual2_FOR_Proessing = queue.Queue()
 #functions 
 # ---------------- Auto-load CSV by ProductNumber ----------------
 def auto_load_csv_by_product_number(product_number: str, part: str, server_instance , queue: queue): # server_instance = client intense
@@ -1009,13 +1013,15 @@ class App():
                     self.client_write_io.send_request(OFF_SCANNER_S1,is_hex=True)    # scanner Off
                     Manual_Scanner_MODE = True 
                     while Manual_Scanner_MODE:
+                        self.client_write_io.send_request(ON_BUZZER_S1,is_hex=True)  # buzzer on
                         if Buzzer_Flag_to_OFF:
                             self.client_write_io.send_request(CMD_OFF_ALL,is_hex=True)
+                            self.client_write_io.send_request(OFF_BUZZER_S1,is_hex=True)  # buzzer off
                             Buzzer_Flag_to_OFF = False
                             
                     
-                    if  queue_manual.empty():
-                        dummy = queue_manual.get_nowait()                      
+                    if  queue_manual_FOR_FAILURE.empty():
+                        dummy = queue_manual_FOR_FAILURE.get_nowait()                      
                         self.client_write_io.send_request(OFF_SCANNER_S1,is_hex=True)    # scanner Off
                      
 
@@ -1058,7 +1064,7 @@ class App():
                      plc_signal_period = hlb.TIME_SETTINGS['PlcSignal']
                      self.client_write_io.send_request(OFF_FAILURE,is_hex=True) 
                 image_received = True
-                
+                queue_manual_FOR_FAILURE.task_done()
             '''
             # Check for timeout
             if current_time - start_time > image_timeout:
@@ -1189,7 +1195,7 @@ class App():
                         # تأكيد إتمام المهمة للكيو الخاص بالـ dummy
                         self.client_scanner_station1.shared_queue2.task_done()
                     except:
-                        dummy = queue_manual.get_nowait()
+                        dummy = queue_manual_FOR_Proessing.get_nowait()
                         
                         # 4. الرفع لقاعدة البيانات
                         db.upload_tests_result_to_db(
@@ -1201,7 +1207,7 @@ class App():
                         self.client_scanner_station1._log_add("WARNING", "No dummy ID found in shared_queue2")
 
                     # تأكيد إتمام المهمة للكيو الخاص بالنتائج
-                        queue_manual.task_done()
+                        queue_manual_FOR_Proessing.task_done()
             
             except Exception as e:
                 self.client_scanner_station1._log_add("ERROR", f"Error in processing: {e}")
