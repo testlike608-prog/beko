@@ -990,12 +990,11 @@ class App():
                         if Buzzer_Flag_to_OFF:
                             self.client_write_io.send_request(CMD_OFF_ALL,is_hex=True)
                             Buzzer_Flag_to_OFF = False
-                    
+                    '''
                     if not queue_manual.empty():
-                        queue_manual.get()
-                        queue_manual.task_done() 
-                        self.client_write_io.send_request(OFF_SCANNER_S1,is_hex=True)    # scanner Off
                         
+                        self.client_write_io.send_request(OFF_SCANNER_S1,is_hex=True)    # scanner Off
+                    ''' 
 
                         
             except Exception as e:
