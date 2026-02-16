@@ -20,7 +20,7 @@ global Buzzer_Flag_to_OFF2
 #Scanner_IP & Port
 Ip_Scanner1 = "192.168.1.16"  #"192.168.1.16"
 Port_Scanner1 = 7940         #7940
-Ip_Scanner2 = "192.168.1.17"   #"192.168.1.17"
+Ip_Scanner2 = "127.0.0.1"   #"192.168.1.17"
 Port_Scanner2 = 7950         #7950
 
 #Vision Master_IP & Port
@@ -48,7 +48,7 @@ CMD_Read_Inputs=            "000300000006010300220001"                      #the
 
 
 #write single output ON
-ON_LIGHTING_S1 =            "00010000000601050000FF00" #D0 ON
+ON_LIGHTING_S1 =            "00010000000601050008FF00" #D0 ON
 ON_LIGHTING_S2   =            "00010000000601050001FF00" #D1 ON 
 ON_BUZZER_S1   =            "00010000000601050002FF00" #D2 ON
 ON_BUZZER_S2 =            "00010000000601050003FF00" #D3 ON
@@ -58,7 +58,7 @@ ON_TESTDONE_S1 =            "00010000000601050006FF00" #D6 ON
 ON_TESTDONE_S2 =            "00010000000601050007FF00" #D7 ON
 ON_FAILURE     =            "00010000000601050008FF00" #D8 ON
 #WRITE SINGLE OUTPUT OFF
-OFF_LIGHTING_S1 =            "000100000006010500000000" #D0 OFF
+OFF_LIGHTING_S1 =            "000100000006010500080000" #D0 OFF
 OFF_BUZZER_S2   =            "000100000006010500010000" #D1 OFF
 OFF_BUZZER_S1   =            "000100000006010500020000" #D2 OFF
 OFF_LIGHTING_S2 =            "000100000006010500030000" #D3 OFF
@@ -637,6 +637,8 @@ class App():
         self.client_Vision_station1.start_reconnection_watchdog()
         self.client_Vision_station2.start_reconnection_watchdog()
         self.client_scanner_station2.start_reconnection_watchdog()  
+        self.client_Vision_station1_SN.start_reconnection_watchdog()
+        self.client_Vision_station2_SN.start_reconnection_watchdog()
         
         self.client_scanner_station1.start_listening(self._scanner_station_1)
         self.client_scanner_station2.start_listening(self._scanner_station_2)
@@ -648,22 +650,27 @@ class App():
         
 # servers handling
     def _IO_read (self):
-         
+        self.client_read_io._log_add("INFO", f"start reading from io")
         last_DI0 = b"\0x00"
         last_DI1 = b"\0x00"
         while self.client_read_io.connected:
             try:
 
                 DI0_respond=self.client_read_io.send_request(message= CMD_READ_DI0, is_hex= True)
-                if DI0_respond [-1:]== b"\0x01" and  last_DI0 == b"\0x00" :
+                #self.client_read_io._log_add("INFO", f"the io reading [{DI0_respond}]")
+                #self.client_read_io._log_add("INFO", f"the io reading [{DI0_respond[-1:]}]")
+                #self.client_read_io._log_add("INFO", f"[{ DI0_respond [-1:]== b"\x01" and  last_DI0 == b"\x00"}]" )
+                if DI0_respond [-1:]== b"\x01" and  last_DI0 == b"\x00" :
                      threading.Thread(target =self._IO_Writer_station_1, daemon= True).start()
+                     self.client_read_io._log_add("INFO", f"found fridg in station 1")
                 last_DI0 = DI0_respond [-1:]
                 
                 time.sleep(0.01)
 
                 DI1_respond = self.client_read_io.send_request(message= CMD_READ_DI1,is_hex= True)
-                if DI1_respond [-1:]== b"\0x01" and  last_DI1 == b"\0x00":
+                if DI1_respond [-1:]== b"\x01" and  last_DI1 == b"\x00":
                     threading.Thread(target =self._IO_Writer_station_2, daemon= True).start()
+                    self.client_read_io._log_add("INFO", f"found fridg in station 2")
                 last_DI1 = DI1_respond [-1:]
             except:
                 self.client_read_io._log_add("INFO", f"زفت")
@@ -958,9 +965,21 @@ class App():
          except Exception as e:
                 self.client_Vision_station1_SN._log_add("ERROR",f"{e}")
           
-    def _SN_Proccess2():
+    def _SN_Proccess2(self,data:bytes):
          
-         pass
+        global image_SN2
+        try:
+             text = data.decode("utf-8", errors="ignore").strip()
+             Chunks=text.split("-")
+             
+             if Chunks[0] == "SN":
+                 image_SN2 = Chunks[1]
+                 self.client_Vision_station1_SN._log_add("ERROR",f"Image serial Number Station2 {image_SN2}")
+             else:
+                 self.client_Vision_station1_SN._log_add("ERROR",f"UNEXPECTED INCOMING DATA FROM [{Ip_vision_outer_SN}]:{Port_vision_outer_SN}")
+        except Exception as e:
+                self.client_Vision_station1_SN._log_add("ERROR",f"{e}")
+          
     
     def _IO_Writer_station_1(self):
         
@@ -968,6 +987,8 @@ class App():
         """
             Handle Station 1 device action with proper image waiting logic
             """
+        self.client_write_io._log_add("FATAL", f"entered the seq of station 1")
+
         global Manual_Scanner_MODE, NO_CSV_ERROR, Buzzer_Flag_to_OFF, Buzzer_Flag_to_OFF2
         global image_SN1, last_image_SN1, queue_manual  # Make sure we can access these
 
@@ -978,10 +999,11 @@ class App():
             self.client_write_io.send_request(ON_SCANNER_S1,is_hex=True)    #  scanner ON
             time.sleep(0.5)
             try:
-                time.sleep(2)
+                time.sleep(3)
                 if not self.client_scanner_station1.shared_queue3.empty():
                      dummy = self.client_scanner_station1.shared_queue3.get()
                      self.client_scanner_station1.shared_queue3.task_done() 
+                     self.client_scanner_station1._log_add("FATAL", f"I GOT THE DUMMY [{dummy}]")
                      self.client_write_io.send_request(OFF_SCANNER_S1,is_hex=True)    # scanner Off
                 else:
                     self.client_write_io.send_request(OFF_SCANNER_S1,is_hex=True)    # scanner Off
@@ -990,18 +1012,19 @@ class App():
                         if Buzzer_Flag_to_OFF:
                             self.client_write_io.send_request(CMD_OFF_ALL,is_hex=True)
                             Buzzer_Flag_to_OFF = False
-                    '''
-                    if not queue_manual.empty():
-                        
+                            
+                    
+                    if  queue_manual.empty():
+                        dummy = queue_manual.get_nowait()                      
                         self.client_write_io.send_request(OFF_SCANNER_S1,is_hex=True)    # scanner Off
-                    ''' 
+                     
 
                         
             except Exception as e:
-                   self.client_scanner_station1.log_add("FATAL", f"ERROR WHILE SCANNING DUMMY NUMBER: {e}")
+                   self.client_scanner_station1._log_add("FATAL", f"ERROR WHILE SCANNING DUMMY NUMBER: {e}")
         except Exception as e:
-            self._log_add("FATAL", f"S1 device init error: {e}")
-            self.send_to_device(CMD_OFF_ALL,is_hex=True)
+            self.client_write_io._log_add("FATAL", f"S1 device init error: {e}")
+            self.client_write_io.send_request(CMD_OFF_ALL,is_hex=True)
             return
 
         # ✅ FIX: Capture the starting state before waiting
@@ -1009,7 +1032,7 @@ class App():
         initial_image_state = image_SN1  # Remember what image_SN1 was at the start
         image_timeout = hlb.TIME_SETTINGS['ImageTimeout']
         
-        self._log_add("INFO", f"Waiting for new image. Current state: {initial_image_state}")
+        self.client_write_io._log_add("INFO", f"Waiting for new image. Current state: {initial_image_state}")
 
         # ---- wait for NEW image ----
         # ✅ FIX: Proper loop with three conditions:
@@ -1023,7 +1046,7 @@ class App():
             
             # Check if we got a new image
             if image_SN1 is not None and image_SN1 != initial_image_state:
-                self._log_add("INFO", f"New image received: {image_SN1}")
+                self.client_write_io._log_add("INFO", f"New image received: {image_SN1}")
                 self.client_write_io.send_request(OFF_LIGHTING_S1,is_hex=True)   # lighting OFF
                 self.client_write_io.send_request(ON_TESTDONE_S1,is_hex=True) 
                 plc_signal_period = hlb.TIME_SETTINGS['PlcSignal']
@@ -1047,7 +1070,7 @@ class App():
 
         # ---- image received successfully ----
         last_image_SN1 = image_SN1
-        self._log_add("INFO", f"Image processing complete for: {image_SN1}")
+        self.client_write_io._log_add("INFO", f"Image processing complete for: {image_SN1}")
         
     
     
