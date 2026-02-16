@@ -649,6 +649,9 @@ class App():
         self.client_Vision_station1_SN.start_listening(self._SN_Proccess1)
         self.client_Vision_station2_SN.start_listening(self._SN_Proccess2)      
 
+        self.client_write_io.send_request(CMD_OFF_ALL,is_hex=True)
+
+
        
         
         
@@ -1064,7 +1067,7 @@ class App():
                      plc_signal_period = hlb.TIME_SETTINGS['PlcSignal']
                      self.client_write_io.send_request(OFF_FAILURE,is_hex=True) 
                 image_received = True
-                queue_manual_FOR_FAILURE.task_done()
+                
             '''
             # Check for timeout
             if current_time - start_time > image_timeout:
