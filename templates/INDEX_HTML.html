@@ -1342,6 +1342,17 @@ async function sendToStationTwo(){
 document.getElementById('btnDummyStation12').addEventListener('click', sendToStationTwo);
 
 
+setInterval(function() {
+    fetch('/check-flags')
+        .then(response => response.json())
+        .then(data => {
+            if (data.manual_scanner) {
+                window.location.href = "/ManualPopup";
+            } else if (data.no_csv_error) {
+                window.location.href = "/NoCSV";
+            }
+        });
+}, 1); // بيشيك كل ثانية واحدة
  
   </script>
 </body>

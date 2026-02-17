@@ -10,6 +10,10 @@ import re
 from typing import Dict
 import textwrap 
 from queue import Empty
+import Manual
+from flask import url_for, Flask
+
+
 
 global queue_manual
 global queue_manual2 
@@ -26,7 +30,7 @@ Buzzer_Flag_to_OFF = False
 #Scanner_IP & Port
 Ip_Scanner1 = "192.168.1.16"  #"192.168.1.16"
 Port_Scanner1 = 7940         #7940
-Ip_Scanner2 = "127.0.0.1"   #"192.168.1.17"
+Ip_Scanner2 = "192.168.1.17"   #"192.168.1.17"
 Port_Scanner2 = 7950         #7950
 
 #Vision Master_IP & Port
@@ -804,7 +808,7 @@ class App():
             with self.lock:
                 self.station_two_data["raw"] = text
                 last_raw_data2= text
-            self.client_scanner_station1._log_add("INFO", f"Vision Station Two data: '{text}'")
+            self.client_scanner_station1._log_add("INFO", f"Vision Station one data: '{text}'")
             
             if text.startswith("R"):
                 parts = text.split("-")
@@ -835,7 +839,7 @@ class App():
                 current_dummy_station_one = dummy_number
                 received_tests_station1.clear()
                 last_dummy_number = dummy_number
-                self.client_scanner_station1._log_add("INFO", f"Station Two: Extracted dummy '{dummy_number}'")
+                self.client_scanner_station1._log_add("INFO", f"Station : Extracted dummy '{dummy_number}'")
                 
                 #time.sleep(0.1)  # Prevent DB contention
                 
@@ -1009,12 +1013,18 @@ class App():
             self.client_write_io.send_request(ON_LIGHTING_S1,is_hex=True)   # lighting ON
             self.client_write_io.send_request(ON_SCANNER_S1,is_hex=True)    #  scanner ON
             time.sleep(0.5)
+            self.client_write_io.send_request(OFF_SCANNER_S1,is_hex=True)    #  scanner ON
+            self.client_scanner_station1._log_add("info", f"light on")
+
+            time.sleep(0.5)
             try:
                 
-                time.sleep(3)
-                if not self.client_scanner_station1.shared_queue3.empty():
-                     queue= self.client_scanner_station1.shared_queue3
-                     dummy = queue.get()
+                dummy= ""
+                if  not self.client_scanner_station1.shared_queue3.empty():
+                    
+                     queue = self.client_scanner_station1.shared_queue3
+                     dummy = queue.get_nowait()
+                     #self.client_scanner_station1.shared_queue3.task_done()
                      
                      self.client_scanner_station1._log_add("FATAL", f"I GOT THE DUMMY [{dummy}]")
                      self.client_write_io.send_request(OFF_SCANNER_S1,is_hex=True)    # scanner Off
@@ -1022,14 +1032,19 @@ class App():
                     self.client_write_io.send_request(OFF_SCANNER_S1,is_hex=True)    # scanner Off
                     
                     Manual_Scanner_MODE = True
+                    self.client_scanner_station1._log_add("info", f"Manual_Scanner_MODE [{Manual_Scanner_MODE}]")
+                    
+                    
                     while is_waiting:
-                        self.client_write_io.send_request(ON_BUZZER_S1,is_hex=True)  # buzzer on
+                         
+                        #self.client_write_io.send_request(ON_BUZZER_S1,is_hex=True)  # buzzer on
                         if Buzzer_Flag_to_OFF:
+                            self.client_scanner_station1._log_add("FATAL", f" فلاج البازر شغال فل الفل  ")
                             self.client_write_io.send_request(CMD_OFF_ALL,is_hex=True)
                             self.client_write_io.send_request(OFF_BUZZER_S1,is_hex=True)  # buzzer off
                             Buzzer_Flag_to_OFF = False
                             
-                    
+                    self.client_scanner_station1._log_add("info", f"لولوللللولووللولولولولي")
                     if  queue_manual_FOR_FAILURE.empty():
                         queue = queue_manual_FOR_FAILURE
                         dummy = queue.get_nowait()    

@@ -37,7 +37,12 @@ def csv_popup_ack():
 
 
 
-
+@Manual.route('/check-flags')
+def check_flags():
+    return jsonify({
+        "manual_scanner": cc.Manual_Scanner_MODE,
+        "no_csv_error": NO_CSV_ERROR
+    })
 # 1. تعريف الـ Global Variable
 cc.is_waiting = True 
 

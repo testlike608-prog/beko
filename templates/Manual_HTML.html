@@ -23,9 +23,19 @@
                     <p>{{ message }}</p>
 
                     <form method="POST" action="/ManualPopup/ack">
-                        <button class="btn-close" type="submit">OK</button>
+                        <button class="btn-close" type="submit" onclick="func()">OK</button>
                     </form>
                 </div>
             </div>
         </body>
+
+        <script>
+        async function func(){
+            fetch('/ManualPopup/ack')
+
+
+        }
+        
+        
+        </script>
         </html>
