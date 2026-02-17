@@ -1,9 +1,8 @@
 import pyodbc
-from flask import Blueprint
+from flask import Blueprint , jsonify
 from flask import render_template, request
 from helpers import TIME_SETTINGS
-
-
+import db
 
 
 
@@ -14,12 +13,43 @@ SQL = Blueprint("SQL",
     static_folder="static",
     template_folder="templates"
 )
+@SQL.get("/sql_status")
+def http_sql_status():
+    """Get SQL connection status for AJAX updates"""
+    
+    
+    # Check if databases are actually connected
+    db1_connected = False
+    db2_connected = False
+    
+    if db.conn_str_db1_global:
+        try:
+            with pyodbc.connect(db.conn_str_db1_global, timeout=2):
+                pass
+            db1_connected = True
+        except:
+            db1_connected = False
+    
+    if db.conn_str_db2_global:
+        try:
+            with pyodbc.connect(db.conn_str_db2_global, timeout=2):
+                pass
+            db2_connected = True
+        except:
+            db2_connected = False
+    
+    return jsonify({
+        
+        "db1_connected": db1_connected,
+        "db2_connected": db2_connected,
+       
+    })
 
 @SQL.route("/sql_connection", methods=["GET", "POST"])
 def sql_connection():
-    global conn_str_db1_global, conn_str_db2_global, message, last_dummy_number, last_dummy_number2
-    global sock1, sock3, listener_thread, running, server1_connected, server3_connected
-    global last_raw_data, last_raw_data2, last_dummy_extracted, last_dummy_extracted2, last_db_status, last_db_status2
+    global  message
+ 
+
     message = ""
     if request.method == "POST":
         action = request.form.get("action")
@@ -27,19 +57,11 @@ def sql_connection():
         # If Reset button pressed
         if request.form.get("reset") == "true":
             return render_template("SQL_CONNECTION_HTML.html", 
-                                        message="", form_data={}, 
-                                        last_dummy_number=last_dummy_number,
-                                        last_dummy_number2=last_dummy_number2,
-                                        server1_connected=server1_connected,
-                                        server3_connected=server3_connected,
-                                        conn_str_db1_global=conn_str_db1_global,
-                                        conn_str_db2_global=conn_str_db2_global,
-                                        last_raw_data=last_raw_data,
-                                        last_raw_data2=last_raw_data2,
-                                        last_dummy_extracted=last_dummy_extracted,
-                                        last_dummy_extracted2=last_dummy_extracted2,
-                                        last_db_status=last_db_status,
-                                        last_db_status2=last_db_status2
+                                        message="", form_data={},
+                                        conn_str_db1_global=db.conn_str_db1_global,
+                                        conn_str_db2_global=db.conn_str_db2_global,
+                                        
+                                    
                                    
                                        )
 
@@ -82,8 +104,8 @@ def sql_connection():
                 pyodbc.connect(conn_str1, timeout=TIME_SETTINGS['dbTimeout']).close()
                 pyodbc.connect(conn_str2, timeout=TIME_SETTINGS['dbTimeout']).close()
 
-                conn_str_db1_global = conn_str1
-                conn_str_db2_global = conn_str2
+                db.conn_str_db1_global = conn_str1
+                db.conn_str_db2_global = conn_str2
                 message = "DATABASE CONNECTION SUCCESSFUL (Server 1 & Server 2)"
 
                 # Save last successful settings for both servers

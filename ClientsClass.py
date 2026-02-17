@@ -17,6 +17,10 @@ global NO_CSV_ERROR
 NO_CSV_ERROR = False
 global Buzzer_Flag_to_OFF
 global Buzzer_Flag_to_OFF2
+global is_waiting
+global Manual_Scanner_MODE
+Manual_Scanner_MODE = False
+is_waiting = True
 
 Buzzer_Flag_to_OFF = False
 #Scanner_IP & Port
@@ -595,7 +599,7 @@ class App():
 
         #auto connnect with data base
         #self.auto_connect_db()
-        db.auto_connect_db()
+        #db.auto_connect_db()
 
         #self.test_results_dict = dict()
 
@@ -996,8 +1000,8 @@ class App():
             """
         self.client_write_io._log_add("FATAL", f"entered the seq of station 1")
 
-        global Manual_Scanner_MODE, NO_CSV_ERROR, Buzzer_Flag_to_OFF, Buzzer_Flag_to_OFF2
-        global image_SN1, last_image_SN1, queue_manual  # Make sure we can access these
+        global Manual_Scanner_MODE, NO_CSV_ERROR, Buzzer_Flag_to_OFF
+        global image_SN1, last_image_SN1, queue_manual_FOR_FAILURE, is_waiting  # Make sure we can access these
 
         try:
             
@@ -1006,16 +1010,19 @@ class App():
             self.client_write_io.send_request(ON_SCANNER_S1,is_hex=True)    #  scanner ON
             time.sleep(0.5)
             try:
+                
                 time.sleep(3)
                 if not self.client_scanner_station1.shared_queue3.empty():
-                     dummy = self.client_scanner_station1.shared_queue3.get()
-                     self.client_scanner_station1.shared_queue3.task_done() 
+                     queue= self.client_scanner_station1.shared_queue3
+                     dummy = queue.get()
+                     
                      self.client_scanner_station1._log_add("FATAL", f"I GOT THE DUMMY [{dummy}]")
                      self.client_write_io.send_request(OFF_SCANNER_S1,is_hex=True)    # scanner Off
                 else:
                     self.client_write_io.send_request(OFF_SCANNER_S1,is_hex=True)    # scanner Off
-                    Manual_Scanner_MODE = True 
-                    while Manual_Scanner_MODE:
+                    
+                    Manual_Scanner_MODE = True
+                    while is_waiting:
                         self.client_write_io.send_request(ON_BUZZER_S1,is_hex=True)  # buzzer on
                         if Buzzer_Flag_to_OFF:
                             self.client_write_io.send_request(CMD_OFF_ALL,is_hex=True)
@@ -1024,7 +1031,9 @@ class App():
                             
                     
                     if  queue_manual_FOR_FAILURE.empty():
-                        dummy = queue_manual_FOR_FAILURE.get_nowait()                      
+                        queue = queue_manual_FOR_FAILURE
+                        dummy = queue.get_nowait()    
+                        queue_manual_FOR_FAILURE.task_done()                  
                         self.client_write_io.send_request(OFF_SCANNER_S1,is_hex=True)    # scanner Off
                      
 
@@ -1067,7 +1076,7 @@ class App():
                      plc_signal_period = hlb.TIME_SETTINGS['PlcSignal']
                      self.client_write_io.send_request(OFF_FAILURE,is_hex=True) 
                 image_received = True
-                
+                queue.task_done()
             '''
             # Check for timeout
             if current_time - start_time > image_timeout:
@@ -1220,21 +1229,69 @@ class App():
 
 
     def data_processing_station2(self):
-        test_results_dict =  self.client_Vision_station2.shared_queue.get( test_results_dict)
-        zero_values_list = [k for k, v in test_results_dict.items() if v == "0"]
-        failed_tests = ", ".join(zero_values_list)
-        station_name = "VisionInnerTest"
-        dummy= self.client_scanner_station2.shared_queue2.get(dummy_number)
-        if zero_values_list :
-            station_result = "FALL"  
-        else:
-            station_result = "PASS"  
-        db.upload_tests_result_to_db(dummy=dummy,
-                                    station_name=station_name,
-                                    station_result=station_result,
-                                    failed_tests=failed_tests
-                                    )
-        hlb.insert_csv_station2_dummies(dummy=dummy,StationRes=station_result)
+        self.client_scanner_station2._log_add("INFO", "Station 2 processing thread started")
+         
+        test_results_dict = {}
+        self.client_scanner_station2._log_add("INFO", "قبل التراااااي")
+        try:
+                self.client_scanner_station2._log_add("INFO", "مستني داتا من Vision 2")
+
+                # 1. الأفضل نستخدم blocking get مع timeout بدل الـ empty()
+                # كدة الثريد هينام ويفوق أول ما داتا تيجي، وده أحسن للبروسيسور
+                try:
+                    # بيستنى داتا من Vision Station 1 لمدة ثانية
+                    test_results_dict = self.client_Vision_station2.shared_queue.get(timeout=30)
+                    self.client_scanner_station2._log_add("INFO", f"AAAAAAAAAAAAAAAA😊{test_results_dict}")
+                except Empty: 
+                    # لو مفيش داتا جات في خلال ثانية، يرجع يلف تاني}
+                    self.client_scanner_station2._log_add("INFO", "AAAAAAAAAAAAAAAA😊")
+
+                if test_results_dict and isinstance(test_results_dict, dict):                    
+                    # 2. استخراج الاختبارات الفاشلة
+                    zero_values_list = [k for k, v in test_results_dict.items() if v == "0"]
+                    failed_tests = ", ".join(zero_values_list)
+                    station_name = "VisionOuterTest"
+                    if zero_values_list:
+
+                        station_result = "FAIL" 
+                    else :
+                        station_result = "PASS" 
+                       
+                    # 3. سحب رقم الـ Dummy (تأكد أن الكيو ده فيه داتا فعلاً)
+                    try:
+                        dummy = self.client_scanner_station2.shared_queue2.get_nowait()
+                        
+                        # 4. الرفع لقاعدة البيانات
+                        db.upload_tests_result_to_db(
+                            dummy=dummy,
+                            station_name=station_name,
+                            station_result=station_result,
+                            failed_tests=failed_tests,
+                            Client=self.client_scanner_station1
+                        )
+                        
+
+                        # تأكيد إتمام المهمة للكيو الخاص بالـ dummy
+                        self.client_scanner_station1.shared_queue2.task_done()
+                    except:
+                        dummy = queue_manual2_FOR_Proessing.get_nowait()
+                        
+                        # 4. الرفع لقاعدة البيانات
+                        db.upload_tests_result_to_db(
+                            dummy=dummy,
+                            station_name=station_name,
+                            station_result=station_result,
+                            failed_tests=failed_tests,
+                            Client=self.client_scanner_station1)
+                        self.client_scanner_station1._log_add("WARNING", "No dummy ID found in shared_queue2")
+
+                    # تأكيد إتمام المهمة للكيو الخاص بالنتائج
+                        queue_manual_FOR_Proessing.task_done()
+            
+        except Exception as e:
+                self.client_scanner_station1._log_add("ERROR", f"Error in processing: {e}")
+                time.sleep(1) # عشان لو حصل خطأ متكرر ميعلقش الجهاز
+
    
     '''
 #database handling
