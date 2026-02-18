@@ -352,4 +352,3 @@ def _failure_mode_station2_check(target_dummy=None , Client= None):
     except Exception as e:
         Client._log_add("ERROR", f"Error checking Station2 failure: {e}")
         return False
-    #عايزة اعمل او بين الريزيلتس لو واحدة فيهم pass يبقى pass 

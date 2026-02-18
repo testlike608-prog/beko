@@ -24,13 +24,13 @@ global Buzzer_Flag_to_OFF2
 global is_waiting
 global Manual_Scanner_MODE
 Manual_Scanner_MODE = False
-is_waiting = False
+is_waiting = True
 
 Buzzer_Flag_to_OFF = False
 #Scanner_IP & Port
-Ip_Scanner1 = "127.0.0.1"  #"192.168.1.16"
+Ip_Scanner1 = "192.168.1.16"  #"192.168.1.16"
 Port_Scanner1 = 7940         #7940
-Ip_Scanner2 = "127.0.0.1"   #"192.168.1.17"
+Ip_Scanner2 = "192.168.1.17"   #"192.168.1.17"
 Port_Scanner2 = 7950         #7950
 
 #Vision Master_IP & Port
@@ -45,9 +45,9 @@ Ip_vision_outer_SN = "127.0.0.1"
 Port_vision_outer_SN = 40
 
 #I/O Module_IP & Port
-Ip_read_IO = "127.0.0.1"#"192.168.1.30"
+Ip_read_IO = "192.168.1.30"#"192.168.1.30"
 Port_read_IO = 502
-Ip_write_IO = "127.0.0.1"#"192.168.1.30"
+Ip_write_IO = "192.168.1.30"#"192.168.1.30"
 Port_write_IO = 502
 
 #I/O commands
@@ -1005,7 +1005,7 @@ class App():
         self.client_write_io._log_add("FATAL", f"entered the seq of station 1")
 
         global Manual_Scanner_MODE, NO_CSV_ERROR, Buzzer_Flag_to_OFF
-        global image_SN1, last_image_SN1, queue_manual_FOR_FAILURE, is_waiting  # Make sure we can access these
+        global image_SN1, queue_manual_FOR_FAILURE, is_waiting  # Make sure we can access these
 
         try:
             
@@ -1029,29 +1029,29 @@ class App():
                      self.client_scanner_station1._log_add("FATAL", f"I GOT THE DUMMY [{dummy}]")
                      self.client_write_io.send_request(OFF_SCANNER_S1,is_hex=True)    # scanner Off
                 else:
-                    queue_manual_FOR_FAILURE.queue.clear() # طريقة سريعة لمسح محتويات الكيو داخلياً
-                    queue_manual_FOR_FAILURE.all_tasks_done.notify_all() # إبلاغ أي Thread منتظر بأن المهام انتهت
+                    #queue_manual_FOR_FAILURE.queue.clear() # طريقة سريعة لمسح محتويات الكيو داخلياً
+                    #queue_manual_FOR_FAILURE.all_tasks_done.notify_all() # إبلاغ أي Thread منتظر بأن المهام انتهت
                     self.client_write_io.send_request(OFF_SCANNER_S1,is_hex=True)    # scanner Off
-                    Manual_Scanner_MODE = True
+                    
                     self.client_scanner_station1._log_add("info", f"Manual_Scanner_MODE [{Manual_Scanner_MODE}]")
                     
-                    
+                    Manual_Scanner_MODE = True
                     while  is_waiting:
-                         
-                        #self.client_write_io.send_request(ON_BUZZER_S1,is_hex=True)  # buzzer on
-                        if Buzzer_Flag_to_OFF:
-                            self.client_scanner_station1._log_add("FATAL", f" فلاج البازر شغال فل الفل  ")
-                            self.client_write_io.send_request(CMD_OFF_ALL,is_hex=True)
-                            self.client_write_io.send_request(OFF_BUZZER_S1,is_hex=True)  # buzzer off
-                            Buzzer_Flag_to_OFF = False
-                            
+                        
+                        self.client_write_io.send_request(ON_BUZZER_S1,is_hex=True)  # buzzer on
+                    
+                    self.client_write_io.send_request(OFF_BUZZER_S1,is_hex=True)  # buzzer off
+       
                     self.client_scanner_station1._log_add("info", f"لولوللللولووللولولولولي")
-                    if  queue_manual_FOR_FAILURE.empty():
-                        queue = queue_manual_FOR_FAILURE
-                        dummy = queue.get_nowait()    
-                        queue_manual_FOR_FAILURE.task_done()                  
-                        self.client_write_io.send_request(OFF_SCANNER_S1,is_hex=True)    # scanner Off
-                     
+                    
+                    queue = queue_manual_FOR_FAILURE
+                    dummy = queue.get()    
+                        #queue_manual_FOR_FAILURE.task_done()                  
+                    self.client_write_io.send_request(OFF_SCANNER_S1,is_hex=True)    # scanner Off
+                    self.client_scanner_station1._log_add("info", f"{type(dummy)}")  # R0124090500055
+                        
+                    self._scanner_station_1(dummy.encode())
+                    self.client_scanner_station1._log_add("info", f"وصلناااااا")  # R0124090500055
 
                         
             except Exception as e:
@@ -1109,12 +1109,14 @@ class App():
     
     
     def _IO_Writer_station_2(self):
-       #self.client_write_io.send_request(message=CMD_ACTION_S1, is_hex=True)
+             #self.client_write_io.send_request(message=CMD_ACTION_S1, is_hex=True)
         """
             Handle Station 1 device action with proper image waiting logic
             """
-        global Manual_Scanner_MODE, NO_CSV_ERROR, Buzzer_Flag_to_OFF, Buzzer_Flag_to_OFF2
-        global image_SN2, last_image_SN2  # Make sure we can access these
+        self.client_write_io._log_add("FATAL", f"entered the seq of station 1")
+
+        global Manual_Scanner_MODE, NO_CSV_ERROR, Buzzer_Flag_to_OFF
+        global image_SN2, queue_manual2_FOR_FAILURE, is_waiting  # Make sure we can access these
 
         try:
             
@@ -1122,16 +1124,52 @@ class App():
             self.client_write_io.send_request(ON_LIGHTING_S2,is_hex=True)   # lighting ON
             self.client_write_io.send_request(ON_SCANNER_S2,is_hex=True)    #  scanner ON
             time.sleep(0.5)
+            self.client_write_io.send_request(OFF_SCANNER_S2,is_hex=True)    #  scanner ON
+            self.client_scanner_station1._log_add("info", f"light on")
+
+            time.sleep(0.5)
             try:
-                if not self.client_scanner_station2.shared_queue3.empty():
-                     self.client_scanner_station2.shared_queue3.get()
-                     self.client_scanner_station2.shared_queue3.task_done() 
+                
+                dummy= ""
+                if  not self.client_scanner_station2.shared_queue3.empty():
+                    
+                     queue = self.client_scanner_station2.shared_queue3
+                     dummy = queue.get_nowait()
+                     #self.client_scanner_station1.shared_queue3.task_done()
+                     
+                     self.client_scanner_station2._log_add("FATAL", f"I GOT THE DUMMY [{dummy}]")
                      self.client_write_io.send_request(OFF_SCANNER_S2,is_hex=True)    # scanner Off
+                else:
+                    #queue_manual_FOR_FAILURE.queue.clear() # طريقة سريعة لمسح محتويات الكيو داخلياً
+                    #queue_manual_FOR_FAILURE.all_tasks_done.notify_all() # إبلاغ أي Thread منتظر بأن المهام انتهت
+                    self.client_write_io.send_request(OFF_SCANNER_S2,is_hex=True)    # scanner Off
+                    
+                    self.client_scanner_station2._log_add("info", f"Manual_Scanner_MODE [{Manual_Scanner_MODE}]")
+                    
+                    Manual_Scanner_MODE = True
+                    while  is_waiting:
+                        
+                        self.client_write_io.send_request(ON_BUZZER_S2,is_hex=True)  # buzzer on
+                    
+                    self.client_write_io.send_request(OFF_BUZZER_S2,is_hex=True)  # buzzer off
+       
+                    self.client_scanner_station2._log_add("info", f"لولوللللولووللولولولولي")
+                    
+                    queue = queue_manual_FOR_FAILURE
+                    dummy = queue.get()    
+                        #queue_manual_FOR_FAILURE.task_done()                  
+                    self.client_write_io.send_request(OFF_SCANNER_S2,is_hex=True)    # scanner Off
+                    self.client_scanner_station2._log_add("info", f"{type(dummy)}")  # R0124090500055
+                        
+                    self._scanner_station_2(dummy.encode())
+                    self.client_scanner_station2._log_add("info", f"وصلناااااا")  # R0124090500055
+
+                        
             except Exception as e:
-                   self.client_scanner_station2.log_add("FATAL", f"ERROR WHILE SCANNING DUMMY NUMBER: {e}")
+                   self.client_scanner_station2._log_add("FATAL", f"ERROR WHILE SCANNING DUMMY NUMBER: {e}")
         except Exception as e:
-            self._log_add("FATAL", f"S1 device init error: {e}")
-            self.send_to_device(CMD_OFF_ALLis_hex=True)
+            self.client_write_io._log_add("FATAL", f"S2 device init error: {e}")
+            self.client_write_io.send_request(CMD_OFF_ALL,is_hex=True)
             return
 
         # ✅ FIX: Capture the starting state before waiting
@@ -1139,7 +1177,7 @@ class App():
         initial_image_state = image_SN2  # Remember what image_SN1 was at the start
         image_timeout = hlb.TIME_SETTINGS['ImageTimeout']
         
-        self._log_add("INFO", f"Waiting for new image. Current state: {initial_image_state}")
+        self.client_write_io._log_add("INFO", f"Waiting for new image. Current state: {initial_image_state}")
 
         # ---- wait for NEW image ----
         # ✅ FIX: Proper loop with three conditions:
@@ -1153,11 +1191,15 @@ class App():
             
             # Check if we got a new image
             if image_SN2 is not None and image_SN2 != initial_image_state:
-                self._log_add("INFO", f"New image received: {image_SN2}")
+                self.client_write_io._log_add("INFO", f"New image received: {image_SN1}")
                 self.client_write_io.send_request(OFF_LIGHTING_S2,is_hex=True)   # lighting OFF
-
+                self.client_write_io.send_request(ON_TESTDONE_S2,is_hex=True) 
+                plc_signal_period = hlb.TIME_SETTINGS['PlcSignal']
+                time.sleep(plc_signal_period)
+                self.client_write_io.send_request(OFF_TESTDONE_S2,is_hex=True) 
+               
                 image_received = True
-                
+                queue.task_done()
             '''
             # Check for timeout
             if current_time - start_time > image_timeout:
@@ -1168,15 +1210,10 @@ class App():
             time.sleep(0.1)
 
         # ---- image received successfully ----
-        last_image_SN2 = image_SN2
-        self._log_add("INFO", f"Image processing complete for: {image_SN2}")
-        
-    
+        last_image_SN1 = image_SN2
+        self.client_write_io._log_add("INFO", f"Image processing complete for: {image_SN2}")
     
 
-    def decision_making(self):
-        pass
-    
     def data_processing_station1(self):
             self.client_scanner_station1._log_add("INFO", "Station 1 processing thread started")
          

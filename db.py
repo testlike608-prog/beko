@@ -33,11 +33,11 @@ def auto_connect_db():
 
     def connect_from_file(filename, index):
         if not os.path.exists(filename):
-            return None, f"⚠️ No saved DB{index} settings", False
+            return None, f"⚠️ No saved DB{index} settings"
         with open(filename, "r") as f:
             data = f.read().strip().split("|")
             if len(data) != 5:
-                return None, f"⚠️ Invalid DB{index} format", False
+                return None, f"⚠️ Invalid DB{index} format"
             serveraddr, database_name, Auth, user_name, password = data
 
         if Auth == "Windows Authentication":
@@ -56,12 +56,12 @@ def auto_connect_db():
         try:
             with pyodbc.connect(conn_str, timeout=15):
                 pass
-            return conn_str, f"✅SUCCESSFUL Auto-connected to DB{index}", True
+            return conn_str, f"✅SUCCESSFUL Auto-connected to DB{index}"
         except Exception as e:
             return None, f"❌ DB{index} connection failed: {e}"
 
-    conn_str_db1_global, msg1, connected1 = connect_from_file("last_db1_settings.txt", 1)
-    conn_str_db2_global, msg2, connected2 = connect_from_file("last_db2_settings.txt", 2)
+    conn_str_db1_global, msg1 = connect_from_file("last_db1_settings.txt", 1)
+    conn_str_db2_global, msg2= connect_from_file("last_db2_settings.txt", 2)
     print(f"{msg1}\n{msg2}")
 
 def upload_tests_result_to_db(dummy, station_name, station_result, failed_tests, Client:ClientsClass):

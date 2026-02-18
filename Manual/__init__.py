@@ -10,11 +10,11 @@ Manual= Blueprint(
 )
 @Manual.route('/ManualPopup', methods=['GET'])
 def page_ManualPopup():
-    if cc.Manual_Scanner_MODE:
+    
         return render_template("Manual_HTML.html", message="ERROR : Auto SCANNING FAILED")
     
     # لو الـ flag اتقفل أو حد دخل المسار بالغلط والـ flag بـ False، يرجعه للرئيسية
-    return redirect(url_for('home.page_index')) 
+    
 
 @Manual.route('/NoCSV', methods=['GET'])
 def page_CSVPopup():
@@ -27,7 +27,7 @@ def manual_popup_ack():
     
     cc.Buzzer_Flag_to_OFF = True
     cc.Manual_Scanner_MODE = False   # 👈 الفلاج بيتقفل هنا
-    return url_for('home.page_index')
+    return redirect(url_for('home.page_index'))
 
 
 
@@ -36,7 +36,7 @@ def manual_popup_ack():
 def csv_popup_ack():
     cc.Buzzer_Flag_to_OFF2 = True
     cc.NO_CSV_ERROR = False   # 👈 يقفل الفلاج
-    return url_for('home.page_index')
+    return redirect(url_for('home.page_index'))
 
 
 
@@ -71,6 +71,7 @@ def handle_station_data():
         # 4. نحط الداتا في الـ Queue
         cc.queue_manual_FOR_FAILURE.put(data_received)
         cc.is_waiting = False
+        cc.Manual_Scanner_MODE = False
         
         # طباعة للتأكيد في الـ Console بتاع البايثون
         print(f"Global Variable 'is_waiting' is now: {cc.is_waiting}")
