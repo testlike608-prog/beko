@@ -2,7 +2,7 @@ from flask import Blueprint , jsonify
 from flask import render_template, request, redirect, url_for, session
 import  os
 import helpers as hlb
-from ClientsClass import queue_manual_FOR_FAILURE,queue_manual_FOR_Proessing, queue_manual2_FOR_Proessing,queue_manual2_FOR_FAILURE
+import ClientsClass as cc
 import queue 
 
 home = Blueprint(
@@ -23,15 +23,15 @@ def add_to_queue():
 
     try:
         # إضافة الرقم للكيو (block=False عشان ميعلقش الـ Request لو الكيو مليان)
-        queue_manual_FOR_FAILURE.put(value=dummy_number, block=False)
-        queue_manual_FOR_Proessing.put(value=dummy_number, block=False)
+        cc.queue_manual_FOR_FAILURE.put(dummy_number)
+        cc.queue_manual_FOR_Proessing.put(dummy_number)
         
         print(f"📥 New Item Added: {dummy_number}")
-        print(f"📦 Total in Queue: {queue_manual_FOR_FAILURE.qsize()}")
+        print(f"📦 Total in Queue: {cc.queue_manual_FOR_FAILURE.qsize()}")
         
         return jsonify({
             "status": "success", 
-            "current_count": queue_manual_FOR_FAILURE.qsize()
+            "current_count": cc.queue_manual_FOR_FAILURE.qsize()
         }), 200
     except queue.Full:
         return jsonify({"status": "error", "message": "Queue is full!"}), 500
@@ -46,15 +46,15 @@ def add_to_queue2():
 
     try:
         # إضافة الرقم للكيو (block=False عشان ميعلقش الـ Request لو الكيو مليان)
-        queue_manual2_FOR_FAILURE.put(value=dummy_number, block=False)
-        queue_manual2_FOR_Proessing.put(value=dummy_number, block=False)
+        cc.queue_manual2_FOR_FAILURE.put(value=dummy_number, block=False)
+        cc.queue_manual2_FOR_Proessing.put(value=dummy_number, block=False)
         
         print(f"📥 New Item Added: {dummy_number}")
-        print(f"📦 Total in Queue: {queue_manual2_FOR_FAILURE.qsize()}")
+        print(f"📦 Total in Queue: {cc.queue_manual2_FOR_FAILURE.qsize()}")
         
         return jsonify({
             "status": "success", 
-            "current_count": queue_manual2_FOR_FAILURE.qsize()
+            "current_count": cc.queue_manual2_FOR_FAILURE.qsize()
         }), 200
     except queue.Full:
         return jsonify({"status": "error", "message": "Queue is full!"}), 500

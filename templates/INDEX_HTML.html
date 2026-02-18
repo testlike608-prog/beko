@@ -1343,16 +1343,22 @@ document.getElementById('btnDummyStation12').addEventListener('click', sendToSta
 
 
 setInterval(function() {
-    fetch('/check-flags')
-        .then(response => response.json())
+    fetch('/check-flags') // تأكدي إن ده المسار الفعلي
+        .then(response => {
+            if (!response.ok) throw new Error("Server down");
+            return response.json();
+        })
         .then(data => {
-            if (data.manual_scanner) {
+            console.log("Flags status:", data); // عشان تشوفي الحالة في الـ Console (F12)
+            
+            if (data.manual_scanner === true) {
                 window.location.href = "/ManualPopup";
-            } else if (data.no_csv_error) {
+            } else if (data.no_csv_error === true) {
                 window.location.href = "/NoCSV";
             }
-        });
-}, 1); // بيشيك كل ثانية واحدة
+        })
+        .catch(err => console.error("Error fetching flags:", err));
+}, 1000); // 1000 مللي ثانية = ثانية واحدة (ده أحسن بكتير للأداء)
  
   </script>
 </body>

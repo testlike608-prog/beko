@@ -10,41 +10,48 @@ Manual= Blueprint(
 )
 @Manual.route('/ManualPopup', methods=['GET'])
 def page_ManualPopup():
-    
     if cc.Manual_Scanner_MODE:
-        return render_template ("Manual_HTML.html", message="ERROR : Auto SCANNING FAILED, PLEASE SCAN MANUALLY")
-    return url_for('home.page_index')
+        return render_template("Manual_HTML.html", message="ERROR : Auto SCANNING FAILED")
+    
+    # لو الـ flag اتقفل أو حد دخل المسار بالغلط والـ flag بـ False، يرجعه للرئيسية
+    return redirect(url_for('home.page_index')) 
+
+@Manual.route('/NoCSV', methods=['GET'])
+def page_CSVPopup():
+    if cc.NO_CSV_ERROR:
+        return render_template("NOCSV_HTML.html", message=f"ERROR : NO CSV FILE FOUND")
+    
+    return redirect(url_for('home.page_index'))
 @Manual.route('/ManualPopup/ack', methods=['POST'])
 def manual_popup_ack():
     
     cc.Buzzer_Flag_to_OFF = True
     cc.Manual_Scanner_MODE = False   # 👈 الفلاج بيتقفل هنا
     return url_for('home.page_index')
-@Manual.route('/NoCSV', methods=['GET'])
-def page_CSVPopup():
-    global NO_CSV_ERROR, last_product_number
-    if NO_CSV_ERROR:
-        return render_template("NOCSV_HTML.html",message=f"ERROR : NO CSV FILE FOUND FOR SKU {last_product_number}")
+
 
 
     return url_for('home.page_index')
 @Manual.route('/NoCSV/ack', methods=['POST'])
 def csv_popup_ack():
-    global NO_CSV_ERROR ,Buzzer_Flag_to_OFF2 
-    Buzzer_Flag_to_OFF2 = True
-    NO_CSV_ERROR = False   # 👈 يقفل الفلاج
+    cc.Buzzer_Flag_to_OFF2 = True
+    cc.NO_CSV_ERROR = False   # 👈 يقفل الفلاج
     return url_for('home.page_index')
 
 
 
 @Manual.route('/check-flags')
 def check_flags():
-    return jsonify({
+    # تأكدي إننا بنقرأ القيم من كلاس cc اللي فيه القيم الحقيقية
+    res = jsonify({
         "manual_scanner": cc.Manual_Scanner_MODE,
-        "no_csv_error": NO_CSV_ERROR
+        "no_csv_error": cc.NO_CSV_ERROR  # ضفت cc هنا عشان ما يحصلش Error
     })
-# 1. تعريف الـ Global Variable
-cc.is_waiting = True 
+    
+    # ده مجرد برنت ليكي عشان تتأكدي في الـ Terminal إن القيمة بقت True
+    print(f"Checking Flags: Scanner={cc.Manual_Scanner_MODE}, CSV={cc.NO_CSV_ERROR}")
+    
+    return res
 
 # 2. تعريف الـ Queue عشان نخزن فيه الداتا
 
