@@ -54,7 +54,18 @@ def check_flags():
     return res
 
 # 2. تعريف الـ Queue عشان نخزن فيه الداتا
-
+@Manual.route('/check-flags2')
+def check_flags2():
+    # تأكدي إننا بنقرأ القيم من كلاس cc اللي فيه القيم الحقيقية
+    res = jsonify({
+        "manual_scanner": cc.Manual_Scanner_MODE2,
+        #"no_csv_error": cc.NO_CSV_ERROR  # ضفت cc هنا عشان ما يحصلش Error
+    })
+    
+    # ده مجرد برنت ليكي عشان تتأكدي في الـ Terminal إن القيمة بقت True
+    print(f"Checking Flags: Scanner={cc.Manual_Scanner_MODE2}") # CSV={cc.NO_CSV_ERROR}")
+    
+    return res
 
 @Manual.route('/api/station', methods=['POST'])
 def handle_station_data():
@@ -70,6 +81,7 @@ def handle_station_data():
         
         # 4. نحط الداتا في الـ Queue
         cc.queue_manual_FOR_FAILURE.put(data_received)
+        cc.queue_manual_FOR_Proessing.put(data_received)
         cc.is_waiting = False
         cc.Manual_Scanner_MODE = False
         
@@ -97,7 +109,10 @@ def handle_station_data2():
         
         # 4. نحط الداتا في الـ Queue
         cc.queue_manual2_FOR_FAILURE.put(data_received)
-        cc.is_waiting = False
+        cc.queue_manual2_FOR_Proessing.put(data_received)
+
+        
+        cc.is_waiting2 = False
         
         # طباعة للتأكيد في الـ Console بتاع البايثون
         print(f"Global Variable 'is_waiting' is now: {cc.is_waiting}")

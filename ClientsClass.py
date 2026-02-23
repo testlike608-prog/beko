@@ -22,9 +22,12 @@ NO_CSV_ERROR = False
 global Buzzer_Flag_to_OFF
 global Buzzer_Flag_to_OFF2
 global is_waiting
-global Manual_Scanner_MODE
+global Manual_Scanner_MODE, Manual_Scanner_MODE2
 Manual_Scanner_MODE = False
+Manual_Scanner_MODE2 = False
 is_waiting = True
+is_waiting2 = True
+
 
 Buzzer_Flag_to_OFF = False
 #Scanner_IP & Port
@@ -616,7 +619,11 @@ class App():
             self.client_scanner_station2.shared_queue,
             self.client_scanner_station2.shared_queue2,
             self.client_Vision_station1.shared_queue,
-            self.client_Vision_station2.shared_queue
+            self.client_Vision_station2.shared_queue,
+            queue_manual_FOR_FAILURE,
+            queue_manual_FOR_Proessing,
+            queue_manual2_FOR_FAILURE,
+            queue_manual2_FOR_Proessing
         ]
 
         for q in queues_to_clear:
@@ -785,6 +792,9 @@ class App():
 
                     self.client_Vision_station2.shared_queue.put(test_results_dict)
                     
+                    thread = threading.Thread(target=self.data_processing_station2, daemon= True)
+                    thread.start()
+                    thread.join()
                     test_results_list.clear()
                     test_results_dict.clear()
                    
@@ -902,6 +912,7 @@ class App():
                 now2 = time.time()
                 
                 self.client_scanner_station2.shared_queue2.put(dummy_number)
+                self.client_scanner_station2.shared_queue3.put(dummy_number)
 
                 with self.lock:
                      '''
@@ -1115,8 +1126,8 @@ class App():
             """
         self.client_write_io._log_add("FATAL", f"entered the seq of station 1")
 
-        global Manual_Scanner_MODE, NO_CSV_ERROR, Buzzer_Flag_to_OFF
-        global image_SN2, queue_manual2_FOR_FAILURE, is_waiting  # Make sure we can access these
+        global Manual_Scanner_MODE2, NO_CSV_ERROR, Buzzer_Flag_to_OFF
+        global image_SN2, queue_manual2_FOR_FAILURE, is_waiting2  # Make sure we can access these
 
         try:
             
@@ -1146,8 +1157,8 @@ class App():
                     
                     self.client_scanner_station2._log_add("info", f"Manual_Scanner_MODE [{Manual_Scanner_MODE}]")
                     
-                    Manual_Scanner_MODE = True
-                    while  is_waiting:
+                    Manual_Scanner_MODE2 = True
+                    while  is_waiting2:
                         
                         self.client_write_io.send_request(ON_BUZZER_S2,is_hex=True)  # buzzer on
                     
@@ -1157,7 +1168,7 @@ class App():
                     
                     queue = queue_manual_FOR_FAILURE
                     dummy = queue.get()    
-                        #queue_manual_FOR_FAILURE.task_done()                  
+                        #queue_manual_FOR_FAILURE.task_done()                 
                     self.client_write_io.send_request(OFF_SCANNER_S2,is_hex=True)    # scanner Off
                     self.client_scanner_station2._log_add("info", f"{type(dummy)}")  # R0124090500055
                         
@@ -1314,6 +1325,7 @@ class App():
                     try:
                         dummy = self.client_scanner_station2.shared_queue2.get_nowait()
                         
+                        hlb.insert_csv_station2_dummies(dummy=dummy, station_result= station_result)
                         # 4. الرفع لقاعدة البيانات
                         db.upload_tests_result_to_db(
                             dummy=dummy,
@@ -1328,6 +1340,7 @@ class App():
                         self.client_scanner_station1.shared_queue2.task_done()
                     except:
                         dummy = queue_manual2_FOR_Proessing.get_nowait()
+                        hlb.insert_csv_station2_dummies(dummy=dummy, station_result= station_result)
                         
                         # 4. الرفع لقاعدة البيانات
                         db.upload_tests_result_to_db(
@@ -1336,13 +1349,13 @@ class App():
                             station_result=station_result,
                             failed_tests=failed_tests,
                             Client=self.client_scanner_station1)
-                        self.client_scanner_station1._log_add("WARNING", "No dummy ID found in shared_queue2")
+                        #self.client_scanner_station2._log_add("WARNING", "No dummy ID found in shared_queue2")
 
                     # تأكيد إتمام المهمة للكيو الخاص بالنتائج
-                        queue_manual_FOR_Proessing.task_done()
+                        queue_manual2_FOR_Proessing.task_done()
             
         except Exception as e:
-                self.client_scanner_station1._log_add("ERROR", f"Error in processing: {e}")
+                self.client_scanner_station2._log_add("ERROR", f"Error in processing: {e}")
                 time.sleep(1) # عشان لو حصل خطأ متكرر ميعلقش الجهاز
 
    
