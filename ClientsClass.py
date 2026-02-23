@@ -19,6 +19,8 @@ global queue_manual
 global queue_manual2 
 global NO_CSV_ERROR
 NO_CSV_ERROR = False
+global NO_CSV_ERROR2
+NO_CSV_ERROR2 = False
 global Buzzer_Flag_to_OFF
 global Buzzer_Flag_to_OFF2
 global is_waiting
@@ -137,7 +139,7 @@ queue_manual2_FOR_Proessing = queue.Queue()
 # ---------------- Auto-load CSV by ProductNumber ----------------
 def auto_load_csv_by_product_number(product_number: str, part: str, server_instance , queue: queue): # server_instance = client intense
     """Automatically load CSV file based on ProductNumber"""
-    global NO_CSV_ERROR
+    global NO_CSV_ERROR, NO_CSV_ERROR2
     try:
         if not product_number:
             server_instance._log_add("ERROR", "No ProductNumber provided for CSV auto-load")
@@ -161,7 +163,11 @@ def auto_load_csv_by_product_number(product_number: str, part: str, server_insta
         
         if not os.path.isfile(csv_path):
             server_instance._log_add("WARNING", f"CSV file not found: {filename}")
-            NO_CSV_ERROR = True
+            if part == "S1":
+                NO_CSV_ERROR = True
+            elif part == "S2":
+                NO_CSV_ERROR2 = True
+
             server = TCPClient(Ip_write_IO, Port_write_IO )
             if part == "S1":
                 server.send_request(ON_BUZZER_S1,is_hex=True)

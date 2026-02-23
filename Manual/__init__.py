@@ -59,7 +59,7 @@ def check_flags2():
     # تأكدي إننا بنقرأ القيم من كلاس cc اللي فيه القيم الحقيقية
     res = jsonify({
         "manual_scanner": cc.Manual_Scanner_MODE2,
-        #"no_csv_error": cc.NO_CSV_ERROR  # ضفت cc هنا عشان ما يحصلش Error
+        "no_csv_error": cc.NO_CSV_ERROR2  # ضفت cc هنا عشان ما يحصلش Error
     })
     
     # ده مجرد برنت ليكي عشان تتأكدي في الـ Terminal إن القيمة بقت True
@@ -123,3 +123,11 @@ def handle_station_data2():
         return jsonify({"status": "success", "message": "تم إضافة الداتا وتغيير المتغير"}), 200
         
     return jsonify({"status": "error", "message": "لم يتم استلام أي بيانات"}), 400
+
+@Manual.route('/control', methods=['POST'])
+def control ():
+    cc.NO_CSV_ERROR = False
+
+@Manual.route('/control2', methods=['POST'])
+def control2 ():
+    cc.NO_CSV_ERROR2 = False
