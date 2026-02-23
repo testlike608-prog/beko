@@ -1488,7 +1488,7 @@ async function submitManualData2() {
         <p class="text-gray-700 dark:text-gray-300 mb-6">ERROR: THERE IS NO CSV IN OUTER STATION</p>
     
         <div class="flex flex-col gap-4">
-            <button onclick="document.getElementById('nocsv1').classList.add('hidden')" class="bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700">
+            <button onclick="submitCsv1()" class="bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700">
             OK / Confirm
             </button>
         </div>
@@ -1496,9 +1496,9 @@ async function submitManualData2() {
 </div>
 
 
-<!-- nocsv station 1 -->
+<!-- nocsv station 2 -->
 
-<div id="nocsv2" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[100] hidden">
+<div id="noCsv2" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[100] hidden">
     <div class="bg-white dark:bg-gray-800 rounded-lg p-8 w-full max-w-md text-center">
         <h2 class="text-2xl font-bold text-red-600 mb-4">⚠️ System Alert</h2>
         <p class="text-gray-700 dark:text-gray-300 mb-6">ERROR: THERE IS NO CSV IN INNER STATION</p>
@@ -1514,33 +1514,48 @@ async function submitManualData2() {
 
 
 <script>
-async function submitCsv2(){
-  fetch('/control2',)
-        .then(response => response.json())
-        .then(data => {
-            const modal = document.getElementById('nocsv2');
-            
-                modal.classList.add('hidden');
-      
-        })
-
-
+async function submitCsv1() {
+    console.log("Station 1 button clicked"); // عشان تتأكد إن الضغطة مسموعة
+    
+    fetch('/control', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({}) // لازم نبعت جيسون فاضي على الأقل
+    })
+    .then(response => response.json())
+    .then(response => {
+        if (response.ok) {
+            document.getElementById('noCsv1').classList.add('hidden');
+        } else {
+            console.error("Server error for Station 1:", response.status);
+        }
+    })
+    .catch(error => console.error('Network error:', error));
 }
 
-
-
-async function submitCsv1(){
-  fetch('/control',)
-        .then(response => response.json())
-        .then(data => {
-            const modal = document.getElementById('nocsv1');
-            
-                modal.classList.add('hidden');
-      
-        })
-
-
+async function submitCsv2() {
+    console.log("Station 2 button clicked");
+    
+    fetch('/control2', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({})
+    })
+    .then(response => response.json())
+    .then(response => {
+        if (response.ok) {
+            document.getElementById('noCsv2').classList.add('hidden');
+        } else {
+            console.error("Server error for Station 2:", response.status);
+        }
+    })
+    .catch(error => console.error('Network error:', error));
 }
+
 
 </script>
 

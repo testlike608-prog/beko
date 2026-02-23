@@ -139,7 +139,7 @@ queue_manual2_FOR_Proessing = queue.Queue()
 # ---------------- Auto-load CSV by ProductNumber ----------------
 def auto_load_csv_by_product_number(product_number: str, part: str, server_instance , queue: queue): # server_instance = client intense
     """Automatically load CSV file based on ProductNumber"""
-    global NO_CSV_ERROR, NO_CSV_ERROR2
+    global NO_CSV_ERROR, NO_CSV_ERROR2,Buzzer_Flag_to_OFF
     try:
         if not product_number:
             server_instance._log_add("ERROR", "No ProductNumber provided for CSV auto-load")

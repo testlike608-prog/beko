@@ -49,7 +49,7 @@ def check_flags():
     })
     
     # ده مجرد برنت ليكي عشان تتأكدي في الـ Terminal إن القيمة بقت True
-    print(f"Checking Flags: Scanner={cc.Manual_Scanner_MODE}, CSV={cc.NO_CSV_ERROR}")
+   # print(f"Checking Flags: Scanner={cc.Manual_Scanner_MODE}, CSV={cc.NO_CSV_ERROR}")
     
     return res
 
@@ -63,7 +63,7 @@ def check_flags2():
     })
     
     # ده مجرد برنت ليكي عشان تتأكدي في الـ Terminal إن القيمة بقت True
-    print(f"Checking Flags: Scanner={cc.Manual_Scanner_MODE2}") # CSV={cc.NO_CSV_ERROR}")
+    #print(f"Checking Flags: Scanner={cc.Manual_Scanner_MODE2}") # CSV={cc.NO_CSV_ERROR}")
     
     return res
 
@@ -126,8 +126,19 @@ def handle_station_data2():
 
 @Manual.route('/control', methods=['POST'])
 def control ():
-    cc.NO_CSV_ERROR = False
+    print("entred the function")
+    try:
+        cc.NO_CSV_ERROR = False
+        cc.Buzzer_Flag_to_OFF = True
+        return jsonify({"status": "success"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @Manual.route('/control2', methods=['POST'])
 def control2 ():
-    cc.NO_CSV_ERROR2 = False
+    try:
+        cc.NO_CSV_ERROR2 = False
+        cc.Buzzer_Flag_to_OFF = True
+        return jsonify({"status": "success"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500

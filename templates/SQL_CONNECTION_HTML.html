@@ -458,14 +458,14 @@
     </section>
     {% endif %}
 
+<!-- station 1 -->
 
 
-    
 <div id="manualScannerModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[100] hidden">
     <div class="bg-white dark:bg-gray-800 rounded-lg p-8 w-full max-w-md text-center">
         <h2 class="text-2xl font-bold text-red-600 mb-4">⚠️ System Alert</h2>
-        <p class="text-gray-700 dark:text-gray-300 mb-6">ERROR: Auto SCANNING FAILED</p>
-        
+        <p class="text-gray-700 dark:text-gray-300 mb-6">ERROR: Auto SCANNING FAILED in outer station</p>
+    
         <div class="flex flex-col gap-4">
             <input id="manualInput" type="text" class="border p-2 rounded w-full" placeholder="Scan or enter code manually">
             <button onclick="submitManualData()" class="bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700">
@@ -483,12 +483,18 @@ setInterval(function() {
         .then(response => response.json())
         .then(data => {
             const modal = document.getElementById('manualScannerModal');
+            const modal2 = document.getElementById('noCsv1');
             
             // لو الفلاج أصبح True والـ Modal مخفي، نظهره
             if (data.manual_scanner === true) {
                 modal.classList.remove('hidden');
             } else {
                 modal.classList.add('hidden');
+            }
+            if (data.no_csv_error === true) {
+                modal2.classList.remove('hidden');
+            } else {
+                modal2.classList.add('hidden');
             }
         })
         .catch(err => console.error("Error fetching flags:", err));
@@ -515,5 +521,142 @@ async function submitManualData() {
 
 
 </script>
+
+
+<!-- station 2 -->
+
+<div id="manualScannerModal2" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[100] hidden">
+    <div class="bg-white dark:bg-gray-800 rounded-lg p-8 w-full max-w-md text-center">
+        <h2 class="text-2xl font-bold text-red-600 mb-4">⚠️ System Alert</h2>
+        <p class="text-gray-700 dark:text-gray-300 mb-6">ERROR: Auto SCANNING FAILED in inner station</p>
+    
+        <div class="flex flex-col gap-4">
+            <input id="manualInput2" type="text" class="border p-2 rounded w-full" placeholder="Scan or enter code manually">
+            <button onclick="submitManualData2()" class="bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700">
+                OK / Confirm
+            </button>
+        </div>
+    </div>
+</div>
+
+
+<script>
+
+setInterval(function() {
+    fetch('/check-flags2')
+        .then(response => response.json())
+        .then(data => {
+            const modal = document.getElementById('manualScannerModal2');
+            const modal2 = document.getElementById('noCsv2');
+            
+            
+            // لو الفلاج أصبح True والـ Modal مخفي، نظهره
+            if (data.manual_scanner === true) {
+                modal.classList.remove('hidden');
+            } else {
+                modal.classList.add('hidden');
+            }
+
+            if (data.no_csv_error === true) {
+                modal2.classList.remove('hidden');
+            } 
+            else {
+                modal2.classList.add('hidden');
+            }
+            
+        })
+        .catch(err => console.error("Error fetching flags:", err));
+}, 1000);
+
+// وظيفة إرسال البيانات وإغلاق الـ Modal
+async function submitManualData2() {
+    const val = document.getElementById('manualInput2').value;
+    if (!val) return alert("Please enter data");
+
+    const response = await fetch('/api/station2', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ station_data: val })
+    });
+
+    if (response.ok) {
+        document.getElementById('manualScannerModal2').classList.add('hidden');
+        document.getElementById('manualInput2').value = ""; // تصفير الإدخال
+        showToast("Data submitted successfully", "green");
+    }
+}
+
+
+
+
+
+</script>
+
+<!-- nocsv station 1 -->
+
+<div id="noCsv1" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[100] hidden">
+    <div class="bg-white dark:bg-gray-800 rounded-lg p-8 w-full max-w-md text-center">
+        <h2 class="text-2xl font-bold text-red-600 mb-4">⚠️ System Alert</h2>
+        <p class="text-gray-700 dark:text-gray-300 mb-6">ERROR: THERE IS NO CSV IN OUTER STATION</p>
+    
+        <div class="flex flex-col gap-4">
+            <button onclick="document.getElementById('nocsv1').classList.add('hidden')" class="bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700">
+            OK / Confirm
+            </button>
+        </div>
+    </div>
+</div>
+
+
+<!-- nocsv station 1 -->
+
+<div id="nocsv2" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[100] hidden">
+    <div class="bg-white dark:bg-gray-800 rounded-lg p-8 w-full max-w-md text-center">
+        <h2 class="text-2xl font-bold text-red-600 mb-4">⚠️ System Alert</h2>
+        <p class="text-gray-700 dark:text-gray-300 mb-6">ERROR: THERE IS NO CSV IN INNER STATION</p>
+    
+        <div class="flex flex-col gap-4">
+            <button onclick="submitCsv2()" class="bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700">
+            OK / Confirm
+            </button>
+        </div>
+    </div>
+</div>
+
+
+
+<script>
+async function submitCsv2(){
+  fetch('/control2',)
+        .then(response => response.json())
+        .then(data => {
+            const modal = document.getElementById('nocsv2');
+            
+                modal.classList.add('hidden');
+      
+        })
+
+
+}
+
+
+
+async function submitCsv1(){
+  fetch('/control',)
+        .then(response => response.json())
+        .then(data => {
+            const modal = document.getElementById('noCsv1');
+            
+                modal.classList.add('hidden');
+      
+        })
+
+
+}
+
+</script>
+
+
+ 
 </body>
 </html>
