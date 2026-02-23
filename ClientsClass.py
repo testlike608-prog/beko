@@ -161,7 +161,7 @@ def auto_load_csv_by_product_number(product_number: str, part: str, server_insta
         
         server_instance._log_add("INFO", f"Looking for CSV file: {filename}")
         
-        if not os.path.isfile(csv_path):
+        while not os.path.isfile(csv_path):
             server_instance._log_add("WARNING", f"CSV file not found: {filename}")
             if part == "S1":
                 NO_CSV_ERROR = True
@@ -175,11 +175,11 @@ def auto_load_csv_by_product_number(product_number: str, part: str, server_insta
             if part == "S2":
                server.send_request(ON_BUZZER_S2,is_hex=True)
             while True:
-                if Buzzer_Flag_to_OFF2:
+                if Buzzer_Flag_to_OFF:
                     server.send_request(OFF_BUZZER_S2,is_hex=True)
-                    Buzzer_Flag_to_OFF2 = False
+                    Buzzer_Flag_to_OFF= False
                     break
-            return False
+            time.sleep(120)
         csv_data = hlb._load_csv_file(csv_path)
         
         if part == "S1":
