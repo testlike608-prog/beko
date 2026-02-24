@@ -43,6 +43,7 @@ def csv_popup_ack():
 @Manual.route('/check-flags')
 def check_flags():
     # تأكدي إننا بنقرأ القيم من كلاس cc اللي فيه القيم الحقيقية
+    cc.Buzzer_Flag_to_OFF = False
     res = jsonify({
         "manual_scanner": cc.Manual_Scanner_MODE,
         "no_csv_error": cc.NO_CSV_ERROR  # ضفت cc هنا عشان ما يحصلش Error
@@ -57,6 +58,7 @@ def check_flags():
 @Manual.route('/check-flags2')
 def check_flags2():
     # تأكدي إننا بنقرأ القيم من كلاس cc اللي فيه القيم الحقيقية
+    cc.Buzzer_Flag_to_OFF = False
     res = jsonify({
         "manual_scanner": cc.Manual_Scanner_MODE2,
         "no_csv_error": cc.NO_CSV_ERROR2  # ضفت cc هنا عشان ما يحصلش Error
@@ -130,6 +132,7 @@ def control ():
     try:
         cc.NO_CSV_ERROR = False
         cc.Buzzer_Flag_to_OFF = True
+        print (f"buzzer flag = {cc.Buzzer_Flag_to_OFF}")
         return jsonify({"status": "success"}), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500

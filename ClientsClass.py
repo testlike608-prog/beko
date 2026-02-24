@@ -176,8 +176,12 @@ def auto_load_csv_by_product_number(product_number: str, part: str, server_insta
                server.send_request(ON_BUZZER_S2,is_hex=True)
             while True:
                 if Buzzer_Flag_to_OFF:
-                    server.send_request(OFF_BUZZER_S2,is_hex=True)
-                    Buzzer_Flag_to_OFF= False
+                    if part == "S1":
+                        server.send_request(OFF_BUZZER_S1,is_hex=True)
+                
+                    if part == "S2":
+                        server.send_request(OFF_BUZZER_S2,is_hex=True)
+                    Buzzer_Flag_to_OFF = False
                     break
             time.sleep(120)
         csv_data = hlb._load_csv_file(csv_path)
