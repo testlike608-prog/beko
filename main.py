@@ -36,9 +36,10 @@ def main():
     threading.Thread(target= ClientsApp._IO_read, daemon= True).start()
     threading.Thread(target=ClientsApp._vision_station_2, daemon= True).start()
     threading.Thread(target=ClientsApp._vision_station_1, daemon= True).start()
-    #threading.Thread(target=ClientsApp.data_processing_station1, daemon= True).start()F
-    #threading.Thread(target=ClientsApp.data_processing_station1, daemon=True).start()س
-    
+    #threading.Thread(target=ClientsApp.data_processing_station1, daemon= True).start()
+    #threading.Thread(target=ClientsApp.data_processing_station1, daemon=True).start()
+
+
 if __name__ == "__main__":
     db.auto_connect_db()
     threading.Timer(1, lambda: webbrowser.open("http://127.0.0.1:5000")).start()

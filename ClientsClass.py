@@ -901,6 +901,86 @@ class App():
         except Exception as e:
             self.client_scanner_station1._log_add("ERROR", f"Error processing Station Two data: {e}")
 
+    def Manual_scanner_station_1(self, data : bytes):
+            """Process data from vision check 1 (port 7940)"""
+            global last_product_number, current_dummy_station_one, waiting_for_station_one_result,dummy_number,last_raw_data1,last_dummy_number
+            try:
+                text = data.decode("utf-8", errors="ignore").strip()
+                if len(text) > 14:
+                    text = text[:14]
+                
+                with self.lock:
+                    self.station_two_data["raw"] = text
+                    last_raw_data2= text
+                self.client_scanner_station1._log_add("INFO", f"Vision Station one data: '{text}'")
+                
+                if text.startswith("R"):
+                    parts = text.split("-")
+                    dummy_number = parts[0].strip()
+                    now2 = time.time()
+
+                    with self.lock:
+                        '''
+                        last_time2 = self.last_dummy_time_station_two.get(dummy_number, 0)
+                        if dummy_number == last_dummy_number2:
+                            if now2 - last_time2 <= 60:
+                                return
+                            else:
+                                tcp_server._log_add("WARNING", f"⚠️ Duplicate dummy ignored: {dummy_number}")
+
+                                return 
+                        '''
+                
+                    # ✅ CLEAR CSV FOR NEW DUMMY  ← 🆕 NEW LINE
+                    hlb.clear_station2_csv_for_new_dummy(dummy_number)
+            
+                    self.last_dummy_time_station_one[dummy_number] = now2
+                    self.station_one_data["dummy"] = dummy_number
+                    waiting_for_station_one_result = True
+                    current_dummy_station_one = dummy_number
+                    received_tests_station1.clear()
+                    last_dummy_number = dummy_number
+                    self.client_scanner_station1._log_add("INFO", f"Station : Extracted dummy '{dummy_number}'")
+                    
+                    #time.sleep(0.1)  # Prevent DB contention
+                    
+                    if db.conn_str_db1_global:
+                        with db_lock:
+                            try:
+                                with pyodbc.connect(db.conn_str_db1_global, timeout=hlb.TIME_SETTINGS['dbTimeout']) as conn:
+                                    cursor = conn.cursor()
+                                    cursor.execute(
+                                        "SELECT ProductNumber FROM SFCNumbers WHERE LTRIM(RTRIM(Number)) = ?",
+                                        (dummy_number,)
+                                    )
+                                    row = cursor.fetchone()
+
+                                if row:
+                                    last_product_number = row[0]
+                                    status = f"✅ Found ProductNumber: {last_product_number}"
+                                    with self.lock:
+                                        self.station_one_data["product"] = last_product_number
+                                        self.station_one_data["db_status"] = status
+                                    self.client_scanner_station1._log_add("INFO", status)
+                                    
+                                    auto_load_csv_by_product_number(last_product_number, "S1", self.client_Vision_station1, self.client_scanner_station1.shared_queue)
+                                else:
+                                    status = f"❌ Dummy '{dummy_number}' not found"
+                                    with self.lock:
+                                        self.station_one_data["db_status"] = status
+                                    self.client_scanner_station1._log_add("WARNING", status)
+                                    
+                            except Exception as db_ex:
+                                status = f"❌ DB query error: {db_ex}"
+                                with self.lock:
+                                    self.station_one_data["db_status"] = status
+                                self.client_scanner_station1._log_add("ERROR", status)
+                    else:
+                        with self.lock:
+                            self.station_one_data["db_status"] = "❌ No DB connection"
+                            
+            except Exception as e:
+                self.client_scanner_station1._log_add("ERROR", f"Error processing Station Two data: {e}")
 
     def _scanner_station_2(self, data : bytes):
         """Process data from vision check 2 (port 7950)"""
@@ -986,7 +1066,92 @@ class App():
                         
         except Exception as e:
             self.client_scanner_station2._log_add("ERROR", f"Error processing Station Two data: {e}")
-    
+
+    def Manual_scanner_station_2(self, data : bytes):
+            """Process data from vision check 2 (port 7950)"""
+            global last_product_number2, current_dummy_station_two, waiting_for_station_two_result,dummy_number,last_raw_data2,last_dummy_number2
+            
+            try:
+                text = data.decode("utf-8", errors="ignore").strip()
+                if len(text) > 14:
+                    text = text[:14]
+                
+                with self.lock:
+                    self.station_two_data["raw"] = text
+                    last_raw_data2= text
+                self.client_scanner_station2._log_add("INFO", f"Vision Station Two data: '{text}'")
+                
+                if text.startswith("R"):
+                    parts = text.split("-")
+                    dummy_number = parts[0].strip()
+                    now2 = time.time()
+                    
+                    
+
+                    with self.lock:
+                        '''
+                        last_time2 = self.last_dummy_time_station_two.get(dummy_number, 0)
+                        if dummy_number == last_dummy_number2:
+                            if now2 - last_time2 <= 60:
+                                return
+                            else:
+                                tcp_server._log_add("WARNING", f"⚠️ Duplicate dummy ignored: {dummy_number}")
+
+                                return 
+                        '''
+                
+                    # ✅ CLEAR CSV FOR NEW DUMMY  ← 🆕 NEW LINE
+                    hlb.clear_station2_csv_for_new_dummy(dummy_number)
+            
+                    self.last_dummy_time_station_two[dummy_number] = now2
+                    self.station_two_data["dummy"] = dummy_number
+                    waiting_for_station_two_result = True
+                    current_dummy_station_two = dummy_number
+                    received_tests_station2.clear()
+                    last_dummy_number2 = dummy_number
+                    self.client_scanner_station2._log_add("INFO", f"Station Two: Extracted dummy '{dummy_number}'")
+                    
+                    #time.sleep(0.1)  # Prevent DB contention
+                    
+                    if db.conn_str_db1_global:
+                        with db_lock:
+                            try:
+                                with pyodbc.connect(db.conn_str_db1_global, timeout=hlb.TIME_SETTINGS['dbTimeout']) as conn:
+                                    cursor = conn.cursor()
+                                    cursor.execute(
+                                        "SELECT ProductNumber FROM SFCNumbers WHERE LTRIM(RTRIM(Number)) = ?",
+                                        (dummy_number,)
+                                    )
+                                    row = cursor.fetchone()
+
+                                if row:
+                                    last_product_number2 = row[0]
+                                    status = f"✅ Found ProductNumber: {last_product_number2}"
+                                    with self.lock:
+                                        self.station_two_data["product"] = last_product_number2
+                                        self.station_two_data["db_status"] = status
+                                    self.client_scanner_station2._log_add("INFO", status)
+                                    
+                                    auto_load_csv_by_product_number(last_product_number2, "S2", self.client_Vision_station2, self.client_scanner_station2.shared_queue)
+                                else:
+                                    status = f"❌ Dummy '{dummy_number}' not found"
+                                    with self.lock:
+                                        self.station_two_data["db_status"] = status
+                                    self.client_scanner_station2._log_add("WARNING", status)
+                                    
+                            except Exception as db_ex:
+                                status = f"❌ DB query error: {db_ex}"
+                                with self.lock:
+                                    self.station_two_data["db_status"] = status
+                                self.client_scanner_station2._log_add("ERROR", status)
+                    else:
+                        with self.lock:
+                            self.station_two_data["db_status"] = "❌ No DB connection"
+                            
+            except Exception as e:
+                self.client_scanner_station2._log_add("ERROR", f"Error processing Station Two data: {e}")
+
+
     def _SN_Proccess1(self,data:bytes):
          global image_SN1
          try:
@@ -1070,8 +1235,8 @@ class App():
                         #queue_manual_FOR_FAILURE.task_done()                  
                     self.client_write_io.send_request(OFF_SCANNER_S1,is_hex=True)    # scanner Off
                     self.client_scanner_station1._log_add("info", f"{type(dummy)}")  # R0124090500055
-                        
-                    self._scanner_station_1(dummy.encode())
+                    text = dummy.encode("utf-8")
+                    self.Manual_scanner_station_1(text)
                     self.client_scanner_station1._log_add("info", f"وصلناااااا")  # R0124090500055
 
                         
@@ -1181,8 +1346,8 @@ class App():
                         #queue_manual_FOR_FAILURE.task_done()                 
                     self.client_write_io.send_request(OFF_SCANNER_S2,is_hex=True)    # scanner Off
                     self.client_scanner_station2._log_add("info", f"{type(dummy)}")  # R0124090500055
-                        
-                    self._scanner_station_2(dummy.encode())
+                    text = dummy.encode("utf-8")    
+                    self.Manual_scanner_station_2(text)
                     self.client_scanner_station2._log_add("info", f"وصلناااااا")  # R0124090500055
 
                         
