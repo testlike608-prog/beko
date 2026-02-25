@@ -946,9 +946,17 @@ class App():
                     #time.sleep(0.1)  # Prevent DB contention
                     
                     if db.conn_str_db1_global:
+                        self.client_scanner_station1._log_add("INFO", f"entered if condition for scanner 1 manual")
+
                         with db_lock:
+                            self.client_scanner_station1._log_add("INFO", f"entered with condition for scanner 1 manual")
+
                             try:
+                                self.client_scanner_station1._log_add("INFO", f"entered try for scanner 1 manual")
+
                                 with pyodbc.connect(db.conn_str_db1_global, timeout=hlb.TIME_SETTINGS['dbTimeout']) as conn:
+                                    self.client_scanner_station1._log_add("INFO", f"entered connect database for scanner 1 manual")
+
                                     cursor = conn.cursor()
                                     cursor.execute(
                                         "SELECT ProductNumber FROM SFCNumbers WHERE LTRIM(RTRIM(Number)) = ?",
@@ -1230,7 +1238,7 @@ class App():
                     
                     self.client_write_io.send_request(OFF_BUZZER_S1,is_hex=True)  # buzzer off
        
-                    self.client_scanner_station1._log_add("info", f"لولوللللولووللولولولولي")
+                    self.client_scanner_station1._log_add("info", f"heyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy")
                     
                     queue = queue_manual_FOR_FAILURE
                     dummy = queue.get()    
@@ -1238,8 +1246,10 @@ class App():
                     self.client_write_io.send_request(OFF_SCANNER_S1,is_hex=True)    # scanner Off
                     self.client_scanner_station1._log_add("info", f"{type(dummy)}")  # R0124090500055
                     text = dummy.encode("utf-8")
-                    self.Manual_scanner_station_1(text)
-                    self.client_scanner_station1._log_add("info", f"وصلناااااا")  # R0124090500055
+                    thread = threading.Thread(target=self.Manual_scanner_station_1, daemon= True, args=(text,))
+                    thread.start()
+                    thread.join()
+                    self.client_scanner_station1._log_add("info", f"arrivedddddddddddddddddddddddddddddddddd")  # R0124090500055
 
                         
             except Exception as e:
@@ -1341,16 +1351,18 @@ class App():
                     
                     self.client_write_io.send_request(OFF_BUZZER_S2,is_hex=True)  # buzzer off
        
-                    self.client_scanner_station2._log_add("info", f"لولوللللولووللولولولولي")
+                    self.client_scanner_station2._log_add("info", f"heyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy")
                     
-                    queue = queue_manual_FOR_FAILURE
+                    queue = queue_manual2_FOR_FAILURE
                     dummy = queue.get()    
                         #queue_manual_FOR_FAILURE.task_done()                 
                     self.client_write_io.send_request(OFF_SCANNER_S2,is_hex=True)    # scanner Off
                     self.client_scanner_station2._log_add("info", f"{type(dummy)}")  # R0124090500055
                     text = dummy.encode("utf-8")    
-                    self.Manual_scanner_station_2(text)
-                    self.client_scanner_station2._log_add("info", f"وصلناااااا")  # R0124090500055
+                    thread = threading.Thread(target=self.Manual_scanner_station_2, daemon= True, args= (text,))
+                    thread.start()
+                    thread.join()
+                    self.client_scanner_station2._log_add("info", f"arriveddddddddddddddddddddddddddddd")  # R0124090500055
 
                         
             except Exception as e:

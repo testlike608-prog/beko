@@ -1,1 +1,1 @@
-(localdb)\MSSQLLocalDB|ShopDB|Windows Authentication|None|None
+localhost,56207|ShopDB|Windows Authentication|None|None

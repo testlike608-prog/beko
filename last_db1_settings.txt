@@ -1,1 +1,1 @@
-(localdb)\MSSQLLocalDB|ShopDB|Windows Authentication|None|None
+(localdb)\ProjectModels|ShopDB|Windows Authentication|None|None

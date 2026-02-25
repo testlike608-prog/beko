@@ -838,9 +838,9 @@ class App():
                 self.client_scanner_station1.shared_queue2.put(dummy_number)
                 self.client_scanner_station1.shared_queue3.put(dummy_number)
 
-                '''
+                
                 with self.lock:
-                     
+                     '''
                      last_time2 = self.last_dummy_time_station_two.get(dummy_number, 0)
                      if dummy_number == last_dummy_number2:
                         if now2 - last_time2 <= 60:
@@ -946,9 +946,17 @@ class App():
                     #time.sleep(0.1)  # Prevent DB contention
                     
                     if db.conn_str_db1_global:
+                        self.client_scanner_station1._log_add("INFO", f"entered if condition for scanner 1 manual")
+
                         with db_lock:
+                            self.client_scanner_station1._log_add("INFO", f"entered with condition for scanner 1 manual")
+
                             try:
+                                self.client_scanner_station1._log_add("INFO", f"entered try for scanner 1 manual")
+
                                 with pyodbc.connect(db.conn_str_db1_global, timeout=hlb.TIME_SETTINGS['dbTimeout']) as conn:
+                                    self.client_scanner_station1._log_add("INFO", f"entered connect database for scanner 1 manual")
+
                                     cursor = conn.cursor()
                                     cursor.execute(
                                         "SELECT ProductNumber FROM SFCNumbers WHERE LTRIM(RTRIM(Number)) = ?",
@@ -1005,9 +1013,9 @@ class App():
                 self.client_scanner_station2.shared_queue2.put(dummy_number)
                 self.client_scanner_station2.shared_queue3.put(dummy_number)
 
-                '''
+                
                 with self.lock:
-                     
+                    '''
                      last_time2 = self.last_dummy_time_station_two.get(dummy_number, 0)
                      if dummy_number == last_dummy_number2:
                         if now2 - last_time2 <= 60:
