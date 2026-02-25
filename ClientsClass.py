@@ -838,9 +838,9 @@ class App():
                 self.client_scanner_station1.shared_queue2.put(dummy_number)
                 self.client_scanner_station1.shared_queue3.put(dummy_number)
 
-                '''
+                
                 with self.lock:
-                     
+                     '''
                      last_time2 = self.last_dummy_time_station_two.get(dummy_number, 0)
                      if dummy_number == last_dummy_number2:
                         if now2 - last_time2 <= 60:
@@ -1005,9 +1005,9 @@ class App():
                 self.client_scanner_station2.shared_queue2.put(dummy_number)
                 self.client_scanner_station2.shared_queue3.put(dummy_number)
 
-                '''
+                
                 with self.lock:
-                     
+                    '''
                      last_time2 = self.last_dummy_time_station_two.get(dummy_number, 0)
                      if dummy_number == last_dummy_number2:
                         if now2 - last_time2 <= 60:
