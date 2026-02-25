@@ -677,9 +677,9 @@ class App():
         self.client_write_io.send_request(CMD_OFF_ALL,is_hex=True)
 
 
-       
-        
-        
+    
+    
+    
 # servers handling
     def _IO_read (self):
         self.client_read_io._log_add("INFO", f"start reading from io")
@@ -815,7 +815,7 @@ class App():
                 else:
                     print(f"Error in _vision_station_2: {e}")
 
- 
+
  #finished
     def _scanner_station_1(self, data : bytes):
         """Process data from vision check 1 (port 7940)"""
@@ -838,8 +838,9 @@ class App():
                 self.client_scanner_station1.shared_queue2.put(dummy_number)
                 self.client_scanner_station1.shared_queue3.put(dummy_number)
 
+                '''
                 with self.lock:
-                     '''
+                     
                      last_time2 = self.last_dummy_time_station_two.get(dummy_number, 0)
                      if dummy_number == last_dummy_number2:
                         if now2 - last_time2 <= 60:
@@ -848,8 +849,8 @@ class App():
                             tcp_server._log_add("WARNING", f"⚠️ Duplicate dummy ignored: {dummy_number}")
 
                             return 
-                    '''
-               
+                   
+                '''
                 # ✅ CLEAR CSV FOR NEW DUMMY  ← 🆕 NEW LINE
                 hlb.clear_station2_csv_for_new_dummy(dummy_number)
           
@@ -897,7 +898,7 @@ class App():
                 else:
                     with self.lock:
                         self.station_one_data["db_status"] = "❌ No DB connection"
-                        
+                        self.client_scanner_station1._log_add("WARN", "❌ No DB connection")
         except Exception as e:
             self.client_scanner_station1._log_add("ERROR", f"Error processing Station Two data: {e}")
 
@@ -978,7 +979,7 @@ class App():
                     else:
                         with self.lock:
                             self.station_one_data["db_status"] = "❌ No DB connection"
-                            
+                            self.client_scanner_station1._log_add("WARN", "❌ No DB connection")
             except Exception as e:
                 self.client_scanner_station1._log_add("ERROR", f"Error processing Station Two data: {e}")
 
@@ -1004,8 +1005,9 @@ class App():
                 self.client_scanner_station2.shared_queue2.put(dummy_number)
                 self.client_scanner_station2.shared_queue3.put(dummy_number)
 
+                '''
                 with self.lock:
-                     '''
+                     
                      last_time2 = self.last_dummy_time_station_two.get(dummy_number, 0)
                      if dummy_number == last_dummy_number2:
                         if now2 - last_time2 <= 60:
@@ -1063,7 +1065,7 @@ class App():
                 else:
                     with self.lock:
                         self.station_two_data["db_status"] = "❌ No DB connection"
-                        
+                        self.client_scanner_station2._log_add("WARN", "❌ No DB connection")
         except Exception as e:
             self.client_scanner_station2._log_add("ERROR", f"Error processing Station Two data: {e}")
 
@@ -1147,7 +1149,7 @@ class App():
                     else:
                         with self.lock:
                             self.station_two_data["db_status"] = "❌ No DB connection"
-                            
+                            self.client_scanner_station2._log_add("WARN", "❌ No DB connection")
             except Exception as e:
                 self.client_scanner_station2._log_add("ERROR", f"Error processing Station Two data: {e}")
 
