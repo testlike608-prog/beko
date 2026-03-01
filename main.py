@@ -13,6 +13,13 @@ from ClientsClass import App
 import db ,ClientsClass
 from waitress import serve
 
+
+import os
+
+
+# مثال لتعريف مسار الـ HTML في Flask
+# app = Flask(__name__, template_folder=os.path.join(basedir, 'templates'))
+
 app = Flask(__name__,template_folder="templates",static_folder="static")
 app.secret_key = "your-secret-key-here"
 
@@ -41,6 +48,14 @@ def main():
 
 
 if __name__ == "__main__":
+    
+    # تحديد المسار الأساسي سواء شغال كود أو exe
+    if getattr(sys, 'frozen', False):
+        # لو البرنامج شغال كـ exe
+        basedir = os.path.dirname(sys.executable)
+    else:
+        # لو شغال كود عادي
+        basedir = os.path.dirname(os.path.abspath(__file__))
     db.auto_connect_db()
     threading.Timer(1, lambda: webbrowser.open("http://127.0.0.1:5000")).start()
     threading.Thread(target=main, daemon= False).start()

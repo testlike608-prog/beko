@@ -15,6 +15,12 @@ from flask import url_for, Flask
 
 
 
+global di 
+di = dict()
+global di2 
+di2 = dict()
+
+
 global queue_manual
 global queue_manual2 
 global NO_CSV_ERROR
@@ -671,8 +677,8 @@ class App():
         
         self.client_scanner_station1.start_listening(self._scanner_station_1)
         self.client_scanner_station2.start_listening(self._scanner_station_2)
-        self.client_Vision_station1_SN.start_listening(self._SN_Proccess1)
-        self.client_Vision_station2_SN.start_listening(self._SN_Proccess2)      
+        #self.client_Vision_station1_SN.start_listening(self._SN_Proccess1)
+        #self.client_Vision_station2_SN.start_listening(self._SN_Proccess2)      
 
         self.client_write_io.send_request(CMD_OFF_ALL,is_hex=True)
 
@@ -712,7 +718,7 @@ class App():
         تستقبل نص من الـ Queue، تقسمه حرفين حرفين، وترسله إلى Vision Master 1
         """
         
-
+        global di 
         while self.client_Vision_station1.connected:
             try:
                 message_from_queue = self.client_scanner_station1.shared_queue.get()
@@ -739,7 +745,7 @@ class App():
                     #zero_values_list = [k for k, v in my_dict.items() if v == "0"]
                     
                     #zero_values_list = [k for k, v in my_dict.items() if v == "0"]
-                   
+                    di = test_results_dict
                     self.client_Vision_station1.shared_queue.put(test_results_dict)
                     self.client_Vision_station1._log_add("INFO", f"Sending to Vision Master 2: [{ test_results_dict}]")
                     '''
@@ -766,7 +772,9 @@ class App():
     def _vision_station_2(self):
         """
         تستقبل نص من الـ Queue، تقسمه حرفين حرفين، وترسله إلى Vision Master 1
+        
         """
+        global di2
         while self.client_Vision_station2.connected:
             try:
                 message_from_queue = self.client_scanner_station2.shared_queue.get()
@@ -796,6 +804,8 @@ class App():
                     self.client_scanner_station2.shared_queue.task_done()
 
                     test_results_dict = {item.split('-')[0]: item.split('-')[1] for item in string_test_results_list}   #convert list to dictinary
+                    
+                    di2 = test_results_dict
                     #zero_values_list = [k for k, v in my_dict.items() if v == "0"]
                     self.client_Vision_station2._log_add("INFO", f"Sending to Vision Master 2: [{ test_results_dict}]")
 
@@ -1176,6 +1186,7 @@ class App():
          except Exception as e:
                 self.client_Vision_station1_SN._log_add("ERROR",f"{e}")
           
+          
     def _SN_Proccess2(self,data:bytes):
          
         global image_SN2
@@ -1200,7 +1211,7 @@ class App():
             """
         self.client_write_io._log_add("FATAL", f"entered the seq of station 1")
 
-        global Manual_Scanner_MODE, NO_CSV_ERROR, Buzzer_Flag_to_OFF
+        global Manual_Scanner_MODE, NO_CSV_ERROR, Buzzer_Flag_to_OFF, di
         global image_SN1, queue_manual_FOR_FAILURE, is_waiting  # Make sure we can access these
 
         try:
@@ -1277,20 +1288,22 @@ class App():
             current_time = time.time()
             
             # Check if we got a new image
-            if image_SN1 is not None and image_SN1 != initial_image_state:
-                self.client_write_io._log_add("INFO", f"New image received: {image_SN1}")
-                self.client_write_io.send_request(OFF_LIGHTING_S1,is_hex=True)   # lighting OFF
-                self.client_write_io.send_request(ON_TESTDONE_S1,is_hex=True) 
-                plc_signal_period = hlb.TIME_SETTINGS['PlcSignal']
-                time.sleep(plc_signal_period)
-                self.client_write_io.send_request(OFF_TESTDONE_S1,is_hex=True) 
-                result =  hlb._failure_mode_station2_check(target_dummy=dummy, Client= self.client_scanner_station1)
-                if result == "FAIL" :
-                     self.client_write_io.send_request(ON_FAILURE,is_hex=True) 
-                     plc_signal_period = hlb.TIME_SETTINGS['PlcSignal']
-                     self.client_write_io.send_request(OFF_FAILURE,is_hex=True) 
-                image_received = True
-                queue.task_done()
+            if "FrontLogo" in di:
+                self._SN_Proccess1(self.client_Vision_station1_SN.send_request("O"))
+                if image_SN1 is not None and image_SN1 != initial_image_state:
+                    self.client_write_io._log_add("INFO", f"New image received: {image_SN1}")
+                    self.client_write_io.send_request(OFF_LIGHTING_S1,is_hex=True)   # lighting OFF
+                    self.client_write_io.send_request(ON_TESTDONE_S1,is_hex=True) 
+                    plc_signal_period = hlb.TIME_SETTINGS['PlcSignal']
+                    time.sleep(plc_signal_period)
+                    self.client_write_io.send_request(OFF_TESTDONE_S1,is_hex=True) 
+                    result =  hlb._failure_mode_station2_check(target_dummy=dummy, Client= self.client_scanner_station1)
+                    if result == "FAIL" :
+                        self.client_write_io.send_request(ON_FAILURE,is_hex=True) 
+                        plc_signal_period = hlb.TIME_SETTINGS['PlcSignal']
+                        self.client_write_io.send_request(OFF_FAILURE,is_hex=True) 
+                    image_received = True
+                    queue.task_done()
             '''
             # Check for timeout
             if current_time - start_time > image_timeout:
@@ -1390,16 +1403,18 @@ class App():
             current_time = time.time()
             
             # Check if we got a new image
-            if image_SN2 is not None and image_SN2 != initial_image_state:
-                self.client_write_io._log_add("INFO", f"New image received: {image_SN1}")
-                self.client_write_io.send_request(OFF_LIGHTING_S2,is_hex=True)   # lighting OFF
-                self.client_write_io.send_request(ON_TESTDONE_S2,is_hex=True) 
-                plc_signal_period = hlb.TIME_SETTINGS['PlcSignal']
-                time.sleep(plc_signal_period)
-                self.client_write_io.send_request(OFF_TESTDONE_S2,is_hex=True) 
-               
-                image_received = True
-                queue.task_done()
+            if "ShelveColor" in di2:
+                self._SN_Proccess2(self.client_Vision_station2_SN.send_request("I"))
+                if image_SN2 is not None and image_SN2 != initial_image_state:
+                    self.client_write_io._log_add("INFO", f"New image received: {image_SN1}")
+                    self.client_write_io.send_request(OFF_LIGHTING_S2,is_hex=True)   # lighting OFF
+                    self.client_write_io.send_request(ON_TESTDONE_S2,is_hex=True) 
+                    plc_signal_period = hlb.TIME_SETTINGS['PlcSignal']
+                    time.sleep(plc_signal_period)
+                    self.client_write_io.send_request(OFF_TESTDONE_S2,is_hex=True) 
+                
+                    image_received = True
+                    queue.task_done()
             '''
             # Check for timeout
             if current_time - start_time > image_timeout:
