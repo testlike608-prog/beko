@@ -1172,37 +1172,52 @@ class App():
                 self.client_scanner_station2._log_add("ERROR", f"Error processing Station Two data: {e}")
 
 
-    def _SN_Proccess1(self,data:bytes):
-         global image_SN1
-         try:
-             text = data.decode("utf-8", errors="ignore").strip()
-             Chunks=text.split("-")
-             
-             if Chunks[0] == "SN":
-                 image_SN1 = Chunks[1]
-                 self.client_Vision_station1_SN._log_add("ERROR",f"Image serial Number Station1 {image_SN1}")
-             else:
-                 self.client_Vision_station1_SN._log_add("ERROR",f"UNEXPECTED INCOMING DATA FROM [{Ip_vision_outer_SN}]:{Port_vision_outer_SN}")
-         except Exception as e:
-                self.client_Vision_station1_SN._log_add("ERROR",f"{e}")
-          
-          
-    def _SN_Proccess2(self,data:bytes):
-         
-        global image_SN2
-        try:
-             text = data.decode("utf-8", errors="ignore").strip()
-             Chunks=text.split("-")
-             
-             if Chunks[0] == "SN":
-                 image_SN2 = Chunks[1]
-                 self.client_Vision_station1_SN._log_add("ERROR",f"Image serial Number Station2 {image_SN2}")
-             else:
-                 self.client_Vision_station1_SN._log_add("ERROR",f"UNEXPECTED INCOMING DATA FROM [{Ip_vision_outer_SN}]:{Port_vision_outer_SN}")
-        except Exception as e:
-                self.client_Vision_station1_SN._log_add("ERROR",f"{e}")
-          
+    def _SN_Proccess1(self,data):
+        global image_SN1
     
+        try:
+            # التأكد من نوع البيانات: لو بايتس حولها لسترينج، لو سترينج استخدمها مباشرة
+            if isinstance(data, bytes):
+                text = data.decode("utf-8", errors="ignore").strip()
+            else:
+                text = str(data).strip()
+
+            Chunks = text.split("-")
+            
+            if Chunks[0] == "SN" and len(Chunks) > 1:
+                image_SN1 = Chunks[1]
+                # ملحوظة: هل تقصد أن تسجيل الرقم "ERROR" أم معلومة عادية "INFO"؟
+                self.client_Vision_station1_SN._log_add("ERROR", f"Image serial Number Station1 {image_SN1}")
+            else:
+                self.client_Vision_station1_SN._log_add("ERROR", f"UNEXPECTED INCOMING DATA: {text}")
+
+        except Exception as e:
+            self.client_Vision_station1_SN._log_add("ERROR", f"Process Error: {e}")
+          
+
+    def _SN_Proccess2(self,data):
+        global image_SN2
+    
+        try:
+            # التأكد من نوع البيانات: لو بايتس حولها لسترينج، لو سترينج استخدمها مباشرة
+            if isinstance(data, bytes):
+                text = data.decode("utf-8", errors="ignore").strip()
+            else:
+                text = str(data).strip()
+
+            Chunks = text.split("-")
+            
+            if Chunks[0] == "SN" and len(Chunks) > 1:
+                image_SN2 = Chunks[1]
+                # ملحوظة: هل تقصد أن تسجيل الرقم "ERROR" أم معلومة عادية "INFO"؟
+                self.client_Vision_station2_SN._log_add("ERROR", f"Image serial Number Station2 {image_SN2}")
+            else:
+                self.client_Vision_station2_SN._log_add("ERROR", f"UNEXPECTED INCOMING DATA: {text}")
+
+        except Exception as e:
+            self.client_Vision_station2_SN._log_add("ERROR", f"Process Error: {e}")
+          
+   
     def _IO_Writer_station_1(self):
         
        #self.client_write_io.send_request(message=CMD_ACTION_S1, is_hex=True)
@@ -1259,7 +1274,7 @@ class App():
                     text = dummy.encode("utf-8")
                     thread = threading.Thread(target=self.Manual_scanner_station_1, daemon= True, args=(text,))
                     thread.start()
-                    thread.join()
+                    #thread.join()
                     self.client_scanner_station1._log_add("info", f"arrivedddddddddddddddddddddddddddddddddd")  # R0124090500055
 
                         
@@ -1286,10 +1301,14 @@ class App():
         
         while not image_received:
             current_time = time.time()
+            self.client_write_io._log_add("INFO", f"entered whileeeeeeeeeeeeeeee")
             
             # Check if we got a new image
             if "FrontLogo" in di:
-                self._SN_Proccess1(self.client_Vision_station1_SN.send_request("O"))
+                self.client_write_io._log_add("INFO", f"entered while and ifffffffff")
+                res = self.client_Vision_station1_SN.send_request("O", is_hex= False)
+                self.client_write_io._log_add("INFO", f"moveddddddddddddddddddddddddddddddd")
+                self._SN_Proccess1(res)
                 if image_SN1 is not None and image_SN1 != initial_image_state:
                     self.client_write_io._log_add("INFO", f"New image received: {image_SN1}")
                     self.client_write_io.send_request(OFF_LIGHTING_S1,is_hex=True)   # lighting OFF
