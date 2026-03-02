@@ -1263,6 +1263,7 @@ class App():
                         self.client_write_io.send_request(ON_BUZZER_S1,is_hex=True)  # buzzer on
                     
                     self.client_write_io.send_request(OFF_BUZZER_S1,is_hex=True)  # buzzer off
+                    is_waiting = True
        
                     self.client_scanner_station1._log_add("info", f"heyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy")
                     
@@ -1301,7 +1302,7 @@ class App():
         
         while not image_received:
             current_time = time.time()
-            self.client_write_io._log_add("INFO", f"entered whileeeeeeeeeeeeeeee")
+            #self.client_write_io._log_add("INFO", f"entered whileeeeeeeeeeeeeeee")
             
             # Check if we got a new image
             if "FrontLogo" in di:
@@ -1382,6 +1383,7 @@ class App():
                         self.client_write_io.send_request(ON_BUZZER_S2,is_hex=True)  # buzzer on
                     
                     self.client_write_io.send_request(OFF_BUZZER_S2,is_hex=True)  # buzzer off
+                    is_waiting2 = True
        
                     self.client_scanner_station2._log_add("info", f"heyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy")
                     
@@ -1393,7 +1395,7 @@ class App():
                     text = dummy.encode("utf-8")    
                     thread = threading.Thread(target=self.Manual_scanner_station_2, daemon= True, args= (text,))
                     thread.start()
-                    thread.join()
+                    #thread.join()
                     self.client_scanner_station2._log_add("info", f"arriveddddddddddddddddddddddddddddd")  # R0124090500055
 
                         
