@@ -1276,6 +1276,7 @@ class App():
                     thread = threading.Thread(target=self.Manual_scanner_station_1, daemon= True, args=(text,))
                     thread.start()
                     #thread.join()
+                    #self.Manual_scanner_station_1(text)
                     self.client_scanner_station1._log_add("info", f"arrivedddddddddddddddddddddddddddddddddd")  # R0124090500055
 
                         
@@ -1302,14 +1303,14 @@ class App():
         
         while not image_received:
             current_time = time.time()
-            #self.client_write_io._log_add("INFO", f"entered whileeeeeeeeeeeeeeee")
+            self.client_write_io._log_add("INFO", f"entered whileeeeeeeeeeeeeeee")
             
             # Check if we got a new image
             if "FrontLogo" in di:
                 self.client_write_io._log_add("INFO", f"entered while and ifffffffff")
-                res = self.client_Vision_station1_SN.send_request("O", is_hex= False)
+                #res = self.client_Vision_station1_SN.send_request("O", is_hex= False)
                 self.client_write_io._log_add("INFO", f"moveddddddddddddddddddddddddddddddd")
-                self._SN_Proccess1(res)
+                self._SN_Proccess1(self.client_Vision_station1_SN.send_request("O"))
                 if image_SN1 is not None and image_SN1 != initial_image_state:
                     self.client_write_io._log_add("INFO", f"New image received: {image_SN1}")
                     self.client_write_io.send_request(OFF_LIGHTING_S1,is_hex=True)   # lighting OFF
@@ -1346,7 +1347,7 @@ class App():
             """
         self.client_write_io._log_add("FATAL", f"entered the seq of station 1")
 
-        global Manual_Scanner_MODE2, NO_CSV_ERROR, Buzzer_Flag_to_OFF
+        global Manual_Scanner_MODE2, NO_CSV_ERROR2, Buzzer_Flag_to_OFF
         global image_SN2, queue_manual2_FOR_FAILURE, is_waiting2  # Make sure we can access these
 
         try:
@@ -1375,7 +1376,7 @@ class App():
                     #queue_manual_FOR_FAILURE.all_tasks_done.notify_all() # إبلاغ أي Thread منتظر بأن المهام انتهت
                     self.client_write_io.send_request(OFF_SCANNER_S2,is_hex=True)    # scanner Off
                     
-                    self.client_scanner_station2._log_add("info", f"Manual_Scanner_MODE [{Manual_Scanner_MODE}]")
+                    self.client_scanner_station2._log_add("info", f"Manual_Scanner_MODE2 [{Manual_Scanner_MODE2}]")
                     
                     Manual_Scanner_MODE2 = True
                     while  is_waiting2:
@@ -1550,7 +1551,7 @@ class App():
                     try:
                         dummy = self.client_scanner_station2.shared_queue2.get_nowait()
                         
-                        hlb.insert_csv_station2_dummies(dummy=dummy, station_result= station_result)
+                        hlb.insert_csv_station2_dummies(dummy=dummy, StationRes= station_result)
                         # 4. الرفع لقاعدة البيانات
                         db.upload_tests_result_to_db(
                             dummy=dummy,
@@ -1565,7 +1566,7 @@ class App():
                         self.client_scanner_station1.shared_queue2.task_done()
                     except:
                         dummy = queue_manual2_FOR_Proessing.get_nowait()
-                        hlb.insert_csv_station2_dummies(dummy=dummy, station_result= station_result)
+                        hlb.insert_csv_station2_dummies(dummy=dummy, StationRes= station_result)
                         
                         # 4. الرفع لقاعدة البيانات
                         db.upload_tests_result_to_db(

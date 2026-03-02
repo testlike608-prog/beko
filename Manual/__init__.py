@@ -115,7 +115,7 @@ def handle_station_data2():
 
         
         cc.is_waiting2 = False
-        
+        cc.Manual_Scanner_MODE2 = False
         # طباعة للتأكيد في الـ Console بتاع البايثون
         print(f"Global Variable 'is_waiting' is now: {cc.is_waiting}")
         print(f"Data added to queue. Queue size: {cc.queue_manual2_FOR_FAILURE.qsize()}")
