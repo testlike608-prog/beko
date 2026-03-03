@@ -1224,7 +1224,7 @@ class App():
         """
             Handle Station 1 device action with proper image waiting logic
             """
-        self.client_write_io._log_add("FATAL", f"entered the seq of station 1")
+        self.client_write_io._log_add("INFO", f"entered the seq of station 1")
 
         global Manual_Scanner_MODE, NO_CSV_ERROR, Buzzer_Flag_to_OFF, di
         global image_SN1, queue_manual_FOR_FAILURE, is_waiting  # Make sure we can access these
@@ -1248,7 +1248,7 @@ class App():
                      dummy = queue.get_nowait()
                      #self.client_scanner_station1.shared_queue3.task_done()
                      
-                     self.client_scanner_station1._log_add("FATAL", f"I GOT THE DUMMY [{dummy}]")
+                     self.client_scanner_station1._log_add("INFO", f"I GOT THE DUMMY [{dummy}]")
                      self.client_write_io.send_request(OFF_SCANNER_S1,is_hex=True)    # scanner Off
                 else:
                     #queue_manual_FOR_FAILURE.queue.clear() # طريقة سريعة لمسح محتويات الكيو داخلياً
@@ -1345,10 +1345,10 @@ class App():
         """
             Handle Station 1 device action with proper image waiting logic
             """
-        self.client_write_io._log_add("FATAL", f"entered the seq of station 1")
+        self.client_write_io._log_add("INFO", f"entered the seq of station 2")
 
         global Manual_Scanner_MODE2, NO_CSV_ERROR2, Buzzer_Flag_to_OFF
-        global image_SN2, queue_manual2_FOR_FAILURE, is_waiting2  # Make sure we can access these
+        global image_SN2, queue_manual2_FOR_FAILURE, is_waiting2, di2 # Make sure we can access these
 
         try:
             
@@ -1369,7 +1369,7 @@ class App():
                      dummy = queue.get_nowait()
                      #self.client_scanner_station1.shared_queue3.task_done()
                      
-                     self.client_scanner_station2._log_add("FATAL", f"I GOT THE DUMMY [{dummy}]")
+                     self.client_scanner_station2._log_add("INFO", f"I GOT THE DUMMY [{dummy}]")
                      self.client_write_io.send_request(OFF_SCANNER_S2,is_hex=True)    # scanner Off
                 else:
                     #queue_manual_FOR_FAILURE.queue.clear() # طريقة سريعة لمسح محتويات الكيو داخلياً
@@ -1419,14 +1419,17 @@ class App():
         # 1. Wait while we haven't received a new image
         # 2. New image means: image_SN1 changed from initial_image_state
         # 3. AND image_SN1 is not None
-        image_received = False
+        image_received = True
         
-        while not image_received:
+        while image_received:
             current_time = time.time()
             
             # Check if we got a new image
             if "ShelveColor" in di2:
+                self.client_write_io._log_add("INFO", f"aerivvvvvvvvvvvvvvvvvvvvvvv{di2}")
+
                 self._SN_Proccess2(self.client_Vision_station2_SN.send_request("I"))
+                self.client_write_io._log_add("INFO", f"doneeeeeeeeeeeeeeeeeeeeeeeeeeee{di2}")
                 if image_SN2 is not None and image_SN2 != initial_image_state:
                     self.client_write_io._log_add("INFO", f"New image received: {image_SN1}")
                     self.client_write_io.send_request(OFF_LIGHTING_S2,is_hex=True)   # lighting OFF
@@ -1435,7 +1438,7 @@ class App():
                     time.sleep(plc_signal_period)
                     self.client_write_io.send_request(OFF_TESTDONE_S2,is_hex=True) 
                 
-                    image_received = True
+                    image_received = False
                     queue.task_done()
             '''
             # Check for timeout
