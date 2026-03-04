@@ -38,6 +38,7 @@ is_waiting2 = True
 
 
 Buzzer_Flag_to_OFF = False
+Buzzer_Flag_to_OFF2 = False
 #Scanner_IP & Port
 Ip_Scanner1 = "192.168.1.16"  #"192.168.1.16"
 Port_Scanner1 = 7940         #7940
@@ -143,9 +144,9 @@ queue_manual2_FOR_FAILURE  = queue.Queue()
 queue_manual2_FOR_Proessing = queue.Queue()
 #functions 
 # ---------------- Auto-load CSV by ProductNumber ----------------
-def auto_load_csv_by_product_number(product_number: str, part: str, server_instance , queue: queue): # server_instance = client intense
+def auto_load_csv_by_product_number(product_number: str, part: str, server_instance , queue: queue): # type: ignore # server_instance = client intense
     """Automatically load CSV file based on ProductNumber"""
-    global NO_CSV_ERROR, NO_CSV_ERROR2,Buzzer_Flag_to_OFF
+    global NO_CSV_ERROR, NO_CSV_ERROR2,Buzzer_Flag_to_OFF, Buzzer_Flag_to_OFF2
     try:
         if not product_number:
             server_instance._log_add("ERROR", "No ProductNumber provided for CSV auto-load")
@@ -182,12 +183,12 @@ def auto_load_csv_by_product_number(product_number: str, part: str, server_insta
                server.send_request(ON_BUZZER_S2,is_hex=True)
             while True:
                 if Buzzer_Flag_to_OFF:
-                    if part == "S1":
-                        server.send_request(OFF_BUZZER_S1,is_hex=True)
+                    
+                    server.send_request(OFF_BUZZER_S1,is_hex=True)
+                    break
                 
-                    if part == "S2":
-                        server.send_request(OFF_BUZZER_S2,is_hex=True)
-                    Buzzer_Flag_to_OFF = False
+                if Buzzer_Flag_to_OFF2:
+                    server.send_request(OFF_BUZZER_S2,is_hex=True)
                     break
             time.sleep(120)
         csv_data = hlb._load_csv_file(csv_path)
@@ -729,7 +730,7 @@ class App():
                     message_list= textwrap.wrap(message_from_queue, width=2)
                     if "00" in message_list:
                         message_list.remove("00")
-                    test_results_list = list()
+                    test_results_list = []
                     for i in range(len(message_list)):
                         self.client_Vision_station1._log_add("INFO", f"Sending to Vision Master 1: {message_list[i]}")
                         test_results_list.append (self.client_Vision_station1.send_request(message_list[i])) 
@@ -746,7 +747,7 @@ class App():
                     
                     #zero_values_list = [k for k, v in my_dict.items() if v == "0"]
                     di = test_results_dict
-                    self.client_Vision_station1.shared_queue.put(test_results_dict)
+                    self.client_Vision_station1.shared_queue.put(test_results_dict.copy())
                     self.client_Vision_station1._log_add("INFO", f"Sending to Vision Master 2: [{ test_results_dict}]")
                     '''
                     self.client_Vision_station1.shared_queue.put(test_results_dict)
@@ -758,10 +759,11 @@ class App():
                     time.sleep(1)
     
                     thread = threading.Thread(target=self.data_processing_station1, daemon= True)
+                   
                     thread.start()
-                    thread.join()
-                    test_results_list.clear()
-                    test_results_dict.clear()
+                    #thread.join()
+                   # test_results_list.clear()
+                   # test_results_dict.clear()
             except Exception as e:
                 if hasattr(self.client_Vision_station1, '_log_add'):
                     self.client_Vision_station1._log_add("ERROR", f"Error in _vision_station_1: {e}")
@@ -772,9 +774,9 @@ class App():
     def _vision_station_2(self):
         """
         تستقبل نص من الـ Queue، تقسمه حرفين حرفين، وترسله إلى Vision Master 1
-        
         """
-        global di2
+        
+        global di2 
         while self.client_Vision_station2.connected:
             try:
                 message_from_queue = self.client_scanner_station2.shared_queue.get()
@@ -783,42 +785,44 @@ class App():
                     self.client_Vision_station2._log_add("INFO", f"there is no message from queue")
                 else:
                     message_list= textwrap.wrap(message_from_queue, width=2)
+                    self.client_Vision_station2._log_add("INFO", f"the list [{message_list}]")
                     if "00" in message_list:
                         message_list.remove("00")
-                    test_results_list = list()
-
-                   
-                   
+                    test_results_list = []
                     for i in range(len(message_list)):
                         self.client_Vision_station2._log_add("INFO", f"Sending to Vision Master 2: {message_list[i]}")
                         test_results_list.append (self.client_Vision_station2.send_request(message_list[i])) 
                     
-                    #string_test_results_list = ''.join(byte.decode() for byte in test_results_list)
-                    string_test_results_list = list()
+
+                    string_test_results_list = []
                     for i in range(len(test_results_list)):
                         string_test_results_list.append(test_results_list[i].decode("utf-8", errors="ignore"))
-                    
-                    
-                    
-                    self.client_Vision_station2._log_add("INFO", f"Sending to Vision Master 2: [{ string_test_results_list}]")
+                    #self.client_Vision_station1._log_add("INFO", f"Sending to Vision Master 1: [{ test_results_list}]")
                     self.client_scanner_station2.shared_queue.task_done()
-
+                    
                     test_results_dict = {item.split('-')[0]: item.split('-')[1] for item in string_test_results_list}   #convert list to dictinary
-                    
-                    di2 = test_results_dict
                     #zero_values_list = [k for k, v in my_dict.items() if v == "0"]
-                    self.client_Vision_station2._log_add("INFO", f"Sending to Vision Master 2: [{ test_results_dict}]")
-
-
-                    self.client_Vision_station2.shared_queue.put(test_results_dict)
                     
+                    #zero_values_list = [k for k, v in my_dict.items() if v == "0"]
+                    
+                    self.client_Vision_station2.shared_queue.put(test_results_dict.copy())
+                    di2 = test_results_dict
+                    self.client_Vision_station2._log_add("INFO", f"Sending to Vision Master 2: [{ test_results_dict}]")
+                    '''
+                    self.client_Vision_station1.shared_queue.put(test_results_dict)
+                    
+                    TEST = self.client_Vision_station1.shared_queue.get()
+                    self.client_Vision_station1._log_add("INFO", f"DATA IN THE Q👌👌😒😒😍😒😒😍🤦‍♀️🙌: [{TEST}]")
+                    '''
+                    
+                    time.sleep(1)
+    
                     thread = threading.Thread(target=self.data_processing_station2, daemon= True)
+                   
                     thread.start()
-                    thread.join()
-                    test_results_list.clear()
-                    test_results_dict.clear()
-                   
-                   
+                    #thread.join()
+                   # test_results_list.clear()
+                   # test_results_dict.clear()
             except Exception as e:
                 if hasattr(self.client_Vision_station2, '_log_add'):
                     self.client_Vision_station2._log_add("ERROR", f"Error in _vision_station_2: {e}")
@@ -893,7 +897,7 @@ class App():
                                     self.station_one_data["db_status"] = status
                                 self.client_scanner_station1._log_add("INFO", status)
                                 
-                                auto_load_csv_by_product_number(last_product_number, "S1", self.client_Vision_station1, self.client_scanner_station1.shared_queue)
+                                threading.Thread(target=auto_load_csv_by_product_number, args= (last_product_number, "S1", self.client_Vision_station1, self.client_scanner_station1.shared_queue)).start()
                             else:
                                 status = f"❌ Dummy '{dummy_number}' not found"
                                 with self.lock:
@@ -982,7 +986,7 @@ class App():
                                         self.station_one_data["db_status"] = status
                                     self.client_scanner_station1._log_add("INFO", status)
                                     
-                                    auto_load_csv_by_product_number(last_product_number, "S1", self.client_Vision_station1, self.client_scanner_station1.shared_queue)
+                                    threading.Thread(target=auto_load_csv_by_product_number, args= (last_product_number, "S1", self.client_Vision_station1, self.client_scanner_station1.shared_queue)).start()
                                 else:
                                     status = f"❌ Dummy '{dummy_number}' not found"
                                     with self.lock:
@@ -1068,7 +1072,7 @@ class App():
                                     self.station_two_data["db_status"] = status
                                 self.client_scanner_station2._log_add("INFO", status)
                                 
-                                auto_load_csv_by_product_number(last_product_number2, "S2", self.client_Vision_station2, self.client_scanner_station2.shared_queue)
+                                threading.Thread(target=auto_load_csv_by_product_number, args= (last_product_number2, "S2", self.client_Vision_station2, self.client_scanner_station2.shared_queue)).start()
                             else:
                                 status = f"❌ Dummy '{dummy_number}' not found"
                                 with self.lock:
@@ -1152,7 +1156,7 @@ class App():
                                         self.station_two_data["db_status"] = status
                                     self.client_scanner_station2._log_add("INFO", status)
                                     
-                                    auto_load_csv_by_product_number(last_product_number2, "S2", self.client_Vision_station2, self.client_scanner_station2.shared_queue)
+                                    threading.Thread(target=auto_load_csv_by_product_number, args= (last_product_number2, "S2", self.client_Vision_station2, self.client_scanner_station2.shared_queue)).start()
                                 else:
                                     status = f"❌ Dummy '{dummy_number}' not found"
                                     with self.lock:
@@ -1226,7 +1230,7 @@ class App():
             """
         self.client_write_io._log_add("INFO", f"entered the seq of station 1")
 
-        global Manual_Scanner_MODE, NO_CSV_ERROR, Buzzer_Flag_to_OFF, di
+        global Manual_Scanner_MODE, NO_CSV_ERROR, Buzzer_Flag_to_OFF,di
         global image_SN1, queue_manual_FOR_FAILURE, is_waiting  # Make sure we can access these
 
         try:
@@ -1273,6 +1277,7 @@ class App():
                     self.client_write_io.send_request(OFF_SCANNER_S1,is_hex=True)    # scanner Off
                     self.client_scanner_station1._log_add("info", f"{type(dummy)}")  # R0124090500055
                     text = dummy.encode("utf-8")
+                    
                     thread = threading.Thread(target=self.Manual_scanner_station_1, daemon= True, args=(text,))
                     thread.start()
                     #thread.join()
@@ -1303,7 +1308,7 @@ class App():
         
         while not image_received:
             current_time = time.time()
-            self.client_write_io._log_add("INFO", f"entered whileeeeeeeeeeeeeeee")
+            #self.client_write_io._log_add("INFO", f"entered whileeeeeeeeeeeeeeee")
             
             # Check if we got a new image
             if "FrontLogo" in di:
@@ -1311,6 +1316,7 @@ class App():
                 #res = self.client_Vision_station1_SN.send_request("O", is_hex= False)
                 self.client_write_io._log_add("INFO", f"moveddddddddddddddddddddddddddddddd")
                 self._SN_Proccess1(self.client_Vision_station1_SN.send_request("O"))
+                di.clear()
                 if image_SN1 is not None and image_SN1 != initial_image_state:
                     self.client_write_io._log_add("INFO", f"New image received: {image_SN1}")
                     self.client_write_io.send_request(OFF_LIGHTING_S1,is_hex=True)   # lighting OFF
@@ -1347,8 +1353,8 @@ class App():
             """
         self.client_write_io._log_add("INFO", f"entered the seq of station 2")
 
-        global Manual_Scanner_MODE2, NO_CSV_ERROR2, Buzzer_Flag_to_OFF
-        global image_SN2, queue_manual2_FOR_FAILURE, is_waiting2, di2 # Make sure we can access these
+        global Manual_Scanner_MODE2, NO_CSV_ERROR2, Buzzer_Flag_to_OFF2
+        global image_SN2, queue_manual2_FOR_FAILURE, is_waiting2  # Make sure we can access these
 
         try:
             
@@ -1426,12 +1432,11 @@ class App():
             
             # Check if we got a new image
             if "ShelveColor" in di2:
-                self.client_write_io._log_add("INFO", f"aerivvvvvvvvvvvvvvvvvvvvvvv{di2}")
-
+                di2.clear()
                 self._SN_Proccess2(self.client_Vision_station2_SN.send_request("I"))
                 self.client_write_io._log_add("INFO", f"doneeeeeeeeeeeeeeeeeeeeeeeeeeee{di2}")
                 if image_SN2 is not None and image_SN2 != initial_image_state:
-                    self.client_write_io._log_add("INFO", f"New image received: {image_SN1}")
+                    self.client_write_io._log_add("INFO", f"New image received: {image_SN2}")
                     self.client_write_io.send_request(OFF_LIGHTING_S2,is_hex=True)   # lighting OFF
                     self.client_write_io.send_request(ON_TESTDONE_S2,is_hex=True) 
                     plc_signal_period = hlb.TIME_SETTINGS['PlcSignal']
@@ -1467,7 +1472,7 @@ class App():
                 try:
                     # بيستنى داتا من Vision Station 1 لمدة ثانية
                     test_results_dict = self.client_Vision_station1.shared_queue.get(timeout=30)
-                    self.client_scanner_station1._log_add("INFO", f"AAAAAAAAAAAAAAAA😊{test_results_dict}")
+                    self.client_scanner_station1._log_add("INFO", f"AAAAAAAAAAAAAAAA😊{test_results_dict}") # بيقف هنا 
                 except Empty: 
                     # لو مفيش داتا جات في خلال ثانية، يرجع يلف تاني}
                     self.client_scanner_station1._log_add("INFO", "AAAAAAAAAAAAAAAA😊")
@@ -1522,28 +1527,28 @@ class App():
 
 
     def data_processing_station2(self):
-        self.client_scanner_station2._log_add("INFO", "Station 2 processing thread started")
+            self.client_scanner_station2._log_add("INFO", "Station 2 processing thread started")
          
-        test_results_dict = {}
-        self.client_scanner_station2._log_add("INFO", "قبل التراااااي")
-        try:
-                self.client_scanner_station2._log_add("INFO", "مستني داتا من Vision 2")
+            #test_results_dict2 = {}
+            self.client_scanner_station2._log_add("INFO", "قبل التراااااي")
+            try:
+                self.client_scanner_station2._log_add("INFO", "مستني داتا من Vision 1")
 
                 # 1. الأفضل نستخدم blocking get مع timeout بدل الـ empty()
                 # كدة الثريد هينام ويفوق أول ما داتا تيجي، وده أحسن للبروسيسور
                 try:
                     # بيستنى داتا من Vision Station 1 لمدة ثانية
-                    test_results_dict = self.client_Vision_station2.shared_queue.get(timeout=30)
-                    self.client_scanner_station2._log_add("INFO", f"AAAAAAAAAAAAAAAA😊{test_results_dict}")
+                    test_results_dict2 = self.client_Vision_station2.shared_queue.get(timeout=100)
+                    self.client_scanner_station2._log_add("INFO", f"AAAAAAAAAAAAAAAA😊{test_results_dict2}")
                 except Empty: 
                     # لو مفيش داتا جات في خلال ثانية، يرجع يلف تاني}
                     self.client_scanner_station2._log_add("INFO", "AAAAAAAAAAAAAAAA😊")
 
-                if test_results_dict and isinstance(test_results_dict, dict):                    
+                if test_results_dict2 and isinstance(test_results_dict2, dict):                    
                     # 2. استخراج الاختبارات الفاشلة
-                    zero_values_list = [k for k, v in test_results_dict.items() if v == "0"]
+                    zero_values_list = [k for k, v in test_results_dict2.items() if v == "0"]
                     failed_tests = ", ".join(zero_values_list)
-                    station_name = "VisionOuterTest"
+                    station_name = "VisionInnerTest"
                     if zero_values_list:
 
                         station_result = "FAIL" 
@@ -1551,25 +1556,24 @@ class App():
                         station_result = "PASS" 
                        
                     # 3. سحب رقم الـ Dummy (تأكد أن الكيو ده فيه داتا فعلاً)
+                    test_results_dict2.clear()
                     try:
                         dummy = self.client_scanner_station2.shared_queue2.get_nowait()
                         
-                        hlb.insert_csv_station2_dummies(dummy=dummy, StationRes= station_result)
                         # 4. الرفع لقاعدة البيانات
                         db.upload_tests_result_to_db(
                             dummy=dummy,
                             station_name=station_name,
                             station_result=station_result,
                             failed_tests=failed_tests,
-                            Client=self.client_scanner_station1
+                            Client=self.client_scanner_station2
                         )
                         
 
                         # تأكيد إتمام المهمة للكيو الخاص بالـ dummy
-                        self.client_scanner_station1.shared_queue2.task_done()
+                        self.client_scanner_station2.shared_queue2.task_done()
                     except:
                         dummy = queue_manual2_FOR_Proessing.get_nowait()
-                        hlb.insert_csv_station2_dummies(dummy=dummy, StationRes= station_result)
                         
                         # 4. الرفع لقاعدة البيانات
                         db.upload_tests_result_to_db(
@@ -1577,13 +1581,13 @@ class App():
                             station_name=station_name,
                             station_result=station_result,
                             failed_tests=failed_tests,
-                            Client=self.client_scanner_station1)
-                        #self.client_scanner_station2._log_add("WARNING", "No dummy ID found in shared_queue2")
+                            Client=self.client_scanner_station2)
+                        self.client_scanner_station2._log_add("WARNING", "No dummy ID found in shared_queue2")
 
                     # تأكيد إتمام المهمة للكيو الخاص بالنتائج
                         queue_manual2_FOR_Proessing.task_done()
             
-        except Exception as e:
+            except Exception as e:
                 self.client_scanner_station2._log_add("ERROR", f"Error in processing: {e}")
                 time.sleep(1) # عشان لو حصل خطأ متكرر ميعلقش الجهاز
 
