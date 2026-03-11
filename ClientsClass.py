@@ -78,7 +78,7 @@ ON_SCANNER_S1  =            "00010000000601050004FF00" #D4 ON
 ON_SCANNER_S2  =            "00010000000601050005FF00" #D5 ON
 ON_TESTDONE_S1 =            "00010000000601050006FF00" #D6 ON
 ON_TESTDONE_S2 =            "00010000000601050007FF00" #D7 ON
-ON_FAILURE     =            "00010000000601050008FF00" #D8 ON
+ON_FAILURE     =            "000100000006010500010FF00" #D10 ON
 #WRITE SINGLE OUTPUT OFF
 OFF_LIGHTING_S1 =            "000100000006010500080000" #D0 OFF
 OFF_BUZZER_S2   =            "000100000006010500010000" #D1 OFF
@@ -88,7 +88,7 @@ OFF_SCANNER_S1  =            "000100000006010500040000" #D4 OFF
 OFF_SCANNER_S2  =            "000100000006010500050000" #D5 OFF
 OFF_TESTDONE_S1 =            "000100000006010500060000" #D6 OFF
 OFF_TESTDONE_S2 =            "000100000006010500070000" #D7 OFF
-OFF_FAILURE     =            "000100000006010500080000" #D8 OFF
+OFF_FAILURE     =            "0001000000060105000100000" #D10 OFF
 CMD_OFF_ALL=                "000100000009010F00000010020000"                # all bins off 
 '''
 #Write
@@ -808,6 +808,7 @@ class App():
                     self.client_Vision_station2.shared_queue.put(test_results_dict.copy())
                     di2 = test_results_dict
                     self.client_Vision_station2._log_add("INFO", f"Sending to Vision Master 2: [{ test_results_dict}]")
+                    self.client_Vision_station2._log_add("INFO", f"Sending to Vision Master 2 DI2: [{di2}]")
                     '''
                     self.client_Vision_station1.shared_queue.put(test_results_dict)
                     
