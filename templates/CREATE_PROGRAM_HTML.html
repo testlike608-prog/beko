@@ -344,8 +344,9 @@
 
 <script>
 // ==================== FIXED OPTIONS ====================
-let FIXED_OPTIONS = {
-front_logo: [["None","00"],["Beko","1A"],["Defy","1B"],["Arcelik","1C"],["Ariston","1D"],["Whirlpool","1E"]],
+// ==================== FIXED OPTIONS ====================
+const defaultFixedOptions = {
+  front_logo: [["None","00"],["Beko","1A"],["Defy","1B"],["Arcelik","1C"],["Ariston","1D"],["Whirlpool","1E"]],
   display_logo: [["None","00"],["Fish screen","1F"],["Second screen","1G"],["Ahmed screen","1H"],["opt3","1I"],["opt4","1J"]],
   color: [["None","00"],["white","6A"],["Black","6B"],["opt3","6C"],["opt4","6D"],["opt5","6E"]],
   data_logo: [["None","00"],["Beko","4A"],["Defy","4B"],["Arcelik","4C"],["Ariston","4D"],["Whirlpool","4E"]],
@@ -358,7 +359,12 @@ front_logo: [["None","00"],["Beko","1A"],["Defy","1B"],["Arcelik","1C"],["Aristo
   shelve_color: [["None","00"],["white","9A"],["Black","9B"],["opt3","9C"],["opt4","9D"],["opt5","9E"]]
 };
 
+// جلب الخيارات المحفوظة في المتصفح، أو استخدام الافتراضية
+let savedOptions = localStorage.getItem('saved_fixed_options');
+let FIXED_OPTIONS = savedOptions ? JSON.parse(savedOptions) : defaultFixedOptions;
+
 let FIXED_OPTIONS_ORIGINAL = JSON.parse(JSON.stringify(FIXED_OPTIONS));
+
 
 /* ================= TESTS from server (Jinja) =================
    Expect `tests` variable passed by Flask: an array of objects
@@ -550,10 +556,13 @@ function openOptionsEditor(fieldKey) {
           break;
         }
       }
+      // تنبيه: لو عايز التعديلات في TESTS تتحفظ بشكل دائم، لازم تبعتها للـ Backend (Flask) 
+      // لأنها بتيجي من السيرفر في المتغير {{ tests|tojson }}
     } else {
       FIXED_OPTIONS[fieldKey] = newList;
+      // سطر الحفظ الجديد في المتصفح
+      localStorage.setItem('saved_fixed_options', JSON.stringify(FIXED_OPTIONS));
     }
-
     // re-open the picker to show updated list
     openPicker(fieldKey);
   });
