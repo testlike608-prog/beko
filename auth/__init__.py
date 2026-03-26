@@ -2,6 +2,7 @@ from flask import Blueprint
 from flask import render_template, request, redirect, url_for, session
 from .decorators import login_required
 import  os, csv
+from datetime import timedelta # استورد دي في أول الملف
 
 
 auth = Blueprint(
@@ -40,13 +41,25 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
+        # استلام قيمة الزرار (هيرجع True لو متعلم عليه)
+        remember = request.form.get('remember_me') 
 
         auth = check_credentials(username, password)
         if auth:  
             session['username'] = username
             session['auth'] = auth
+            
+            # لو المستخدم اختار Remember Me، خلي السشن "دائمة"
+            if remember:
+                session.permanent = True
+                # اختيارياً: حدد المدة (مثلاً 30 يوم)
+                #app.permanent_session_lifetime = timedelta(days=30)
+            else:
+                # لو مفيش علامة، السشن هتموت بمجرد قفل المتصفح
+                session.permanent = False
+                
             return redirect(url_for('flash.loading'))
         else:
             return render_template("LOGIN_HTML.html", error="❌Invalid username or password")
-           
-    return render_template("LOGIN_HTML.html" ,error = None )
+            
+    return render_template("LOGIN_HTML.html", error=None)

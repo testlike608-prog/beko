@@ -193,10 +193,29 @@ def auto_load_csv_by_product_number(product_number: str, part: str, server_insta
             time.sleep(120)
         csv_data = hlb._load_csv_file(csv_path)
         
+        # 1. الحصول على جميع العناوين (الأعمدة) من ملف الـ CSV
+        # نفترض أن csv_data عبارة عن قاموس (Dictionary) يمثل الصف
+        all_columns = list(csv_data.keys())
+        
+        # 2. تحديد الكلمة التي تريد البحث عنها لنقلها للآخر
+        target_word = "Front Logo" # يمكنك تغييرها لما يناسبك أو جعلها متغيرًا
+        target_word2 = "Shelve color"
+        
+       
+        
+            
+        # 4&3. تجميع الكود بناءً على الترتيب الجديد
+       
         if part == "S1":
-            order = ["Color", "Data logo", "Inverter logo", "Power logo","Front Logo"]
+            order = [col for col in all_columns if col != target_word]
+        
+            if target_word in all_columns:
+                order.append(target_word)
         else:
-            order = ["Eva cover", "Drawer printing", "Color logo", "Fan cover", "Shelve color"]
+            order = [col for col in all_columns if col != target_word2]
+        
+            if target_word in all_columns:
+                order.append(target_word2)
             
         codes = "".join(_get_code(csv_data.get(k, "")) for k in order if _get_code(csv_data.get(k, "")) != "")
         
