@@ -1,0 +1,14 @@
+{
+    "LIGHTING_S1": 3,
+    "LIGHTING_S2": 2,
+    "BUZZER_S1": 8,
+    "BUZZER_S2": 0,
+    "SCANNER_S1": 1,
+    "SCANNER_S2": 5,
+    "TESTDONE_S1": 10,
+    "TESTDONE_S2": 13,
+    "FAILURE": 14,
+    "READ_DI0": 5,
+    "READ_DI1": 2,
+    "READ_INPUTS_REG": 30
+}

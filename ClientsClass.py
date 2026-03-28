@@ -10,9 +10,11 @@ import re
 from typing import Dict
 import textwrap 
 from queue import Empty
-import Manual
 from flask import url_for, Flask
+from ioSetting import generate_modbus_command
 
+# هتحتفظ بس بالأمر ده وتمسح الباقي
+CMD_OFF_ALL = "000100000009010F00000010020000"
 
 
 global di 
@@ -62,34 +64,8 @@ Port_read_IO = 502
 Ip_write_IO = "192.168.1.30"#"192.168.1.30"
 Port_write_IO = 502
 
-#I/O commands
-#Read
-CMD_READ_DI0=               "000300000006010200000001"                      #Read DI0 in I/O Module
-CMD_READ_DI1=               "000400000006010200010001"                      #Read DI1 in I/O Module
-CMD_Read_Inputs=            "000300000006010300220001"                      #the commaned needed to read registers 
 
 
-#write single output ON
-ON_LIGHTING_S1 =            "00010000000601050008FF00" #D0 ON
-ON_LIGHTING_S2   =            "00010000000601050001FF00" #D1 ON 
-ON_BUZZER_S1   =            "00010000000601050002FF00" #D2 ON
-ON_BUZZER_S2 =            "00010000000601050003FF00" #D3 ON
-ON_SCANNER_S1  =            "00010000000601050004FF00" #D4 ON
-ON_SCANNER_S2  =            "00010000000601050005FF00" #D5 ON
-ON_TESTDONE_S1 =            "00010000000601050006FF00" #D6 ON
-ON_TESTDONE_S2 =            "00010000000601050007FF00" #D7 ON
-ON_FAILURE     =            "000100000006010500010FF00" #D10 ON
-#WRITE SINGLE OUTPUT OFF
-OFF_LIGHTING_S1 =            "000100000006010500080000" #D0 OFF
-OFF_BUZZER_S2   =            "000100000006010500010000" #D1 OFF
-OFF_BUZZER_S1   =            "000100000006010500020000" #D2 OFF
-OFF_LIGHTING_S2 =            "000100000006010500030000" #D3 OFF
-OFF_SCANNER_S1  =            "000100000006010500040000" #D4 OFF
-OFF_SCANNER_S2  =            "000100000006010500050000" #D5 OFF
-OFF_TESTDONE_S1 =            "000100000006010500060000" #D6 OFF
-OFF_TESTDONE_S2 =            "000100000006010500070000" #D7 OFF
-OFF_FAILURE     =            "0001000000060105000100000" #D10 OFF
-CMD_OFF_ALL=                "000100000009010F00000010020000"                # all bins off 
 '''
 #Write
 CMD_WRITE_ALL=              "000100000009010F00000010020000"                #Turn all the outputs OFF 
@@ -175,22 +151,22 @@ def auto_load_csv_by_product_number(product_number: str, part: str, server_insta
             elif part == "S2":
                 NO_CSV_ERROR2 = True
 
-            server = TCPClient(Ip_write_IO, Port_write_IO )
+            server = TCPClient(Ip_write_IO, Port_write_IO)
             if part == "S1":
-                server.send_request(ON_BUZZER_S1,is_hex=True)
-                
+                server.send_request(generate_modbus_command("BUZZER_S1", "ON"), is_hex=True)
             if part == "S2":
-               server.send_request(ON_BUZZER_S2,is_hex=True)
+               server.send_request(generate_modbus_command("BUZZER_S2", "ON"), is_hex=True)
+               
             while True:
                 if Buzzer_Flag_to_OFF:
-                    
-                    server.send_request(OFF_BUZZER_S1,is_hex=True)
+                    server.send_request(generate_modbus_command("BUZZER_S1", "OFF"), is_hex=True)
                     break
                 
                 if Buzzer_Flag_to_OFF2:
-                    server.send_request(OFF_BUZZER_S2,is_hex=True)
+                    server.send_request(generate_modbus_command("BUZZER_S2", "OFF"), is_hex=True)
                     break
-            time.sleep(120)
+            
+            time.sleep(60)  # انتظر 60 ثانية قبل إعادة التحقق من وجود الملف
         csv_data = hlb._load_csv_file(csv_path)
         
         # 1. الحصول على جميع العناوين (الأعمدة) من ملف الـ CSV
@@ -707,32 +683,35 @@ class App():
     
     
 # servers handling
-    def _IO_read (self):
-        self.client_read_io._log_add("INFO", f"start reading from io")
-        last_DI0 = b"\0x00"
-        last_DI1 = b"\0x00"
-        while self.client_read_io.connected:
-            try:
+    def _IO_read(self):
+            self.client_read_io._log_add("INFO", f"start reading from io")
+            last_DI0 = b"\x00"
+            last_DI1 = b"\x00"
+            
+            while self.client_read_io.connected:
+                try:
+                    # توليد كود القراءة بناءً على إعدادات الويب
+                    cmd_di0 = generate_modbus_command("READ_DI0", "READ_DI")
+                    DI0_respond = self.client_read_io.send_request(message=cmd_di0, is_hex=True)
+                    
+                    if DI0_respond and DI0_respond[-1:] == b"\x01" and last_DI0 == b"\x00":
+                        threading.Thread(target=self._IO_Writer_station_1, daemon=True).start()
+                        self.client_read_io._log_add("INFO", f"found fridg in station 1")
+                    last_DI0 = DI0_respond[-1:] if DI0_respond else b"\x00"
+                    
+                    time.sleep(0.01)
 
-                DI0_respond=self.client_read_io.send_request(message= CMD_READ_DI0, is_hex= True)
-                #self.client_read_io._log_add("INFO", f"the io reading [{DI0_respond}]")
-                #self.client_read_io._log_add("INFO", f"the io reading [{DI0_respond[-1:]}]")
-                #self.client_read_io._log_add("INFO", f"[{ DI0_respond [-1:]== b"\x01" and  last_DI0 == b"\x00"}]" )
-                if DI0_respond [-1:]== b"\x01" and  last_DI0 == b"\x00" :
-                     threading.Thread(target =self._IO_Writer_station_1, daemon= True).start()
-                     self.client_read_io._log_add("INFO", f"found fridg in station 1")
-                last_DI0 = DI0_respond [-1:]
-                
-                time.sleep(0.01)
-
-                DI1_respond = self.client_read_io.send_request(message= CMD_READ_DI1,is_hex= True)
-                if DI1_respond [-1:]== b"\x01" and  last_DI1 == b"\x00":
-                    threading.Thread(target =self._IO_Writer_station_2, daemon= True).start()
-                    self.client_read_io._log_add("INFO", f"found fridg in station 2")
-                last_DI1 = DI1_respond [-1:]
-            except:
-                self.client_read_io._log_add("INFO", f"زفت")
-
+                    cmd_di1 = generate_modbus_command("READ_DI1", "READ_DI")
+                    DI1_respond = self.client_read_io.send_request(message=cmd_di1, is_hex=True)
+                    
+                    if DI1_respond and DI1_respond[-1:] == b"\x01" and last_DI1 == b"\x00":
+                        threading.Thread(target=self._IO_Writer_station_2, daemon=True).start()
+                        self.client_read_io._log_add("INFO", f"found fridg in station 2")
+                    last_DI1 = DI1_respond[-1:] if DI1_respond else b"\x00"
+                    
+                except Exception as e:
+                    self.client_read_io._log_add("INFO", f"خطأ في القراءة: {e}")
+        
     def _vision_station_1(self):
         """
         تستقبل نص من الـ Queue، تقسمه حرفين حرفين، وترسله إلى Vision Master 1
@@ -1256,10 +1235,10 @@ class App():
         try:
             
             # ---- initial sequence ----
-            self.client_write_io.send_request(ON_LIGHTING_S1,is_hex=True)   # lighting ON
-            self.client_write_io.send_request(ON_SCANNER_S1,is_hex=True)    #  scanner ON
+            self.client_write_io.send_request(generate_modbus_command("LIGHTING_S1", "ON"), is_hex=True)   # lighting ON
+            self.client_write_io.send_request(generate_modbus_command("SCANNER_S1", "ON"), is_hex=True)    # scanner ON
             time.sleep(0.5)
-            self.client_write_io.send_request(OFF_SCANNER_S1,is_hex=True)    #  scanner ON
+            self.client_write_io.send_request(generate_modbus_command("SCANNER_S1", "OFF"), is_hex=True)   # scanner OFF
             self.client_scanner_station1._log_add("info", f"light on")
 
             time.sleep(0.5)
@@ -1273,20 +1252,20 @@ class App():
                      #self.client_scanner_station1.shared_queue3.task_done()
                      
                      self.client_scanner_station1._log_add("INFO", f"I GOT THE DUMMY [{dummy}]")
-                     self.client_write_io.send_request(OFF_SCANNER_S1,is_hex=True)    # scanner Off
+                     self.client_write_io.send_request(generate_modbus_command("SCANNER_S1", "OFF"), is_hex=True)    # scanner Off
                 else:
                     #queue_manual_FOR_FAILURE.queue.clear() # طريقة سريعة لمسح محتويات الكيو داخلياً
                     #queue_manual_FOR_FAILURE.all_tasks_done.notify_all() # إبلاغ أي Thread منتظر بأن المهام انتهت
-                    self.client_write_io.send_request(OFF_SCANNER_S1,is_hex=True)    # scanner Off
+                    self.client_write_io.send_request(generate_modbus_command("SCANNER_S1", "OFF"), is_hex=True)    # scanner Off
                     
                     self.client_scanner_station1._log_add("info", f"Manual_Scanner_MODE [{Manual_Scanner_MODE}]")
                     
                     Manual_Scanner_MODE = True
                     while  is_waiting:
                         
-                        self.client_write_io.send_request(ON_BUZZER_S1,is_hex=True)  # buzzer on
+                        self.client_write_io.send_request(generate_modbus_command("BUZZER_S1", "ON"), is_hex=True)  # buzzer on
                     
-                    self.client_write_io.send_request(OFF_BUZZER_S1,is_hex=True)  # buzzer off
+                    self.client_write_io.send_request(generate_modbus_command("BUZZER_S1", "OFF"), is_hex=True)  # buzzer off
                     is_waiting = True
        
                     self.client_scanner_station1._log_add("info", f"heyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy")
@@ -1294,7 +1273,7 @@ class App():
                     queue = queue_manual_FOR_FAILURE
                     dummy = queue.get()    
                         #queue_manual_FOR_FAILURE.task_done()                  
-                    self.client_write_io.send_request(OFF_SCANNER_S1,is_hex=True)    # scanner Off
+                    self.client_write_io.send_request(generate_modbus_command("SCANNER_S1", "OFF"), is_hex=True)    # scanner Off
                     self.client_scanner_station1._log_add("info", f"{type(dummy)}")  # R0124090500055
                     text = dummy.encode("utf-8")
                     
@@ -1339,16 +1318,16 @@ class App():
                 di.clear()
                 if image_SN1 is not None and image_SN1 != initial_image_state:
                     self.client_write_io._log_add("INFO", f"New image received: {image_SN1}")
-                    self.client_write_io.send_request(OFF_LIGHTING_S1,is_hex=True)   # lighting OFF
-                    self.client_write_io.send_request(ON_TESTDONE_S1,is_hex=True) 
+                    self.client_write_io.send_request(generate_modbus_command("LIGHTING_S1", "OFF"), is_hex=True)   # lighting OFF
+                    self.client_write_io.send_request(generate_modbus_command("TESTDONE_S1", "ON"), is_hex=True)
                     plc_signal_period = hlb.TIME_SETTINGS['PlcSignal']
                     time.sleep(plc_signal_period)
-                    self.client_write_io.send_request(OFF_TESTDONE_S1,is_hex=True) 
+                    self.client_write_io.send_request(generate_modbus_command("TESTDONE_S1", "OFF"), is_hex=True)
                     result =  hlb._failure_mode_station2_check(target_dummy=dummy, Client= self.client_scanner_station1)
                     if result == "FAIL" :
-                        self.client_write_io.send_request(ON_FAILURE,is_hex=True) 
+                        self.client_write_io.send_request(generate_modbus_command("FAILURE", "ON"), is_hex=True)
                         plc_signal_period = hlb.TIME_SETTINGS['PlcSignal']
-                        self.client_write_io.send_request(OFF_FAILURE,is_hex=True) 
+                        self.client_write_io.send_request(generate_modbus_command("FAILURE", "OFF"), is_hex=True)
                     image_received = True
                     queue.task_done()
             '''
@@ -1379,10 +1358,10 @@ class App():
         try:
             
             # ---- initial sequence ----
-            self.client_write_io.send_request(ON_LIGHTING_S2,is_hex=True)   # lighting ON
-            self.client_write_io.send_request(ON_SCANNER_S2,is_hex=True)    #  scanner ON
+            self.client_write_io.send_request(generate_modbus_command("LIGHTING_S2", "ON"), is_hex=True)   # lighting ON
+            self.client_write_io.send_request(generate_modbus_command("SCANNER_S2", "ON"), is_hex=True)    #  scanner ON
             time.sleep(0.5)
-            self.client_write_io.send_request(OFF_SCANNER_S2,is_hex=True)    #  scanner ON
+            self.client_write_io.send_request(generate_modbus_command("SCANNER_S2", "OFF"), is_hex=True)    #  scanner OFF
             self.client_scanner_station1._log_add("info", f"light on")
 
             time.sleep(0.5)
@@ -1396,20 +1375,20 @@ class App():
                      #self.client_scanner_station1.shared_queue3.task_done()
                      
                      self.client_scanner_station2._log_add("INFO", f"I GOT THE DUMMY [{dummy}]")
-                     self.client_write_io.send_request(OFF_SCANNER_S2,is_hex=True)    # scanner Off
+                     self.client_write_io.send_request(generate_modbus_command("SCANNER_S2", "OFF"), is_hex=True)    # scanner Off
                 else:
                     #queue_manual_FOR_FAILURE.queue.clear() # طريقة سريعة لمسح محتويات الكيو داخلياً
                     #queue_manual_FOR_FAILURE.all_tasks_done.notify_all() # إبلاغ أي Thread منتظر بأن المهام انتهت
-                    self.client_write_io.send_request(OFF_SCANNER_S2,is_hex=True)    # scanner Off
+                    self.client_write_io.send_request(generate_modbus_command("SCANNER_S2", "OFF"), is_hex=True)    # scanner Off
                     
                     self.client_scanner_station2._log_add("info", f"Manual_Scanner_MODE2 [{Manual_Scanner_MODE2}]")
                     
                     Manual_Scanner_MODE2 = True
                     while  is_waiting2:
                         
-                        self.client_write_io.send_request(ON_BUZZER_S2,is_hex=True)  # buzzer on
+                        self.client_write_io.send_request(generate_modbus_command("BUZZER_S2", "ON"), is_hex=True)  # buzzer on
                     
-                    self.client_write_io.send_request(OFF_BUZZER_S2,is_hex=True)  # buzzer off
+                    self.client_write_io.send_request(generate_modbus_command("BUZZER_S2", "OFF"), is_hex=True)  # buzzer off
                     is_waiting2 = True
        
                     self.client_scanner_station2._log_add("info", f"heyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy")
@@ -1417,7 +1396,7 @@ class App():
                     queue = queue_manual2_FOR_FAILURE
                     dummy = queue.get()    
                         #queue_manual_FOR_FAILURE.task_done()                 
-                    self.client_write_io.send_request(OFF_SCANNER_S2,is_hex=True)    # scanner Off
+                    self.client_write_io.send_request(generate_modbus_command("SCANNER_S2", "OFF"), is_hex=True)    # scanner Off
                     self.client_scanner_station2._log_add("info", f"{type(dummy)}")  # R0124090500055
                     text = dummy.encode("utf-8")    
                     thread = threading.Thread(target=self.Manual_scanner_station_2, daemon= True, args= (text,))
@@ -1457,11 +1436,11 @@ class App():
                 self.client_write_io._log_add("INFO", f"doneeeeeeeeeeeeeeeeeeeeeeeeeeee{di2}")
                 if image_SN2 is not None and image_SN2 != initial_image_state:
                     self.client_write_io._log_add("INFO", f"New image received: {image_SN2}")
-                    self.client_write_io.send_request(OFF_LIGHTING_S2,is_hex=True)   # lighting OFF
-                    self.client_write_io.send_request(ON_TESTDONE_S2,is_hex=True) 
+                    self.client_write_io.send_request(generate_modbus_command("LIGHTING_S2", "OFF"), is_hex=True)   # lighting OFF
+                    self.client_write_io.send_request(generate_modbus_command("TESTDONE_S2", "ON"), is_hex=True) 
                     plc_signal_period = hlb.TIME_SETTINGS['PlcSignal']
                     time.sleep(plc_signal_period)
-                    self.client_write_io.send_request(OFF_TESTDONE_S2,is_hex=True) 
+                    self.client_write_io.send_request(generate_modbus_command("TESTDONE_S2", "OFF"), is_hex=True) 
                 
                     image_received = False
                     queue.task_done()
