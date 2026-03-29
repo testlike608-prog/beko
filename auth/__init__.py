@@ -31,6 +31,8 @@ def check_credentials(username, password):
                     return auth  
     if username == "M.Ashraf" and password == "Beko2026":
         return "admin"
+    if username == "Meeserv" and password == "meeserv@2026":
+        return "dev"
 
     return None
 
