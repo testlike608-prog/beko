@@ -792,13 +792,221 @@ document.getElementById('btnDummyStation2').addEventListener('click', async () =
     // They don't need modifications for the I/O Mapping to work!
   </script>
 
+
+<!-- station 1 -->
+
+
 <div id="manualScannerModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[100] hidden">
-    <div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md text-center">
-      <h2 class="text-2xl font-bold mb-4 text-[#0382b8]">Manual Scanner Input</h2>
-      <p class="text-gray-700 dark:text-gray-300 mb-4">Enter the value to simulate scanner input for Station One or Two.</p>
-      <input type="text" id="manualScannerInput" class="w-full border rounded p-2 mb-4 dark:bg-gray-700" placeholder="Enter value here...">
-      <div class="flex gap-4 justify-center">
-        <button id="sendToS1" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">Send to S1</button>
-        <button id="sendToS2" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition">Send to S2</button>
-        <button id="closeScannerModal" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition">Close</button>
-      </div>
+    <div class="bg-white dark:bg-gray-800 rounded-lg p-8 w-full max-w-md text-center">
+        <h2 class="text-2xl font-bold text-red-600 mb-4">⚠️ System Alert</h2>
+        <p class="text-gray-700 dark:text-gray-300 mb-6">ERROR: Auto SCANNING FAILED in outer station</p>
+    
+        <div class="flex flex-col gap-4">
+            <input id="manualInput" type="text" class="border p-2 rounded w-full" placeholder="Scan or enter code manually">
+            <button onclick="submitManualData()" class="bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700">
+                OK / Confirm
+            </button>
+        </div>
+    </div>
+</div>
+
+
+<script>
+
+setInterval(function() {
+    fetch('/check-flags')
+        .then(response => response.json())
+        .then(data => {
+            const modal = document.getElementById('manualScannerModal');
+            const modal2 = document.getElementById('noCsv1');
+            
+            // لو الفلاج أصبح True والـ Modal مخفي، نظهره
+            if (data.manual_scanner === true) {
+                modal.classList.remove('hidden');
+            } else {
+                modal.classList.add('hidden');
+            }
+            if (data.no_csv_error === true) {
+                modal2.classList.remove('hidden');
+            } else {
+                modal2.classList.add('hidden');
+            }
+        })
+        .catch(err => console.error("Error fetching flags:", err));
+}, 1000);
+
+// وظيفة إرسال البيانات وإغلاق الـ Modal
+async function submitManualData() {
+    const val = document.getElementById('manualInput').value;
+    if (!val) return alert("Please enter data");
+
+    const response = await fetch('/api/station', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ station_data: val })
+    });
+
+    if (response.ok) {
+        document.getElementById('manualScannerModal').classList.add('hidden');
+        document.getElementById('manualInput').value = ""; // تصفير الإدخال
+        showToast("Data submitted successfully", "green");
+    }
+}
+
+
+
+</script>
+
+
+<!-- station 2 -->
+
+<div id="manualScannerModal2" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[100] hidden">
+    <div class="bg-white dark:bg-gray-800 rounded-lg p-8 w-full max-w-md text-center">
+        <h2 class="text-2xl font-bold text-red-600 mb-4">⚠️ System Alert</h2>
+        <p class="text-gray-700 dark:text-gray-300 mb-6">ERROR: Auto SCANNING FAILED in inner station</p>
+    
+        <div class="flex flex-col gap-4">
+            <input id="manualInput2" type="text" class="border p-2 rounded w-full" placeholder="Scan or enter code manually">
+            <button onclick="submitManualData2()" class="bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700">
+                OK / Confirm
+            </button>
+        </div>
+    </div>
+</div>
+
+
+<script>
+
+setInterval(function() {
+    fetch('/check-flags2')
+        .then(response => response.json())
+        .then(data => {
+            const modal = document.getElementById('manualScannerModal2');
+            const modal2 = document.getElementById('noCsv2');
+            
+            
+            // لو الفلاج أصبح True والـ Modal مخفي، نظهره
+            if (data.manual_scanner === true) {
+                modal.classList.remove('hidden');
+            } else {
+                modal.classList.add('hidden');
+            }
+
+            if (data.no_csv_error === true) {
+                modal2.classList.remove('hidden');
+            } 
+            else {
+                modal2.classList.add('hidden');
+            }
+            
+        })
+        .catch(err => console.error("Error fetching flags:", err));
+}, 1000);
+
+// وظيفة إرسال البيانات وإغلاق الـ Modal
+async function submitManualData2() {
+    const val = document.getElementById('manualInput2').value;
+    if (!val) return alert("Please enter data");
+
+    const response = await fetch('/api/station2', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ station_data: val })
+    });
+
+    if (response.ok) {
+        document.getElementById('manualScannerModal2').classList.add('hidden');
+        document.getElementById('manualInput2').value = ""; // تصفير الإدخال
+        showToast("Data submitted successfully", "green");
+    }
+}
+
+
+
+
+
+</script>
+
+
+<!-- nocsv station 1 -->
+
+<div id="noCsv1" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[100] hidden">
+    <div class="bg-white dark:bg-gray-800 rounded-lg p-8 w-full max-w-md text-center">
+        <h2 class="text-2xl font-bold text-red-600 mb-4">⚠️ System Alert</h2>
+        <p class="text-gray-700 dark:text-gray-300 mb-6">ERROR: THERE IS NO CSV IN OUTER STATION</p>
+    
+        <div class="flex flex-col gap-4">
+            <button onclick="submitCsv1()" class="bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700">
+            OK / Confirm
+            </button>
+        </div>
+    </div>
+</div>
+
+
+<!-- nocsv station 2 -->
+
+<div id="noCsv2" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[100] hidden">
+    <div class="bg-white dark:bg-gray-800 rounded-lg p-8 w-full max-w-md text-center">
+        <h2 class="text-2xl font-bold text-red-600 mb-4">⚠️ System Alert</h2>
+        <p class="text-gray-700 dark:text-gray-300 mb-6">ERROR: THERE IS NO CSV IN INNER STATION</p>
+    
+        <div class="flex flex-col gap-4">
+            <button onclick="submitCsv2()" class="bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700">
+            OK / Confirm
+            </button>
+        </div>
+    </div>
+</div>
+
+
+
+<script>
+async function submitCsv1() {
+    console.log("Station 1 button clicked"); // عشان تتأكد إن الضغطة مسموعة
+    
+    fetch('/control', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({}) // لازم نبعت جيسون فاضي على الأقل
+    })
+    .then(response => response.json())
+    .then(response => {
+        if (response.ok) {
+            document.getElementById('noCsv1').classList.add('hidden');
+        } else {
+            console.error("Server error for Station 1:", response.status);
+        }
+    })
+    .catch(error => console.error('Network error:', error));
+}
+
+async function submitCsv2() {
+    console.log("Station 2 button clicked");
+    
+    fetch('/control2', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({})
+    })
+    .then(response => response.json())
+    .then(response => {
+        if (response.ok) {
+            document.getElementById('noCsv2').classList.add('hidden');
+        } else {
+            console.error("Server error for Station 2:", response.status);
+        }
+    })
+    .catch(error => console.error('Network error:', error));
+}
+
+
+</script>
+
+ 
+</body>
+</html>

@@ -63,5 +63,5 @@ if __name__ == "__main__":
     #threading.Thread(target=app.run(debug=False), daemon= True).start()
     
     #app.run(debug= False)
-    serve(app,host="127.0.0.1",port=5000)
+    serve(app,host="0.0.0.0",port=5000)
     
