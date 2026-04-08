@@ -14,6 +14,7 @@ import db ,ClientsClass
 from waitress import serve
 from ioSetting import io_mapping_bp
 from time_setting import time_settings_bp   
+from flags import flags
 
 import os
 
@@ -33,7 +34,7 @@ app.register_blueprint(CreateUser) #create User App
 app.register_blueprint(SQL)
 app.register_blueprint(Manual)
 app.register_blueprint(io_mapping_bp) # تسجيل بلو برينت io_mapping
-
+app.register_blueprint(flags) # تسجيل بلو برينت flags
 
 
 @app.route("/")

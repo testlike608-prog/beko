@@ -23,6 +23,27 @@ global di2
 di2 = dict()
 
 
+global your_s1_arrived_flag
+your_s1_arrived_flag = False
+global your_s1_result
+your_s1_result = None
+global your_s1_dummy
+your_s1_dummy = ""
+global your_s1_sku
+your_s1_sku = ""
+
+
+global your_s2_arrived_flag 
+your_s2_arrived_flag = False
+global your_s2_result
+your_s2_result = None
+global your_s2_dummy
+your_s2_dummy = ""
+global your_s2_sku
+your_s2_sku = ""
+
+
+
 global queue_manual
 global queue_manual2 
 global NO_CSV_ERROR
@@ -684,6 +705,7 @@ class App():
     
 # servers handling
     def _IO_read(self):
+            global your_s1_arrived_flag, your_s2_arrived_flag
             self.client_read_io._log_add("INFO", f"start reading from io")
             last_DI0 = b"\x00"
             last_DI1 = b"\x00"
@@ -697,6 +719,7 @@ class App():
                     if DI0_respond and DI0_respond[-1:] == b"\x01" and last_DI0 == b"\x00":
                         threading.Thread(target=self._IO_Writer_station_1, daemon=True).start()
                         self.client_read_io._log_add("INFO", f"found fridg in station 1")
+                        your_s1_arrived_flag = True
                     last_DI0 = DI0_respond[-1:] if DI0_respond else b"\x00"
                     
                     time.sleep(0.01)
@@ -707,6 +730,7 @@ class App():
                     if DI1_respond and DI1_respond[-1:] == b"\x01" and last_DI1 == b"\x00":
                         threading.Thread(target=self._IO_Writer_station_2, daemon=True).start()
                         self.client_read_io._log_add("INFO", f"found fridg in station 2")
+                        your_s2_arrived_flag = True
                     last_DI1 = DI1_respond[-1:] if DI1_respond else b"\x00"
                     
                 except Exception as e:
@@ -833,6 +857,7 @@ class App():
     def _scanner_station_1(self, data : bytes):
         """Process data from vision check 1 (port 7940)"""
         global last_product_number, current_dummy_station_one, waiting_for_station_one_result,dummy_number,last_raw_data1,last_dummy_number
+        global your_s1_dummy, your_s1_sku
         try:
             text = data.decode("utf-8", errors="ignore").strip()
             if len(text) > 14:
@@ -848,8 +873,9 @@ class App():
                 dummy_number = parts[0].strip()
                 now2 = time.time()
                 
-                self.client_scanner_station1.shared_queue2.put(dummy_number)
-                self.client_scanner_station1.shared_queue3.put(dummy_number)
+                self.client_scanner_station1.shared_queue2.put(dummy_number.copy()) # for data processing function
+                self.client_scanner_station1.shared_queue3.put(dummy_number.copy())
+                your_s1_dummy = dummy_number.copy()
 
                 
                 with self.lock:
@@ -891,6 +917,7 @@ class App():
                             if row:
                                 last_product_number = row[0]
                                 status = f"✅ Found ProductNumber: {last_product_number}"
+                                your_s1_sku = last_product_number.copy()
                                 with self.lock:
                                     self.station_one_data["product"] = last_product_number
                                     self.station_one_data["db_status"] = status
@@ -918,6 +945,7 @@ class App():
     def Manual_scanner_station_1(self, data : bytes):
             """Process data from vision check 1 (port 7940)"""
             global last_product_number, current_dummy_station_one, waiting_for_station_one_result,dummy_number,last_raw_data1,last_dummy_number
+            global your_s1_dummy, your_s1_sku
             try:
                 text = data.decode("utf-8", errors="ignore").strip()
                 if len(text) > 14:
@@ -980,6 +1008,7 @@ class App():
                                 if row:
                                     last_product_number = row[0]
                                     status = f"✅ Found ProductNumber: {last_product_number}"
+                                    your_s1_sku = last_product_number.copy()
                                     with self.lock:
                                         self.station_one_data["product"] = last_product_number
                                         self.station_one_data["db_status"] = status
@@ -1007,7 +1036,7 @@ class App():
     def _scanner_station_2(self, data : bytes):
         """Process data from vision check 2 (port 7950)"""
         global last_product_number2, current_dummy_station_two, waiting_for_station_two_result,dummy_number,last_raw_data2,last_dummy_number2
-        
+        global your_s2_dummy, your_s2_sku
         try:
             text = data.decode("utf-8", errors="ignore").strip()
             if len(text) > 14:
@@ -1023,9 +1052,9 @@ class App():
                 dummy_number = parts[0].strip()
                 now2 = time.time()
                 
-                self.client_scanner_station2.shared_queue2.put(dummy_number)
-                self.client_scanner_station2.shared_queue3.put(dummy_number)
-
+                self.client_scanner_station2.shared_queue2.put(dummy_number.copy())
+                self.client_scanner_station2.shared_queue3.put(dummy_number.copy())
+                your_s2_dummy = dummy_number.copy()
                 
                 with self.lock:
                     '''
@@ -1066,6 +1095,7 @@ class App():
                             if row:
                                 last_product_number2 = row[0]
                                 status = f"✅ Found ProductNumber: {last_product_number2}"
+                                your_s2_sku = last_product_number2.copy()
                                 with self.lock:
                                     self.station_two_data["product"] = last_product_number2
                                     self.station_two_data["db_status"] = status
@@ -1093,7 +1123,7 @@ class App():
     def Manual_scanner_station_2(self, data : bytes):
             """Process data from vision check 2 (port 7950)"""
             global last_product_number2, current_dummy_station_two, waiting_for_station_two_result,dummy_number,last_raw_data2,last_dummy_number2
-            
+            global your_s2_sku
             try:
                 text = data.decode("utf-8", errors="ignore").strip()
                 if len(text) > 14:
@@ -1150,6 +1180,7 @@ class App():
                                 if row:
                                     last_product_number2 = row[0]
                                     status = f"✅ Found ProductNumber: {last_product_number2}"
+                                    your_s2_sku = last_product_number2.copy()
                                     with self.lock:
                                         self.station_two_data["product"] = last_product_number2
                                         self.station_two_data["db_status"] = status
@@ -1231,6 +1262,7 @@ class App():
 
         global Manual_Scanner_MODE, NO_CSV_ERROR, Buzzer_Flag_to_OFF,di
         global image_SN1, queue_manual_FOR_FAILURE, is_waiting  # Make sure we can access these
+        global your_s1_result, your_s1_dummy, your_s1_arrived_flag
 
         try:
             
@@ -1271,7 +1303,9 @@ class App():
                     self.client_scanner_station1._log_add("info", f"heyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy")
                     
                     queue = queue_manual_FOR_FAILURE
-                    dummy = queue.get()    
+                    dummy = queue.get()
+                    your_s1_dummy = dummy.copy()
+                
                         #queue_manual_FOR_FAILURE.task_done()                  
                     self.client_write_io.send_request(generate_modbus_command("SCANNER_S1", "OFF"), is_hex=True)    # scanner Off
                     self.client_scanner_station1._log_add("info", f"{type(dummy)}")  # R0124090500055
@@ -1322,6 +1356,7 @@ class App():
                     self.client_write_io.send_request(generate_modbus_command("TESTDONE_S1", "ON"), is_hex=True)
                     plc_signal_period = hlb.get_time_setting('PlcSignal')
                     time.sleep(plc_signal_period)
+
                     self.client_write_io.send_request(generate_modbus_command("TESTDONE_S1", "OFF"), is_hex=True)
                     result =  hlb._failure_mode_station2_check(target_dummy=dummy, Client= self.client_scanner_station1)
                     if result == "FAIL" :
@@ -1337,6 +1372,7 @@ class App():
                 break
             '''
             # Wait a bit before checking again
+            your_s1_arrived_flag = False
             time.sleep(0.1)
 
         # ---- image received successfully ----
@@ -1354,7 +1390,7 @@ class App():
 
         global Manual_Scanner_MODE2, NO_CSV_ERROR2, Buzzer_Flag_to_OFF2
         global image_SN2, queue_manual2_FOR_FAILURE, is_waiting2  # Make sure we can access these
-
+        global your_s2_arrived_flag, your_s2_dummy, your_s2_result
         try:
             
             # ---- initial sequence ----
@@ -1394,7 +1430,8 @@ class App():
                     self.client_scanner_station2._log_add("info", f"heyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy")
                     
                     queue = queue_manual2_FOR_FAILURE
-                    dummy = queue.get()    
+                    dummy = queue.get()
+                    your_s2_dummy = dummy   
                         #queue_manual_FOR_FAILURE.task_done()                 
                     self.client_write_io.send_request(generate_modbus_command("SCANNER_S2", "OFF"), is_hex=True)    # scanner Off
                     self.client_scanner_station2._log_add("info", f"{type(dummy)}")  # R0124090500055
@@ -1444,14 +1481,15 @@ class App():
                 
                     image_received = False
                     queue.task_done()
-            '''
+        your_s2_arrived_flag = False
+        '''
             # Check for timeout
             if current_time - start_time > image_timeout:
                 self._log_add("WARNING", f"Image timeout after {image_timeout} seconds")
                 break
             '''
             # Wait a bit before checking again
-            time.sleep(0.1)
+        time.sleep(0.1)
 
         # ---- image received successfully ----
         last_image_SN1 = image_SN2
@@ -1459,6 +1497,7 @@ class App():
     
 
     def data_processing_station1(self):
+            global your_s1_result
             self.client_scanner_station1._log_add("INFO", "Station 1 processing thread started")
          
             test_results_dict = {}
@@ -1486,7 +1525,8 @@ class App():
                         station_result = "FAIL" 
                     else :
                         station_result = "PASS" 
-                       
+
+                    your_s1_result = station_result   
                     # 3. سحب رقم الـ Dummy (تأكد أن الكيو ده فيه داتا فعلاً)
                     try:
                         dummy = self.client_scanner_station1.shared_queue2.get_nowait()
@@ -1526,6 +1566,7 @@ class App():
 
 
     def data_processing_station2(self):
+            global your_s2_result
             self.client_scanner_station2._log_add("INFO", "Station 2 processing thread started")
          
             #test_results_dict2 = {}
@@ -1553,6 +1594,9 @@ class App():
                         station_result = "FAIL" 
                     else :
                         station_result = "PASS" 
+                    
+                    your_s2_result = station_result
+
                        
                     # 3. سحب رقم الـ Dummy (تأكد أن الكيو ده فيه داتا فعلاً)
                     test_results_dict2.clear()
