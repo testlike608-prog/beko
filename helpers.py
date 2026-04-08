@@ -87,7 +87,14 @@ Manual_Scanner_MODE =False
 
 #-----------------Time settings file---------------
 TIME_SETTINGS_FILE = "time_settings.json"
-
+def get_time_setting(key: str):
+    try:
+        with open("time_settings.json", "r", encoding="utf-8") as f:
+            current_settings = json.load(f)
+        return current_settings.get(key) # بيرجع القيمة الجديدة أو الافتراضية لو مش موجودة
+    except Exception:
+        return TIME_SETTINGS.get(key) # لو حصل مشكلة في فتح الملف يرجع القيمة الافتراضية
+        
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROGRAMS_DIR = BASE_DIR
 CSV_SOURCE_DIR = os.path.join(PROGRAMS_DIR, "CreateProgram")

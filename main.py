@@ -13,6 +13,7 @@ from ClientsClass import App
 import db ,ClientsClass
 from waitress import serve
 from ioSetting import io_mapping_bp
+from time_setting import time_settings_bp   
 
 import os
 
@@ -25,6 +26,7 @@ app.secret_key = "your-secret-key-here"
 
 app.register_blueprint(auth) # login app
 app.register_blueprint(flash) #splash page
+app.register_blueprint(time_settings_bp) # تسجيل بلو برينت time_settings
 app.register_blueprint(home) #index
 app.register_blueprint(CreateProgram) #create program App
 app.register_blueprint(CreateUser) #create User App
@@ -50,6 +52,9 @@ def main():
 
 if __name__ == "__main__":
     
+    
+    if not os.path.exists('data'):
+        os.makedirs('data')
     # تحديد المسار الأساسي سواء شغال كود أو exe
     if getattr(sys, 'frozen', False):
         # لو البرنامج شغال كـ exe

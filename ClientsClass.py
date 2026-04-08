@@ -276,7 +276,7 @@ def auto_send_codes(codes: list, filename: str, csv_data: Dict[str, str], part: 
             "message": codes,
             "target": "combined",
             "encoding": "utf-8",
-            "char_delay_ms": hlb.TIME_SETTINGS['s1CharDelay'] if part == "S1" else hlb.TIME_SETTINGS['s2CharDelay'],
+            "char_delay_ms": hlb.get_time_setting('s1CharDelay') if part == "S1" else hlb.get_time_setting('s2CharDelay'),
             "retries": 1,
             "program_part": part,
             "program_label": filename,
@@ -287,7 +287,7 @@ def auto_send_codes(codes: list, filename: str, csv_data: Dict[str, str], part: 
         
         #server_instance.send_request(task["message"])
         
-        if task["event"].wait(timeout=hlb.TIME_SETTINGS['sendTimeout']):
+        if task["event"].wait(timeout=hlb.get_time_setting('sendTimeout')):
             result = task.get("result")
             if result and result.get("ok"):
                 server_instance._log_add("INFO", f"Auto-send successful: {codes}")
@@ -880,7 +880,7 @@ class App():
                 if db.conn_str_db1_global:
                     with db_lock:
                         try:
-                            with pyodbc.connect(db.conn_str_db1_global, timeout=hlb.TIME_SETTINGS['dbTimeout']) as conn:
+                            with pyodbc.connect(db.conn_str_db1_global, timeout=hlb.get_time_setting('dbTimeout')) as conn:
                                 cursor = conn.cursor()
                                 cursor.execute(
                                     "SELECT ProductNumber FROM SFCNumbers WHERE LTRIM(RTRIM(Number)) = ?",
@@ -967,7 +967,7 @@ class App():
                             try:
                                 self.client_scanner_station1._log_add("INFO", f"entered try for scanner 1 manual")
 
-                                with pyodbc.connect(db.conn_str_db1_global, timeout=hlb.TIME_SETTINGS['dbTimeout']) as conn:
+                                with pyodbc.connect(db.conn_str_db1_global, timeout=hlb.get_time_setting('dbTimeout')) as conn:
                                     self.client_scanner_station1._log_add("INFO", f"entered connect database for scanner 1 manual")
 
                                     cursor = conn.cursor()
@@ -1055,7 +1055,7 @@ class App():
                 if db.conn_str_db1_global:
                     with db_lock:
                         try:
-                            with pyodbc.connect(db.conn_str_db1_global, timeout=hlb.TIME_SETTINGS['dbTimeout']) as conn:
+                            with pyodbc.connect(db.conn_str_db1_global, timeout=hlb.get_time_setting('dbTimeout')) as conn:
                                 cursor = conn.cursor()
                                 cursor.execute(
                                     "SELECT ProductNumber FROM SFCNumbers WHERE LTRIM(RTRIM(Number)) = ?",
@@ -1139,7 +1139,7 @@ class App():
                     if db.conn_str_db1_global:
                         with db_lock:
                             try:
-                                with pyodbc.connect(db.conn_str_db1_global, timeout=hlb.TIME_SETTINGS['dbTimeout']) as conn:
+                                with pyodbc.connect(db.conn_str_db1_global, timeout=hlb.get_time_setting('dbTimeout')) as conn:
                                     cursor = conn.cursor()
                                     cursor.execute(
                                         "SELECT ProductNumber FROM SFCNumbers WHERE LTRIM(RTRIM(Number)) = ?",
@@ -1294,7 +1294,7 @@ class App():
         # ✅ FIX: Capture the starting state before waiting
         start_time = time.time()
         initial_image_state = image_SN1  # Remember what image_SN1 was at the start
-        image_timeout = hlb.TIME_SETTINGS['ImageTimeout']
+        image_timeout = hlb.get_time_setting('ImageTimeout')
         
         self.client_write_io._log_add("INFO", f"Waiting for new image. Current state: {initial_image_state}")
 
@@ -1320,13 +1320,13 @@ class App():
                     self.client_write_io._log_add("INFO", f"New image received: {image_SN1}")
                     self.client_write_io.send_request(generate_modbus_command("LIGHTING_S1", "OFF"), is_hex=True)   # lighting OFF
                     self.client_write_io.send_request(generate_modbus_command("TESTDONE_S1", "ON"), is_hex=True)
-                    plc_signal_period = hlb.TIME_SETTINGS['PlcSignal']
+                    plc_signal_period = hlb.get_time_setting('PlcSignal')
                     time.sleep(plc_signal_period)
                     self.client_write_io.send_request(generate_modbus_command("TESTDONE_S1", "OFF"), is_hex=True)
                     result =  hlb._failure_mode_station2_check(target_dummy=dummy, Client= self.client_scanner_station1)
                     if result == "FAIL" :
                         self.client_write_io.send_request(generate_modbus_command("FAILURE", "ON"), is_hex=True)
-                        plc_signal_period = hlb.TIME_SETTINGS['PlcSignal']
+                        plc_signal_period = hlb.get_time_setting('PlcSignal')
                         self.client_write_io.send_request(generate_modbus_command("FAILURE", "OFF"), is_hex=True)
                     image_received = True
                     queue.task_done()
@@ -1415,7 +1415,7 @@ class App():
         # ✅ FIX: Capture the starting state before waiting
         start_time = time.time()
         initial_image_state = image_SN2  # Remember what image_SN1 was at the start
-        image_timeout = hlb.TIME_SETTINGS['ImageTimeout']
+        image_timeout = hlb.get_time_setting('ImageTimeout')
         
         self.client_write_io._log_add("INFO", f"Waiting for new image. Current state: {initial_image_state}")
 
@@ -1438,7 +1438,7 @@ class App():
                     self.client_write_io._log_add("INFO", f"New image received: {image_SN2}")
                     self.client_write_io.send_request(generate_modbus_command("LIGHTING_S2", "OFF"), is_hex=True)   # lighting OFF
                     self.client_write_io.send_request(generate_modbus_command("TESTDONE_S2", "ON"), is_hex=True) 
-                    plc_signal_period = hlb.TIME_SETTINGS['PlcSignal']
+                    plc_signal_period = hlb.get_time_setting('PlcSignal')
                     time.sleep(plc_signal_period)
                     self.client_write_io.send_request(generate_modbus_command("TESTDONE_S2", "OFF"), is_hex=True) 
                 
