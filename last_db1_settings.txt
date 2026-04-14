@@ -1,1 +1,1 @@
-(localdb)\MSSQLLocalDB|ShopDB|Windows Authentication|None|None
+Bencaiprddb,1453|SERIALIZE|SQL server Authentication|ETIKET_USER|eti06KETarc..

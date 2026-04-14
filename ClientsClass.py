@@ -637,6 +637,9 @@ class App():
         self.client_read_io = TCPClient(Ip_read_IO, Port_read_IO )
         self.client_write_io = TCPClient(Ip_write_IO, Port_write_IO )
 
+        self.cam_cap_s1= TCPClient("127.0.0.1", 70 )
+        self.cam_cap_s2 = TCPClient("127.0.0.1", 80 )
+
         #auto connnect with data base
         #self.auto_connect_db()
         #db.auto_connect_db()
@@ -691,6 +694,8 @@ class App():
         self.client_scanner_station2.start_reconnection_watchdog()  
         self.client_Vision_station1_SN.start_reconnection_watchdog()
         self.client_Vision_station2_SN.start_reconnection_watchdog()
+        self.cam_cap_s1.start_reconnection_watchdog()
+        self.cam_cap_s2.start_reconnection_watchdog()
         
         self.client_scanner_station1.start_listening(self._scanner_station_1)
         self.client_scanner_station2.start_listening(self._scanner_station_2)
@@ -718,6 +723,7 @@ class App():
                     
                     if DI0_respond and DI0_respond[-1:] == b"\x01" and last_DI0 == b"\x00":
                         threading.Thread(target=self._IO_Writer_station_1, daemon=True).start()
+                        result =self.cam_cap_s1.send_request("S1")
                         self.client_read_io._log_add("INFO", f"found fridg in station 1")
                         your_s1_arrived_flag = True
                     last_DI0 = DI0_respond[-1:] if DI0_respond else b"\x00"
@@ -729,6 +735,7 @@ class App():
                     
                     if DI1_respond and DI1_respond[-1:] == b"\x01" and last_DI1 == b"\x00":
                         threading.Thread(target=self._IO_Writer_station_2, daemon=True).start()
+                        result2 =self.cam_cap_s2.send_request("S2")
                         self.client_read_io._log_add("INFO", f"found fridg in station 2")
                         your_s2_arrived_flag = True
                     last_DI1 = DI1_respond[-1:] if DI1_respond else b"\x00"
@@ -769,7 +776,7 @@ class App():
                     
                     #zero_values_list = [k for k, v in my_dict.items() if v == "0"]
                     di = test_results_dict
-                    self.client_Vision_station1.shared_queue.put(test_results_dict.copy())
+                    self.client_Vision_station1.shared_queue.put(test_results_dict)
                     self.client_Vision_station1._log_add("INFO", f"Sending to Vision Master 2: [{ test_results_dict}]")
                     '''
                     self.client_Vision_station1.shared_queue.put(test_results_dict)
@@ -827,7 +834,7 @@ class App():
                     
                     #zero_values_list = [k for k, v in my_dict.items() if v == "0"]
                     
-                    self.client_Vision_station2.shared_queue.put(test_results_dict.copy())
+                    self.client_Vision_station2.shared_queue.put(test_results_dict)
                     di2 = test_results_dict
                     self.client_Vision_station2._log_add("INFO", f"Sending to Vision Master 2: [{ test_results_dict}]")
                     self.client_Vision_station2._log_add("INFO", f"Sending to Vision Master 2 DI2: [{di2}]")
@@ -873,9 +880,9 @@ class App():
                 dummy_number = parts[0].strip()
                 now2 = time.time()
                 
-                self.client_scanner_station1.shared_queue2.put(dummy_number.copy()) # for data processing function
-                self.client_scanner_station1.shared_queue3.put(dummy_number.copy())
-                your_s1_dummy = dummy_number.copy()
+                self.client_scanner_station1.shared_queue2.put(dummy_number) # for data processing function
+                self.client_scanner_station1.shared_queue3.put(dummy_number)
+                your_s1_dummy = dummy_number
 
                 
                 with self.lock:
@@ -917,7 +924,7 @@ class App():
                             if row:
                                 last_product_number = row[0]
                                 status = f"✅ Found ProductNumber: {last_product_number}"
-                                your_s1_sku = last_product_number.copy()
+                                your_s1_sku = last_product_number
                                 with self.lock:
                                     self.station_one_data["product"] = last_product_number
                                     self.station_one_data["db_status"] = status
@@ -1008,7 +1015,7 @@ class App():
                                 if row:
                                     last_product_number = row[0]
                                     status = f"✅ Found ProductNumber: {last_product_number}"
-                                    your_s1_sku = last_product_number.copy()
+                                    your_s1_sku = last_product_number
                                     with self.lock:
                                         self.station_one_data["product"] = last_product_number
                                         self.station_one_data["db_status"] = status
@@ -1052,9 +1059,9 @@ class App():
                 dummy_number = parts[0].strip()
                 now2 = time.time()
                 
-                self.client_scanner_station2.shared_queue2.put(dummy_number.copy())
-                self.client_scanner_station2.shared_queue3.put(dummy_number.copy())
-                your_s2_dummy = dummy_number.copy()
+                self.client_scanner_station2.shared_queue2.put(dummy_number)
+                self.client_scanner_station2.shared_queue3.put(dummy_number)
+                your_s2_dummy = dummy_number
                 
                 with self.lock:
                     '''
@@ -1095,7 +1102,7 @@ class App():
                             if row:
                                 last_product_number2 = row[0]
                                 status = f"✅ Found ProductNumber: {last_product_number2}"
-                                your_s2_sku = last_product_number2.copy()
+                                your_s2_sku = last_product_number2
                                 with self.lock:
                                     self.station_two_data["product"] = last_product_number2
                                     self.station_two_data["db_status"] = status
@@ -1180,7 +1187,7 @@ class App():
                                 if row:
                                     last_product_number2 = row[0]
                                     status = f"✅ Found ProductNumber: {last_product_number2}"
-                                    your_s2_sku = last_product_number2.copy()
+                                    your_s2_sku = last_product_number2
                                     with self.lock:
                                         self.station_two_data["product"] = last_product_number2
                                         self.station_two_data["db_status"] = status
@@ -1304,7 +1311,7 @@ class App():
                     
                     queue = queue_manual_FOR_FAILURE
                     dummy = queue.get()
-                    your_s1_dummy = dummy.copy()
+                    your_s1_dummy = dummy
                 
                         #queue_manual_FOR_FAILURE.task_done()                  
                     self.client_write_io.send_request(generate_modbus_command("SCANNER_S1", "OFF"), is_hex=True)    # scanner Off
