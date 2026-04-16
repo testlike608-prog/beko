@@ -30,6 +30,7 @@ TIME_SETTINGS = {
     'dbTimeout': 10,
     'ImageTimeout':10, 
     'PlcSignal' : 0.1
+    
 }
 STATION1_FILE ="Station1.csv"
 STATION2_FILE ="Station2.csv"

@@ -211,7 +211,7 @@ def auto_load_csv_by_product_number(product_number: str, part: str, server_insta
         else:
             order = [col for col in all_columns if col != target_word2]
         
-            if target_word in all_columns:
+            if target_word2 in all_columns:
                 order.append(target_word2)
             
         codes = "".join(_get_code(csv_data.get(k, "")) for k in order if _get_code(csv_data.get(k, "")) != "")
@@ -659,7 +659,8 @@ class App():
             queue_manual_FOR_FAILURE,
             queue_manual_FOR_Proessing,
             queue_manual2_FOR_FAILURE,
-            queue_manual2_FOR_Proessing
+            queue_manual2_FOR_Proessing,
+            
         ]
 
         for q in queues_to_clear:
@@ -1276,6 +1277,7 @@ class App():
             # ---- initial sequence ----
             self.client_write_io.send_request(generate_modbus_command("LIGHTING_S1", "ON"), is_hex=True)   # lighting ON
             self.client_write_io.send_request(generate_modbus_command("SCANNER_S1", "ON"), is_hex=True)    # scanner ON
+            
             time.sleep(0.5)
             self.client_write_io.send_request(generate_modbus_command("SCANNER_S1", "OFF"), is_hex=True)   # scanner OFF
             self.client_scanner_station1._log_add("info", f"light on")

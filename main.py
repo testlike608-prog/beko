@@ -65,7 +65,7 @@ if __name__ == "__main__":
         basedir = os.path.dirname(os.path.abspath(__file__))
     db.auto_connect_db()
     threading.Timer(1, lambda: webbrowser.open("http://127.0.0.1:5000")).start()
-    threading.Thread(target=main, daemon= False).start()
+    threading.Thread(target=main, daemon= True).start()
     #threading.Thread(target=app.run(debug=False), daemon= True).start()
     
     #app.run(debug= False)
