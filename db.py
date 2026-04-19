@@ -1,6 +1,12 @@
 import os, pyodbc
 import subprocess
-import ClientsClass 
+from typing import Protocol
+
+
+class _SupportsLogAdd(Protocol):
+    def _log_add(self, level: str, msg: str) -> None: ...
+
+
 conn_str_db1_global=""
 conn_str_db2_global=""
 global connected1, connected2
@@ -64,7 +70,7 @@ def auto_connect_db():
     conn_str_db2_global, msg2= connect_from_file("last_db2_settings.txt", 2)
     print(f"{msg1}\n{msg2}")
 
-def upload_tests_result_to_db(dummy, station_name, station_result, failed_tests, Client:ClientsClass):
+def upload_tests_result_to_db(dummy, station_name, station_result, failed_tests, Client: _SupportsLogAdd):
     """
     Inserts a new record in DB2 (VisionResult table)
     with SFC, TESTNAME, RESULT, NCCODE columns.
@@ -104,5 +110,5 @@ def upload_tests_result_to_db(dummy, station_name, station_result, failed_tests,
                 Client._log_add("ERROR", f"❌ DB Insert Error: {e}")
                 pass
     except Exception as ex:
-         Client._log_add("ERROR", f"❌ Error connecting to DB: {ex}")
-         pass
+        Client._log_add("ERROR", f"❌ Error connecting to DB: {ex}")
+        pass

@@ -674,6 +674,12 @@
         }
     }
 
+    /** Station status cards + any future shared status polling */
+    function refreshStatus() {
+        pollStation1Status();
+        pollStation2Status();
+    }
+
     function updateUIWithNewTimes() {
         if ($('delayS1')) $('delayS1').value = currentTimeSettings.s1CharDelay;
         if ($('delayS2')) $('delayS2').value = currentTimeSettings.s2CharDelay;
@@ -681,8 +687,9 @@
         
         if (window.statusInterval) {
             clearInterval(window.statusInterval);
-            window.statusInterval = setInterval(refreshStatus, currentTimeSettings.statusRefresh);
         }
+        const ms = Math.max(200, parseInt(currentTimeSettings.statusRefresh, 10) || DEFAULT_TIME_SETTINGS.statusRefresh);
+        window.statusInterval = setInterval(refreshStatus, ms);
         if (window.logInterval) {
             clearInterval(window.logInterval);
             window.logInterval = setInterval(pullLogs, currentTimeSettings.logPolling);
@@ -796,15 +803,27 @@
         textEl.textContent = text;
     }
 
-    // Helper: update info display
+    // Helper: update info display (dummy/SKU may be numeric)
     function setInfo(el, value) {
-        if (value && value !== '' && value !== 'None' && value !== 'null') {
-            el.textContent = value;
-            el.classList.remove('empty');
-        } else {
+        if (value === null || value === undefined) {
             el.textContent = '—';
             el.classList.add('empty');
+            return;
         }
+        const s = String(value).trim();
+        if (s === '' || s === 'None' || s === 'null' || s === 'undefined') {
+            el.textContent = '—';
+            el.classList.add('empty');
+        } else {
+            el.textContent = s;
+            el.classList.remove('empty');
+        }
+    }
+
+    function normalizePassFail(result) {
+        if (result === true || result === false) return result === true ? 'PASS' : 'FAIL';
+        if (result === null || result === undefined) return '';
+        return String(result).trim().toUpperCase();
     }
 
     // Poll Station 1 status
@@ -826,9 +845,10 @@
                 const resultFlag = $('s1-result-flag');
                 const resultDot  = resultFlag.querySelector('.flag-dot');
                 const resultText = $('s1-result-text');
-                if (data.result === 'pass' || data.result === true || data.result === 'PASS') {
+                const r1 = normalizePassFail(data.result);
+                if (r1 === 'PASS') {
                     setFlag(resultFlag, resultDot, resultText, 'pass', 'PASS');
-                } else if (data.result === 'fail' || data.result === false || data.result === 'FAIL') {
+                } else if (r1 === 'FAIL') {
                     setFlag(resultFlag, resultDot, resultText, 'fail', 'FAIL');
                 } else {
                     setFlag(resultFlag, resultDot, resultText, 'idle', 'No Result Yet');
@@ -858,9 +878,10 @@
                 const resultFlag = $('s2-result-flag');
                 const resultDot  = resultFlag.querySelector('.flag-dot');
                 const resultText = $('s2-result-text');
-                if (data.result === 'pass' || data.result === true || data.result === 'PASS') {
+                const r2 = normalizePassFail(data.result);
+                if (r2 === 'PASS') {
                     setFlag(resultFlag, resultDot, resultText, 'pass', 'PASS');
-                } else if (data.result === 'fail' || data.result === false || data.result === 'FAIL') {
+                } else if (r2 === 'FAIL') {
                     setFlag(resultFlag, resultDot, resultText, 'fail', 'FAIL');
                 } else {
                     setFlag(resultFlag, resultDot, resultText, 'idle', 'No Result Yet');
@@ -872,11 +893,10 @@
             .catch(() => {});
     }
 
-    // Start polling every 1 second
-    setInterval(pollStation1Status, 1000);
-    setInterval(pollStation2Status, 1000);
-    pollStation1Status();
-    pollStation2Status();
+    // Station flags: one interval (same cadence as "Status Refresh" in time settings)
+    const _initialRefresh = Math.max(200, DEFAULT_TIME_SETTINGS.statusRefresh);
+    window.statusInterval = setInterval(refreshStatus, _initialRefresh);
+    refreshStatus();
 
   </script>
 

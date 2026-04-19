@@ -10,7 +10,7 @@ from Manual import Manual
 from CreateUser import CreateUser
 from CreateProgram import CreateProgram
 from ClientsClass import App
-import db ,ClientsClass
+import db 
 from waitress import serve
 from ioSetting import io_mapping_bp
 from time_setting import time_settings_bp   

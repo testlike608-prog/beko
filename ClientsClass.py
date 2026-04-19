@@ -1381,8 +1381,10 @@ class App():
                 break
             '''
             # Wait a bit before checking again
-            your_s1_arrived_flag = False
             time.sleep(0.1)
+
+        # UI: keep "Fridge Arrived" true for the whole wait loop; clear once this cycle finishes
+        your_s1_arrived_flag = False
 
         # ---- image received successfully ----
         last_image_SN1 = image_SN1
