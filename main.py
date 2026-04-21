@@ -1,6 +1,8 @@
 import webbrowser 
 import threading 
 import sys
+import os
+
 from flask import Flask,redirect
 from auth import auth
 from flash import flash
@@ -16,13 +18,21 @@ from ioSetting import io_mapping_bp
 from time_setting import time_settings_bp   
 from flags import flags
 
-import os
+
+def _application_directory():
+    """Project root: source tree when running .py; Nuitka/PyInstaller dist folder when frozen."""
+    if getattr(sys, "frozen", False):
+        return os.path.normpath(os.path.dirname(sys.executable))
+    return os.path.normpath(os.path.dirname(os.path.abspath(__file__)))
 
 
-# مثال لتعريف مسار الـ HTML في Flask
-# app = Flask(__name__, template_folder=os.path.join(basedir, 'templates'))
+APP_ROOT = _application_directory()
 
-app = Flask(__name__,template_folder="templates",static_folder="static")
+app = Flask(
+    __name__,
+    template_folder=os.path.join(APP_ROOT, "templates"),
+    static_folder=os.path.join(APP_ROOT, "static"),
+)
 app.secret_key = "your-secret-key-here"
 
 app.register_blueprint(auth) # login app
@@ -52,17 +62,10 @@ def main():
 
 
 if __name__ == "__main__":
-    
-    
-    if not os.path.exists('data'):
-        os.makedirs('data')
-    # تحديد المسار الأساسي سواء شغال كود أو exe
-    if getattr(sys, 'frozen', False):
-        # لو البرنامج شغال كـ exe
-        basedir = os.path.dirname(sys.executable)
-    else:
-        # لو شغال كود عادي
-        basedir = os.path.dirname(os.path.abspath(__file__))
+    os.chdir(APP_ROOT)
+
+    if not os.path.exists("data"):
+        os.makedirs("data")
     db.auto_connect_db()
     threading.Timer(1, lambda: webbrowser.open("http://127.0.0.1:5000")).start()
     threading.Thread(target=main, daemon= True).start()

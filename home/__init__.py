@@ -48,6 +48,8 @@ def add_to_queue2():
         # إضافة الرقم للكيو (block=False عشان ميعلقش الـ Request لو الكيو مليان)
         cc.queue_manual2_FOR_FAILURE.put(value=dummy_number, block=False)
         cc.queue_manual2_FOR_Proessing.put(value=dummy_number, block=False)
+        cc.is_waiting2 = False
+        cc.Manual_Scanner_MODE2 = False
         
         print(f"📥 New Item Added: {dummy_number}")
         print(f"📦 Total in Queue: {cc.queue_manual2_FOR_FAILURE.qsize()}")

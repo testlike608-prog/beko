@@ -487,7 +487,7 @@ class  TCPClient():
             return  response
 
         except (socket.timeout):
-            print(f"[{self.ip}]:[{self.port}] Timeout: Server took too long to respond.")
+            self._log_add("WARNING", f"[{self.ip}]:[{self.port}] Timeout: Server took too long to respond.")
             return None
 
         except (OSError, BrokenPipeError, ConnectionResetError, socket.error) as e:
@@ -634,11 +634,11 @@ class App():
         self.last_dummy_time_station_two = {}
 
         #I/O Moudule
-        self.client_read_io = TCPClient(Ip_read_IO, Port_read_IO )
-        self.client_write_io = TCPClient(Ip_write_IO, Port_write_IO )
+        self.client_read_io = TCPClient(Ip_read_IO, Port_read_IO, timeout=2 )
+        self.client_write_io = TCPClient(Ip_write_IO, Port_write_IO, timeout=2 )
 
-        self.cam_cap_s1= TCPClient("127.0.0.1", 70 )
-        self.cam_cap_s2 = TCPClient("127.0.0.1", 80 )
+        self.cam_cap_s1= TCPClient("127.0.0.1", 70, timeout=2 )
+        self.cam_cap_s2 = TCPClient("127.0.0.1", 80, timeout=2 )
 
         #auto connnect with data base
         #self.auto_connect_db()
@@ -724,7 +724,6 @@ class App():
                     
                     if DI0_respond and DI0_respond[-1:] == b"\x01" and last_DI0 == b"\x00":
                         threading.Thread(target=self._IO_Writer_station_1, daemon=True).start()
-                        result =self.cam_cap_s1.send_request("S1")
                         self.client_read_io._log_add("INFO", f"found fridg in station 1")
                         your_s1_arrived_flag = True
                     last_DI0 = DI0_respond[-1:] if DI0_respond else b"\x00"
@@ -835,8 +834,10 @@ class App():
                     
                     #zero_values_list = [k for k, v in my_dict.items() if v == "0"]
                     
-                    self.client_Vision_station2.shared_queue.put(test_results_dict)
-                    di2 = test_results_dict
+                    # Use independent copies to avoid cross-thread mutation (clear/pop) side effects.
+                    queued_results = dict(test_results_dict)
+                    self.client_Vision_station2.shared_queue.put(queued_results)
+                    di2 = dict(queued_results)
                     self.client_Vision_station2._log_add("INFO", f"Sending to Vision Master 2: [{ test_results_dict}]")
                     self.client_Vision_station2._log_add("INFO", f"Sending to Vision Master 2 DI2: [{di2}]")
                     '''
@@ -1277,12 +1278,20 @@ class App():
             # ---- initial sequence ----
             self.client_write_io.send_request(generate_modbus_command("LIGHTING_S1", "ON"), is_hex=True)   # lighting ON
             self.client_write_io.send_request(generate_modbus_command("SCANNER_S1", "ON"), is_hex=True)    # scanner ON
+            result =self.cam_cap_s1.send_request("S1")
+            self.client_write_io.send_request(generate_modbus_command("TESTDONE_S1", "ON"), is_hex=True)
+            plc_signal_period = hlb.get_time_setting('PlcSignal')
+            time.sleep(plc_signal_period)
+            self.client_write_io.send_request(generate_modbus_command("TESTDONE_S1", "OFF"), is_hex=True)
+
             
             time.sleep(0.5)
             self.client_write_io.send_request(generate_modbus_command("SCANNER_S1", "OFF"), is_hex=True)   # scanner OFF
             self.client_scanner_station1._log_add("info", f"light on")
 
             time.sleep(0.5)
+            self.client_write_io.send_request(generate_modbus_command("LIGHTING_S1", "OFF"), is_hex=True)   # lighting OFF
+
             try:
                 
                 dummy= ""
@@ -1347,7 +1356,7 @@ class App():
         # 2. New image means: image_SN1 changed from initial_image_state
         # 3. AND image_SN1 is not None
         image_received = False
-        
+        your_s1_arrived_flag = False
         while not image_received:
             current_time = time.time()
             #self.client_write_io._log_add("INFO", f"entered whileeeeeeeeeeeeeeee")
@@ -1358,30 +1367,26 @@ class App():
                 #res = self.client_Vision_station1_SN.send_request("O", is_hex= False)
                 self.client_write_io._log_add("INFO", f"moveddddddddddddddddddddddddddddddd")
                 self._SN_Proccess1(self.client_Vision_station1_SN.send_request("O"))
-                di.clear()
+                
                 if image_SN1 is not None and image_SN1 != initial_image_state:
                     self.client_write_io._log_add("INFO", f"New image received: {image_SN1}")
-                    self.client_write_io.send_request(generate_modbus_command("LIGHTING_S1", "OFF"), is_hex=True)   # lighting OFF
-                    self.client_write_io.send_request(generate_modbus_command("TESTDONE_S1", "ON"), is_hex=True)
-                    plc_signal_period = hlb.get_time_setting('PlcSignal')
-                    time.sleep(plc_signal_period)
-
-                    self.client_write_io.send_request(generate_modbus_command("TESTDONE_S1", "OFF"), is_hex=True)
+                   
                     result =  hlb._failure_mode_station2_check(target_dummy=dummy, Client= self.client_scanner_station1)
                     if result == "FAIL" :
                         self.client_write_io.send_request(generate_modbus_command("FAILURE", "ON"), is_hex=True)
                         plc_signal_period = hlb.get_time_setting('PlcSignal')
                         self.client_write_io.send_request(generate_modbus_command("FAILURE", "OFF"), is_hex=True)
                     image_received = True
-                    queue.task_done()
-            '''
+        queue.task_done()
+        di.clear()
+        '''
             # Check for timeout
             if current_time - start_time > image_timeout:
                 self._log_add("WARNING", f"Image timeout after {image_timeout} seconds")
                 break
-            '''
+        '''
             # Wait a bit before checking again
-            time.sleep(0.1)
+        time.sleep(0.1)
 
         # UI: keep "Fridge Arrived" true for the whole wait loop; clear once this cycle finishes
         your_s1_arrived_flag = False
@@ -1402,16 +1407,30 @@ class App():
         global Manual_Scanner_MODE2, NO_CSV_ERROR2, Buzzer_Flag_to_OFF2
         global image_SN2, queue_manual2_FOR_FAILURE, is_waiting2  # Make sure we can access these
         global your_s2_arrived_flag, your_s2_dummy, your_s2_result
+        queue = None
         try:
             
             # ---- initial sequence ----
+            self.client_write_io._log_add("INFO", "S2 step: LIGHTING_S2 ON")
             self.client_write_io.send_request(generate_modbus_command("LIGHTING_S2", "ON"), is_hex=True)   # lighting ON
+            self.client_write_io._log_add("INFO", "S2 step: SCANNER_S2 ON")
             self.client_write_io.send_request(generate_modbus_command("SCANNER_S2", "ON"), is_hex=True)    #  scanner ON
-            time.sleep(0.5)
+            self.client_write_io._log_add("INFO", "S2 step: capture trigger S2")
+            result2 =self.cam_cap_s2.send_request("S2")
+            self.client_write_io._log_add("INFO", f"S2 capture trigger response: {result2}")
+            
+
+            time.sleep(0.7)
             self.client_write_io.send_request(generate_modbus_command("SCANNER_S2", "OFF"), is_hex=True)    #  scanner OFF
-            self.client_scanner_station1._log_add("info", f"light on")
+            self.client_scanner_station2._log_add("info", f"light on")
 
             time.sleep(0.5)
+            self.client_write_io.send_request(generate_modbus_command("TESTDONE_S2", "ON"), is_hex=True)
+
+            plc_signal_period = hlb.get_time_setting('PlcSignal')
+            time.sleep(plc_signal_period)
+            self.client_write_io.send_request(generate_modbus_command("TESTDONE_S2", "OFF"), is_hex=True)
+            self.client_write_io.send_request(generate_modbus_command("LIGHTING_S2", "OFF"), is_hex=True)   # lighting OFF
             try:
                 
                 dummy= ""
@@ -1431,12 +1450,12 @@ class App():
                     self.client_scanner_station2._log_add("info", f"Manual_Scanner_MODE2 [{Manual_Scanner_MODE2}]")
                     
                     Manual_Scanner_MODE2 = True
-                    while  is_waiting2:
-                        
-                        self.client_write_io.send_request(generate_modbus_command("BUZZER_S2", "ON"), is_hex=True)  # buzzer on
-                    
-                    self.client_write_io.send_request(generate_modbus_command("BUZZER_S2", "OFF"), is_hex=True)  # buzzer off
                     is_waiting2 = True
+                    if is_waiting2:
+                        self.client_write_io.send_request(generate_modbus_command("BUZZER_S2", "ON"), is_hex=True)  # buzzer on while waiting
+                    while is_waiting2:
+                        time.sleep(0.5)
+                    self.client_write_io.send_request(generate_modbus_command("BUZZER_S2", "OFF"), is_hex=True)  # buzzer off
        
                     self.client_scanner_station2._log_add("info", f"heyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy")
                     
@@ -1449,6 +1468,7 @@ class App():
                     text = dummy.encode("utf-8")    
                     thread = threading.Thread(target=self.Manual_scanner_station_2, daemon= True, args= (text,))
                     thread.start()
+                    is_waiting2 = True
                     #thread.join()
                     self.client_scanner_station2._log_add("info", f"arriveddddddddddddddddddddddddddddd")  # R0124090500055
 
@@ -1472,38 +1492,34 @@ class App():
         # 1. Wait while we haven't received a new image
         # 2. New image means: image_SN1 changed from initial_image_state
         # 3. AND image_SN1 is not None
-        image_received = True
+        image_received = False
+        your_s2_arrived_flag = False
         
-        while image_received:
+        while not image_received:
             current_time = time.time()
             
             # Check if we got a new image
             if "ShelveColor" in di2:
-                di2.clear()
                 self._SN_Proccess2(self.client_Vision_station2_SN.send_request("I"))
                 self.client_write_io._log_add("INFO", f"doneeeeeeeeeeeeeeeeeeeeeeeeeeee{di2}")
                 if image_SN2 is not None and image_SN2 != initial_image_state:
                     self.client_write_io._log_add("INFO", f"New image received: {image_SN2}")
-                    self.client_write_io.send_request(generate_modbus_command("LIGHTING_S2", "OFF"), is_hex=True)   # lighting OFF
-                    self.client_write_io.send_request(generate_modbus_command("TESTDONE_S2", "ON"), is_hex=True) 
-                    plc_signal_period = hlb.get_time_setting('PlcSignal')
-                    time.sleep(plc_signal_period)
-                    self.client_write_io.send_request(generate_modbus_command("TESTDONE_S2", "OFF"), is_hex=True) 
+             
                 
-                    image_received = False
-                    queue.task_done()
-        your_s2_arrived_flag = False
-        '''
-            # Check for timeout
+                    image_received = True
+                    if queue is not None:
+                        queue.task_done()
+                    di2.clear()
+
             if current_time - start_time > image_timeout:
-                self._log_add("WARNING", f"Image timeout after {image_timeout} seconds")
+                self.client_write_io._log_add("WARNING", f"S2 image timeout after {image_timeout} seconds")
                 break
-            '''
+
             # Wait a bit before checking again
-        time.sleep(0.1)
+            time.sleep(0.1)
 
         # ---- image received successfully ----
-        last_image_SN1 = image_SN2
+        last_image_SN2 = image_SN2
         self.client_write_io._log_add("INFO", f"Image processing complete for: {image_SN2}")
     
 
@@ -1537,7 +1553,7 @@ class App():
                     else :
                         station_result = "PASS" 
 
-                    your_s1_result = station_result   
+                    
                     # 3. سحب رقم الـ Dummy (تأكد أن الكيو ده فيه داتا فعلاً)
                     try:
                         dummy = self.client_scanner_station1.shared_queue2.get_nowait()
@@ -1568,6 +1584,9 @@ class App():
 
                     # تأكيد إتمام المهمة للكيو الخاص بالنتائج
                         queue_manual_FOR_Proessing.task_done()
+                    your_s1_result = station_result   
+                    time.sleep(3)
+                    your_s1_result = None
             
             except Exception as e:
                 self.client_scanner_station1._log_add("ERROR", f"Error in processing: {e}")
@@ -1606,11 +1625,8 @@ class App():
                     else :
                         station_result = "PASS" 
                     
-                    your_s2_result = station_result
-
                        
                     # 3. سحب رقم الـ Dummy (تأكد أن الكيو ده فيه داتا فعلاً)
-                    test_results_dict2.clear()
                     try:
                         dummy = self.client_scanner_station2.shared_queue2.get_nowait()
                         
@@ -1640,7 +1656,9 @@ class App():
 
                     # تأكيد إتمام المهمة للكيو الخاص بالنتائج
                         queue_manual2_FOR_Proessing.task_done()
-            
+                    your_s2_result = station_result
+                    time.sleep(3)  
+                    your_s2_result = None
             except Exception as e:
                 self.client_scanner_station2._log_add("ERROR", f"Error in processing: {e}")
                 time.sleep(1) # عشان لو حصل خطأ متكرر ميعلقش الجهاز
