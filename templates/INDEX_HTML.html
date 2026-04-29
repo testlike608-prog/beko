@@ -1,1081 +1,342 @@
 <!DOCTYPE html>
 <html lang="en" class="h-full">
 <head>
-<script>
-(function() {
-  function redirectBlocked() {
-    window.location.href = '/blocked';
-  }
-
-  function initDevToolsProtection() {
-    console.log('🛡️ DevTools protection active');
-
-    document.addEventListener('contextmenu', e => e.preventDefault());
-
-    document.addEventListener('keydown', e => {
-      if (
-        e.key === 'F12' ||
-        (e.ctrlKey && e.shiftKey && (e.key.toUpperCase() === 'I' || e.key.toUpperCase() === 'J')) ||
-        (e.ctrlKey && e.key.toUpperCase() === 'U')
-      ) {
-        e.preventDefault();
-        e.stopPropagation();
-        redirectBlocked();
-        return false;
-      }
-    });
-
-    setInterval(() => {
-      const widthDiff = window.outerWidth - window.innerWidth;
-      const heightDiff = window.outerHeight - window.innerHeight;
-      if (widthDiff > 160 || heightDiff > 160) {
-        redirectBlocked();
-      }
-    }, 500);
-
-    const check = () => {
-      const start = performance.now();
-      debugger;
-      if (performance.now() - start > 50) {
-        redirectBlocked();
-      }
-    };
-    setInterval(check, 1000);
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initDevToolsProtection);
-  } else {
-    initDevToolsProtection();
-  }
-})();
-</script>
-
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>TCP Console</title>
-  <script src="/static/tailwind.cdn.js"></script>
   <meta name="color-scheme" content="light dark">
-  <style>
-    .card{border-radius:1rem;background:var(--tw-bg,#fff);box-shadow:0 8px 24px rgba(0,0,0,.08);padding:1rem}
-    .badge{display:inline-block;font-size:.75rem;padding:.25rem .5rem;border-radius:9999px}
-    .badge-ok{background:#dcfce7;color:#166534}.badge-off{background:#e5e7eb;color:#374151}
-    .btn{padding:.55rem 1rem;border-radius:.75rem;transition:.15s;box-shadow:0 3px 10px rgba(0,0,0,.06)}
-    .btn:hover{transform:translateY(-1px)}.btn-primary{background:#2563eb;color:white}
-    .btn-danger{background:#dc2626;color:white}.btn-muted{background:#334155;color:white}
-    .btn-ghost{background:transparent;border:1px solid #cbd5e1}.btn[disabled]{opacity:.6;cursor:not-allowed}
-    .logbox{height:22rem;overflow:auto;background:rgba(148,163,184,.08);border:1px solid rgba(148,163,184,.35);border-radius:.75rem;padding:.5rem;font-family:ui-monospace,monospace;font-size:.85rem}
-    .toast{position:fixed;left:50%;bottom:1.5rem;transform:translateX(-50%);background:white;border-radius:.75rem;padding:.6rem 1rem;box-shadow:0 10px 20px rgba(0,0,0,.15);font-weight:600;z-index:60;border:2px solid transparent;min-width:180px;text-align:center}
-    .toast.red{color:#991b1b;border-color:#fecaca;background:#fee2e2}.toast.green{color:#065f46;border-color:#bbf7d0;background:#dcfce7}
-    @media (prefers-color-scheme: dark){:root{--tw-bg:#0b1220;color-scheme:dark}body{color:#e5e7eb;background:#0b1220}.card{background:#0e1628}.badge-off{background:#1f2937;color:#e5e7eb}.logbox{background:#0b1220;border-color:#1f334f}.btn-ghost{border-color:#334155;color:#cbd5e1}}
-    .switch{position:relative;display:inline-block;width:42px;height:22px}.switch input{display:none}
-    .slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#ccc;transition:.2s;border-radius:999px}
-    .slider:before{position:absolute;content:"";height:18px;width:18px;left:2px;bottom:2px;background:#fff;transition:.2s;border-radius:50%}
-    input:checked+.slider{background:#10b981}input:checked+.slider:before{transform:translateX(20px)}
-
-    /* Station Status Cards */
-    .station-card {
-      background: white;
-      border: 1px solid #d1d5db;
-      border-radius: 0.75rem;
-      padding: 1.25rem;
-      space-y: 0.75rem;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    }
-    @media (prefers-color-scheme: dark) {
-      .station-card { background: #1e293b; border-color: #374151; }
-      .info-box { background: #0f172a !important; border-color: #1e3a5f !important; }
-      .info-label { color: #94a3b8 !important; }
-      .info-value { color: #e2e8f0 !important; }
-    }
-    .flag-indicator {
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-      padding: 0.6rem 1rem;
-      border-radius: 0.6rem;
-      font-weight: 600;
-      font-size: 0.9rem;
-      border: 1.5px solid transparent;
-      transition: all 0.3s ease;
-    }
-    .flag-dot {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      flex-shrink: 0;
-      transition: background 0.3s ease;
-    }
-    .flag-pass  { background: #dcfce7; border-color: #86efac; color: #166534; }
-    .flag-fail  { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
-    .flag-idle  { background: #f3f4f6; border-color: #d1d5db; color: #6b7280; }
-    .flag-arrived   { background: #dbeafe; border-color: #93c5fd; color: #1e40af; }
-    .flag-waiting   { background: #fef9c3; border-color: #fde047; color: #854d0e; }
-    .dot-pass    { background: #16a34a; }
-    .dot-fail    { background: #dc2626; box-shadow: 0 0 6px #dc262680; }
-    .dot-idle    { background: #9ca3af; }
-    .dot-arrived { background: #2563eb; }
-    .dot-waiting { background: #ca8a04; }
-    .info-box {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 0.5rem;
-      padding: 0.6rem 0.9rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .info-label { font-size: 0.75rem; color: #64748b; }
-    .info-value { font-family: ui-monospace, monospace; font-size: 0.9rem; font-weight: 600; color: #1e293b; letter-spacing: 0.03em; }
-    .info-value.empty { color: #94a3b8; font-style: italic; font-weight: 400; font-family: inherit; }
-    .pulse-active { animation: pulseRing 1.5s infinite; }
-    @keyframes pulseRing {
-      0%   { box-shadow: 0 0 0 0 rgba(34,197,94,0.4); }
-      70%  { box-shadow: 0 0 0 8px rgba(34,197,94,0); }
-      100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
-    }
-  </style>
+  <script src="/static/tailwind.cdn.js"></script>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/main.js"></script>
 </head>
 <body class="min-h-full">
 <div class="max-w-7xl mx-auto p-4 space-y-5">
-    <header class="relative flex items-center justify-center">
-  
-  <div class="flex items-center gap-3">
-    <img src="/static/download.png" alt="Beko Logo" class="h-20">
-    <h1 style="font-family: 'Nunito', sans-serif; font-weight: 700;color: #0382b8;  font-size: 1.75rem;" 
-    class="text-xl font-semibold">
-    Refrigerator Vision System</h1>
-  </div>
 
-  <div class="absolute right-0 flex items-center gap-3">
-    <img src="/static/meeserve.png" alt="Meeserv Logo" class="h-20">
-  </div>
+  <header class="relative flex items-center justify-center">
+    <div class="flex items-center gap-3">
+      <img src="/static/download.png" alt="Beko Logo" class="h-20">
+      <h1 style="font-family:'Nunito',sans-serif;font-weight:700;color:#0382b8;font-size:1.75rem;"
+          class="text-xl font-semibold">Refrigerator Vision System</h1>
+    </div>
+    <div class="absolute right-0 flex items-center gap-3">
+      <img src="/static/meeserve.png" alt="Meeserv Logo" class="h-20">
+    </div>
+  </header>
 
-</header>
+  <div class="flex gap-5 items-start mt-8">
+    <aside class="w-64 shrink-0 self-start">
+      <nav class="bg-white dark:bg-[#0e1628] border border-gray-200/70 dark:border-slate-700 rounded-xl p-6 space-y-4 shadow-md min-h-[650px]">
 
-<div class="flex gap-5 items-start mt-8">
-  <aside class="w-64 shrink-0 self-start">
-<nav class="bg-white dark:bg-[#0e1628] border border-gray-200/70 dark:border-slate-700 rounded-xl p-6 space-y-4 shadow-md min-h-[650px]">
-  
-      <a href="{{ url_for('CreateProgram.page_create_program') }}"
-        class="group flex items-center justify-between w-full px-3 py-2 rounded-lg border border-transparent hover:border-slate-300/70 hover:bg-slate-50/40 dark:hover:bg-slate-800/40 transition {% if auth != 'admin' and auth != 'dev' %}pointer-events-none opacity-50 cursor-not-allowed{% endif %}">
-        <span class="flex items-center gap-2"><span aria-hidden="true"></span><span class="font-medium">Create Program CSV</span></span><span class="opacity-50 group-hover:opacity-80">›</span>
-      </a>
-
-      <a href="{{ url_for('SQL.sql_connection') }}"
-        class="group flex items-center justify-between w-full px-3 py-2 rounded-lg border border-transparent hover:border-slate-300/70 hover:bg-slate-50/40 dark:hover:bg-slate-800/40 transition">
-        <span class="flex items-center gap-2"><span aria-hidden="true"></span><span class="font-medium">SQL Connection</span></span><span class="opacity-50 group-hover:opacity-80">›</span>
-      </a>
-
-      <button id="btnAdjustTimes"
-        class="group flex items-center justify-between w-full px-3 py-2 rounded-lg border border-transparent hover:border-slate-300/70 hover:bg-slate-50/40 dark:hover:bg-slate-800/40 transition text-left {% if auth != 'admin' and auth != 'dev' %}pointer-events-none opacity-50 cursor-not-allowed{% endif %}">
-        <span class="flex items-center gap-2"><span aria-hidden="true"></span><span class="font-medium">Adjust Times</span></span><span class="opacity-50 group-hover:opacity-80">›</span>
-      </button>
-
-      <button id="btnIoMapping"
-        class="group flex items-center justify-between w-full px-3 py-2 rounded-lg border border-transparent hover:border-slate-300/70 hover:bg-slate-50/40 dark:hover:bg-slate-800/40 transition text-left {% if auth != 'dev' %}pointer-events-none opacity-50 cursor-not-allowed{% endif %}">
-        <span class="flex items-center gap-2"><span aria-hidden="true"></span><span class="font-medium">I/O Mapping</span></span><span class="opacity-50 group-hover:opacity-80">›</span>
-      </button>
-
-      <a href="{{ url_for('CreateUser.create_user') }}"
-        class="group flex items-center justify-between w-full px-3 py-2 rounded-lg border border-transparent hover:border-slate-300/70 hover:bg-slate-50/40 dark:hover:bg-slate-800/40 transition {% if auth != 'admin' and auth != 'dev' %}pointer-events-none opacity-50 cursor-not-allowed{% endif %}">
-        <span class="flex items-center gap-2"><span aria-hidden="true"></span><span class="font-medium">Create New User</span></span><span class="opacity-50 group-hover:opacity-80">›</span>
-      </a>
-
-      <div class="pt-2 mt-2 border-t border-slate-200/70 dark:border-slate-700">
-        <a href="{{ url_for('auth.login') }}"
-          class="block px-3 py-2 rounded-lg hover:bg-slate-50/40 dark:hover:bg-slate-800/40 font-semibold text-[#0382b8]">
-          Logout
+        <a href="{{ url_for('CreateProgram.page_create_program') }}"
+          class="group flex items-center justify-between w-full px-3 py-2 rounded-lg border border-transparent hover:border-slate-300/70 hover:bg-slate-50/40 dark:hover:bg-slate-800/40 transition">
+          <span class="flex items-center gap-2"><span class="font-medium">Create Program CSV</span></span>
+          <span class="opacity-50 group-hover:opacity-80">›</span>
         </a>
-      </div>
- 
-    </nav>
-  </aside>
 
-  <main class="flex-1 space-y-5">
-    <div class="w-11/12 max-w-4xl mx-auto mt-0 space-y-6">
+        <a href="{{ url_for('SQL.sql_connection') }}"
+          class="group flex items-center justify-between w-full px-3 py-2 rounded-lg border border-transparent hover:border-slate-300/70 hover:bg-slate-50/40 dark:hover:bg-slate-800/40 transition">
+          <span class="flex items-center gap-2"><span class="font-medium">SQL Connection</span></span>
+          <span class="opacity-50 group-hover:opacity-80">›</span>
+        </a>
 
-    <!-- ===== OUTER STATION (Station One) STATUS ===== -->
-    <section class="station-card">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="font-semibold text-lg text-gray-800 dark:text-gray-100">Outer Station</h2>
-        <span class="text-xs text-gray-400 font-mono">192.168.1.16:7940</span>
-      </div>
+        <button id="btnAdjustTimes"
+          class="group flex items-center justify-between w-full px-3 py-2 rounded-lg border border-transparent hover:border-slate-300/70 hover:bg-slate-50/40 dark:hover:bg-slate-800/40 transition text-left {% if auth != 'admin' and auth != 'dev' %}pointer-events-none opacity-50 cursor-not-allowed{% endif %}">
+          <span class="flex items-center gap-2"><span class="font-medium">Adjust Times</span></span>
+          <span class="opacity-50 group-hover:opacity-80">›</span>
+        </button>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+        <button id="btnIoMapping"
+          class="group flex items-center justify-between w-full px-3 py-2 rounded-lg border border-transparent hover:border-slate-300/70 hover:bg-slate-50/40 dark:hover:bg-slate-800/40 transition text-left {% if auth != 'dev' %}pointer-events-none opacity-50 cursor-not-allowed{% endif %}">
+          <span class="flex items-center gap-2"><span class="font-medium">I/O Mapping</span></span>
+          <span class="opacity-50 group-hover:opacity-80">›</span>
+        </button>
 
-        <!-- Fridge Arrived Flag -->
-        <div>
-          <p class="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Fridge Arrived</p>
-          <div id="s1-arrived-flag" class="flag-indicator flag-waiting">
-            <span class="flag-dot dot-waiting"></span>
-            <span id="s1-arrived-text">Waiting...</span>
+        <a href="{{ url_for('CreateUser.create_user') }}"
+          class="group flex items-center justify-between w-full px-3 py-2 rounded-lg border border-transparent hover:border-slate-300/70 hover:bg-slate-50/40 dark:hover:bg-slate-800/40 transition {% if auth != 'admin' and auth != 'dev' %}pointer-events-none opacity-50 cursor-not-allowed{% endif %}">
+          <span class="flex items-center gap-2"><span class="font-medium">Create New User</span></span>
+          <span class="opacity-50 group-hover:opacity-80">›</span>
+        </a>
+
+        <div class="pt-2 mt-2 border-t border-slate-200/70 dark:border-slate-700">
+          <a href="{{ url_for('auth.login') }}"
+            class="block px-3 py-2 rounded-lg hover:bg-slate-50/40 dark:hover:bg-slate-800/40 font-semibold text-[#0382b8]">
+            Logout
+          </a>
+        </div>
+      </nav>
+    </aside>
+
+    <main class="flex-1 space-y-5">
+      <div class="w-11/12 max-w-4xl mx-auto mt-0 space-y-6">
+
+        <!-- Production Line Overview -->
+        <section class="card mb-6 overflow-hidden p-0 relative border border-gray-200 dark:border-gray-700 shadow-lg rounded-xl">
+          <div class="bg-gradient-to-r from-[#0382b8] to-blue-800 text-white px-5 py-3 font-bold text-lg flex justify-between items-center shadow-md z-10 relative">
+            <span class="tracking-wide">Live Production Line Overview</span>
+            <span class="flex h-3 w-3 relative">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+            </span>
           </div>
-        </div>
-
-        <!-- Test Result Flag -->
-        <div>
-          <p class="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Test Result</p>
-          <div id="s1-result-flag" class="flag-indicator flag-idle">
-            <span class="flag-dot dot-idle"></span>
-            <span id="s1-result-text">No Result Yet</span>
+          <div class="w-full h-[320px] bg-slate-50 dark:bg-slate-900 flex justify-center items-center overflow-hidden p-3">
+            <img src="/static/production_line.png" alt="Production Line Layout"
+              class="max-h-full max-w-full object-contain hover:scale-105 transition-transform duration-700 drop-shadow-md">
           </div>
-        </div>
-      </div>
+        </section>
 
-      <!-- Info Row: Dummy Number + SKU -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div class="info-box">
-          <span class="info-label">Dummy Number</span>
-          <span id="s1-dummy" class="info-value empty">—</span>
-        </div>
-        <div class="info-box">
-          <span class="info-label">SKU Number</span>
-          <span id="s1-sku" class="info-value empty">—</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- ===== INNER STATION (Station Two) STATUS ===== -->
-    <section class="station-card">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="font-semibold text-lg text-gray-800 dark:text-gray-100">Inner Station</h2>
-        <span class="text-xs text-gray-400 font-mono">192.168.1.17:7950</span>
-      </div>
-
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-
-        <!-- Fridge Arrived Flag -->
-        <div>
-          <p class="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Fridge Arrived</p>
-          <div id="s2-arrived-flag" class="flag-indicator flag-waiting">
-            <span class="flag-dot dot-waiting"></span>
-            <span id="s2-arrived-text">Waiting...</span>
+        <!-- Station 1 -->
+        <section class="station-card flex flex-col md:flex-row gap-6 hover:shadow-lg transition-shadow duration-300">
+          <div class="w-full md:w-1/3 h-48 md:h-auto shrink-0 rounded-xl overflow-hidden relative group shadow-inner border border-gray-100 dark:border-gray-600">
+            <img src="/static/outer.png" alt="Exterior Scan Module" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
+            <div class="absolute bottom-3 left-3 flex items-center gap-2">
+              <div class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+              <span class="text-white font-semibold tracking-wider text-xs uppercase opacity-90">Visual Feed Active</span>
+            </div>
           </div>
-        </div>
-
-        <!-- Test Result Flag -->
-        <div>
-          <p class="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Test Result</p>
-          <div id="s2-result-flag" class="flag-indicator flag-idle">
-            <span class="flag-dot dot-idle"></span>
-            <span id="s2-result-text">No Result Yet</span>
+          <div class="w-full md:w-2/3 flex flex-col justify-center space-y-4">
+            <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-3">
+              <h2 class="font-extrabold text-2xl bg-clip-text text-transparent bg-gradient-to-r from-[#0382b8] to-cyan-500 dark:from-blue-400 dark:to-cyan-300 tracking-tight">Premium Exterior Scan</h2>
+              <span class="text-[10px] text-gray-500 font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-md border border-gray-200 dark:border-gray-600 shadow-sm">192.168.1.16:7940</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1.5 font-bold uppercase tracking-wider">Unit Status</p>
+                <div id="s1-arrived-flag" class="flag-indicator flag-waiting shadow-sm">
+                  <span class="flag-dot dot-waiting"></span>
+                  <span id="s1-arrived-text">Waiting...</span>
+                </div>
+              </div>
+              <div>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1.5 font-bold uppercase tracking-wider">Inspection Result</p>
+                <div id="s1-result-flag" class="flag-indicator flag-idle shadow-sm">
+                  <span class="flag-dot dot-idle"></span>
+                  <span id="s1-result-text">No Result Yet</span>
+                </div>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <div class="info-box shadow-sm hover:border-blue-300 transition-colors">
+                <span class="info-label font-semibold">Dummy Number</span>
+                <span id="s1-dummy" class="info-value empty">—</span>
+              </div>
+              <div class="info-box shadow-sm hover:border-blue-300 transition-colors">
+                <span class="info-label font-semibold">SKU Number</span>
+                <span id="s1-sku" class="info-value empty">—</span>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </section>
 
-      <!-- Info Row: Dummy Number + SKU -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div class="info-box">
-          <span class="info-label">Dummy Number</span>
-          <span id="s2-dummy" class="info-value empty">—</span>
-        </div>
-        <div class="info-box">
-          <span class="info-label">SKU Number</span>
-          <span id="s2-sku" class="info-value empty">—</span>
-        </div>
-      </div>
-    </section>
-    <!-- ===== END STATION STATUS ===== -->
+        <!-- Station 2 -->
+        <section class="station-card flex flex-col md:flex-row gap-6 hover:shadow-lg transition-shadow duration-300">
+          <div class="w-full md:w-1/3 h-48 md:h-auto shrink-0 rounded-xl overflow-hidden relative group shadow-inner border border-gray-100 dark:border-gray-600">
+            <img src="/static/inner.png" alt="Interior Scan Module" class="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-110">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
+            <div class="absolute bottom-3 left-3 flex items-center gap-2">
+              <div class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+              <span class="text-white font-semibold tracking-wider text-xs uppercase opacity-90">Visual Feed Active</span>
+            </div>
+          </div>
+          <div class="w-full md:w-2/3 flex flex-col justify-center space-y-4">
+            <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-3">
+              <h2 class="font-extrabold text-2xl bg-clip-text text-transparent bg-gradient-to-r from-[#0382b8] to-cyan-500 dark:from-blue-400 dark:to-cyan-300 tracking-tight">Precision Interior Scan</h2>
+              <span class="text-[10px] text-gray-500 font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-md border border-gray-200 dark:border-gray-600 shadow-sm">192.168.1.17:7950</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1.5 font-bold uppercase tracking-wider">Unit Status</p>
+                <div id="s2-arrived-flag" class="flag-indicator flag-waiting shadow-sm">
+                  <span class="flag-dot dot-waiting"></span>
+                  <span id="s2-arrived-text">Waiting...</span>
+                </div>
+              </div>
+              <div>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1.5 font-bold uppercase tracking-wider">Inspection Result</p>
+                <div id="s2-result-flag" class="flag-indicator flag-idle shadow-sm">
+                  <span class="flag-dot dot-idle"></span>
+                  <span id="s2-result-text">No Result Yet</span>
+                </div>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <div class="info-box shadow-sm hover:border-blue-300 transition-colors">
+                <span class="info-label font-semibold">Dummy Number</span>
+                <span id="s2-dummy" class="info-value empty">—</span>
+              </div>
+              <div class="info-box shadow-sm hover:border-blue-300 transition-colors">
+                <span class="info-label font-semibold">SKU Number</span>
+                <span id="s2-sku" class="info-value empty">—</span>
+              </div>
+            </div>
+          </div>
+        </section>
 
-    {% if csv_files %}
-<section class="card">
-  <div class="flex items-center justify-between">
-    <h2 class="font-semibold">Saved Programs</h2>
-    <div class="text-xs opacity-75">Newest first</div>
+        {% if csv_files %}
+        <section class="card border border-gray-100 dark:border-gray-700 shadow-sm">
+          <div class="flex items-center justify-between">
+            <h2 class="font-bold text-gray-800 dark:text-gray-200">Saved Programs</h2>
+            <div class="text-xs opacity-75 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">Newest first</div>
+          </div>
+          <div class="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2" id="programGrid">
+            {% for file in csv_files %}
+            {% if file.name|lower|trim != 'logins.csv' %}
+            <button class="w-full text-left border rounded-lg p-2 hover:bg-blue-50 hover:border-blue-200 transition-all dark:border-gray-600 dark:hover:bg-slate-700"
+              onclick="showProgramData('{{ file.name }}')">
+              <div class="font-medium text-sm truncate text-gray-700 dark:text-gray-300" title="{{ file.name }}">{{ file.name }}</div>
+              <div class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">{{ (file.size/1024)|round(1) }} KB</div>
+            </button>
+            {% endif %}
+            {% endfor %}
+          </div>
+        </section>
+        {% endif %}
+
+      </div>
+    </main>
   </div>
-
-  <div class="mt-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2" id="programGrid">
-    {% for file in csv_files %}
-      {% if file.name|lower|trim != 'logins.csv' %}
-      <button
-        class="w-full text-left border rounded-lg p-2 hover:bg-slate-50/30 dark:border-gray-600 dark:hover:bg-slate-700"
-        onclick="showProgramData('{{ file.name }}')">
-
-        <div class="font-medium text-sm truncate" title="{{ file.name }}">{{ file.name }}</div>
-        <div class="text-[11px] opacity-70">{{ (file.size/1024)|round(1) }} KB</div>
-      </button>
-      {% endif %}
-    {% endfor %}
-  </div>
-</section>
-{% endif %}
-
-  </div>
-</main>
 </div>
-</div>
 
+<!-- I/O Mapping Modal -->
 <div id="ioMappingModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-    <div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl">
-      <div class="flex justify-between items-center mb-4 border-b pb-2">
-        <h3 class="text-xl font-semibold text-[#0382b8]">I/O Settings Mapping</h3>
-        <button id="btnCloseIoMapping" class="text-gray-500 hover:text-red-500 text-2xl font-bold">&times;</button>
-      </div>
-      
-      <form id="ioMappingForm">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div class="space-y-4">
-                <h4 class="font-bold border-b pb-1 text-blue-600 dark:text-blue-400">Outputs (Writes)</h4>
-                <div id="mapping-outputs-container" class="space-y-3"></div>
-            </div>
-            
-            <div class="space-y-4">
-                <h4 class="font-bold border-b pb-1 text-emerald-600 dark:text-emerald-400">Inputs (Reads)</h4>
-                <div id="mapping-inputs-container" class="space-y-3"></div>
-            </div>
-        </div>
-
-        <div class="flex flex-wrap gap-3 mt-8 pt-4 border-t border-gray-200 dark:border-gray-700">
-          <button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition">Save Mapping</button>
-          <button type="button" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition" onclick="resetIoMapping()">Reset to Default</button>
-          <button type="button" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition" onclick="turnOffAllIO()">Turn OFF ALL</button>
-        </div>
-      </form>
+  <div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl">
+    <div class="flex justify-between items-center mb-4 border-b pb-2">
+      <h3 class="text-xl font-semibold text-[#0382b8]">I/O Settings Mapping</h3>
+      <button id="btnCloseIoMapping" class="text-gray-500 hover:text-red-500 text-2xl font-bold">&times;</button>
     </div>
+    <form id="ioMappingForm">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div class="space-y-4">
+          <h4 class="font-bold border-b pb-1 text-blue-600 dark:text-blue-400">Outputs (Writes)</h4>
+          <div id="mapping-outputs-container" class="space-y-3"></div>
+        </div>
+        <div class="space-y-4">
+          <h4 class="font-bold border-b pb-1 text-emerald-600 dark:text-emerald-400">Inputs (Reads)</h4>
+          <div id="mapping-inputs-container" class="space-y-3"></div>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-3 mt-8 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition">Save Mapping</button>
+        <button type="button" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition" onclick="resetIoMapping()">Reset to Default</button>
+        <button type="button" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition" onclick="turnOffAllIO()">Turn OFF ALL</button>
+      </div>
+    </form>
   </div>
+</div>
 
+<!-- Times Modal -->
 <div id="timesModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-    <div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-      <div class="flex justify-between items-center mb-4">
-        <h3 class="text-lg font-semibold">Adjust Time Settings</h3>
-        <button id="btnCloseTimes" class="text-gray-500 hover:text-gray-700">&times;</button>
+  <div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-lg font-semibold">Adjust Time Settings</h3>
+      <button id="btnCloseTimes" class="text-gray-500 hover:text-gray-700">&times;</button>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="space-y-3">
+        <h4 class="font-medium border-b pb-1">Socket Timeouts</h4>
+        <div><label class="block text-sm mb-1">Device Connection (s)</label><input type="number" id="deviceConnectTimeout" class="w-full border rounded p-2 dark:bg-gray-700" step="0.1" min="1" max="30"></div>
+        <div><label class="block text-sm mb-1">Device Receive (s)</label><input type="number" id="deviceRecvTimeout" class="w-full border rounded p-2 dark:bg-gray-700" step="0.1" min="0.5" max="10"></div>
+        <div><label class="block text-sm mb-1">Client Socket (s)</label><input type="number" id="clientSocketTimeout" class="w-full border rounded p-2 dark:bg-gray-700" step="0.1" min="0.5" max="10"></div>
       </div>
-      
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="space-y-3">
-          <h4 class="font-medium border-b pb-1">Socket Timeouts</h4>
-          <div>
-            <label class="block text-sm mb-1">Device Connection (s)</label>
-            <input type="number" id="deviceConnectTimeout" class="w-full border rounded p-2 dark:bg-gray-700" step="0.1" min="1" max="30">
-          </div>
-          <div>
-            <label class="block text-sm mb-1">Device Receive (s)</label>
-            <input type="number" id="deviceRecvTimeout" class="w-full border rounded p-2 dark:bg-gray-700" step="0.1" min="0.5" max="10">
-          </div>
-          <div>
-            <label class="block text-sm mb-1">Client Socket (s)</label>
-            <input type="number" id="clientSocketTimeout" class="w-full border rounded p-2 dark:bg-gray-700" step="0.1" min="0.5" max="10">
-          </div>
-        </div>
-
-        <div class="space-y-3">
-          <h4 class="font-medium border-b pb-1">Reconnection Delays</h4>
-          <div>
-            <label class="block text-sm mb-1">Initial Retry Base (s)</label>
-            <input type="number" id="reconnectBaseDelay" class="w-full border rounded p-2 dark:bg-gray-700" step="0.1" min="0.1" max="5">
-          </div>
-          <div>
-            <label class="block text-sm mb-1">Max Backoff (s)</label>
-            <input type="number" id="maxBackoff" class="w-full border rounded p-2 dark:bg-gray-700" step="1" min="10" max="60">
-          </div>
-          <div>
-            <label class="block text-sm mb-1">Check Interval (s)</label>
-            <input type="number" id="reconnectCheckInterval" class="w-full border rounded p-2 dark:bg-gray-700" step="1" min="1" max="60">
-          </div>
-        </div>
-
-        <div class="space-y-3">
-          <h4 class="font-medium border-b pb-1">Data Streaming (ms)</h4>
-          <div>
-            <label class="block text-sm mb-1">Default Char Delay</label>
-            <input type="number" id="defaultCharDelay" class="w-full border rounded p-2 dark:bg-gray-700" step="10" min="10" max="5000">
-          </div>
-          <div>
-            <label class="block text-sm mb-1">S1 Char Delay</label>
-            <input type="number" id="s1CharDelay" class="w-full border rounded p-2 dark:bg-gray-700" step="10" min="10" max="5000">
-          </div>
-          <div>
-            <label class="block text-sm mb-1">S2 Char Delay</label>
-            <input type="number" id="s2CharDelay" class="w-full border rounded p-2 dark:bg-gray-700" step="10" min="10" max="5000">
-          </div>
-        </div>
-
-        <div class="space-y-3">
-          <h4 class="font-medium border-b pb-1">Command Sequences</h4>
-          <div>
-            <label class="block text-sm mb-1">Frame Delay (s)</label>
-            <input type="number" id="frameDelay" class="w-full border rounded p-2 dark:bg-gray-700" step="0.1" >
-          </div>
-          <div>
-            <label class="block text-sm mb-1">Follow-up Delay (s)</label>
-            <input type="number" id="followupDelay" class="w-full border rounded p-2 dark:bg-gray-700" step="1">
-          </div>
-          <div>
-            <label class="block text-sm mb-1">Plc Signal Period  (s)</label>
-            <input type="number" id="PlcSignal" class="w-full border rounded p-2 dark:bg-gray-700" step="0.1" >
-          </div>
-        </div>
-
-        <div class="space-y-3">
-          <h4 class="font-medium border-b pb-1">Web Interface (ms)</h4>
-          <div>
-            <label class="block text-sm mb-1">Status Refresh</label>
-            <input type="number" id="statusRefresh" class="w-full border rounded p-2 dark:bg-gray-700" step="100" min="500" max="10000">
-          </div>
-          <div>
-            <label class="block text-sm mb-1">Log Polling</label>
-            <input type="number" id="logPolling" class="w-full border rounded p-2 dark:bg-gray-700" step="100" min="500" max="10000">
-          </div>
-          <div>
-            <label class="block text-sm mb-1">Server4 Refresh</label>
-            <input type="number" id="server4Refresh" class="w-full border rounded p-2 dark:bg-gray-700" step="100" min="500" max="10000">
-          </div>
-          <div>
-            <label class="block text-sm mb-1">Image Time Out (s)</label>
-            <input type="number" id="ImageTimeout" class="w-full border rounded p-2 dark:bg-gray-700" step="1" >
-        </div>
-        </div>
-
-        <div class="space-y-3">
-          <h4 class="font-medium border-b pb-1">API & Database</h4>
-          <div>
-            <label class="block text-sm mb-1">Send Timeout (s)</label>
-            <input type="number" id="sendTimeout" class="w-full border rounded p-2 dark:bg-gray-700" step="1" >
-          </div>
-          <div>
-            <label class="block text-sm mb-1">Auto-send Gap (ms)</label>
-            <input type="number" id="autoSendGap" class="w-full border rounded p-2 dark:bg-gray-700" step="10" >
-          </div>
-          <div>
-            <label class="block text-sm mb-1">DB Timeout (s)</label>
-            <input type="number" id="dbTimeout" class="w-full border rounded p-2 dark:bg-gray-700" step="1" >
-          </div>
-        </div>
+      <div class="space-y-3">
+        <h4 class="font-medium border-b pb-1">Reconnection Delays</h4>
+        <div><label class="block text-sm mb-1">Initial Retry Base (s)</label><input type="number" id="reconnectBaseDelay" class="w-full border rounded p-2 dark:bg-gray-700" step="0.1" min="0.1" max="5"></div>
+        <div><label class="block text-sm mb-1">Max Backoff (s)</label><input type="number" id="maxBackoff" class="w-full border rounded p-2 dark:bg-gray-700" step="1" min="10" max="60"></div>
+        <div><label class="block text-sm mb-1">Check Interval (s)</label><input type="number" id="reconnectCheckInterval" class="w-full border rounded p-2 dark:bg-gray-700" step="1" min="1" max="60"></div>
       </div>
-
-      <div class="flex gap-2 mt-6">
-        <button id="btnSaveTimes" class="btn btn-primary flex-1">Save Settings</button>
-        <button id="btnResetTimes" class="btn btn-ghost">Reset to Defaults</button>
-        <button id="btnCancelTimes" class="btn btn-ghost">Cancel</button>
+      <div class="space-y-3">
+        <h4 class="font-medium border-b pb-1">Data Streaming (ms)</h4>
+        <div><label class="block text-sm mb-1">Default Char Delay</label><input type="number" id="defaultCharDelay" class="w-full border rounded p-2 dark:bg-gray-700" step="10" min="10" max="5000"></div>
+        <div><label class="block text-sm mb-1">S1 Char Delay</label><input type="number" id="s1CharDelay" class="w-full border rounded p-2 dark:bg-gray-700" step="10" min="10" max="5000"></div>
+        <div><label class="block text-sm mb-1">S2 Char Delay</label><input type="number" id="s2CharDelay" class="w-full border rounded p-2 dark:bg-gray-700" step="10" min="10" max="5000"></div>
+      </div>
+      <div class="space-y-3">
+        <h4 class="font-medium border-b pb-1">Command Sequences</h4>
+        <div><label class="block text-sm mb-1">Frame Delay (s)</label><input type="number" id="frameDelay" class="w-full border rounded p-2 dark:bg-gray-700" step="0.1"></div>
+        <div><label class="block text-sm mb-1">Follow-up Delay (s)</label><input type="number" id="followupDelay" class="w-full border rounded p-2 dark:bg-gray-700" step="1"></div>
+        <div><label class="block text-sm mb-1">Plc Signal Period (s)</label><input type="number" id="PlcSignal" class="w-full border rounded p-2 dark:bg-gray-700" step="0.1"></div>
+      </div>
+      <div class="space-y-3">
+        <h4 class="font-medium border-b pb-1">Web Interface (ms)</h4>
+        <div><label class="block text-sm mb-1">Status Refresh</label><input type="number" id="statusRefresh" class="w-full border rounded p-2 dark:bg-gray-700" step="100" min="500" max="10000"></div>
+        <div><label class="block text-sm mb-1">Log Polling</label><input type="number" id="logPolling" class="w-full border rounded p-2 dark:bg-gray-700" step="100" min="500" max="10000"></div>
+        <div><label class="block text-sm mb-1">Server4 Refresh</label><input type="number" id="server4Refresh" class="w-full border rounded p-2 dark:bg-gray-700" step="100" min="500" max="10000"></div>
+        <div><label class="block text-sm mb-1">Image Time Out (s)</label><input type="number" id="ImageTimeout" class="w-full border rounded p-2 dark:bg-gray-700" step="1"></div>
+      </div>
+      <div class="space-y-3">
+        <h4 class="font-medium border-b pb-1">API & Database</h4>
+        <div><label class="block text-sm mb-1">Send Timeout (s)</label><input type="number" id="sendTimeout" class="w-full border rounded p-2 dark:bg-gray-700" step="1"></div>
+        <div><label class="block text-sm mb-1">Auto-send Gap (ms)</label><input type="number" id="autoSendGap" class="w-full border rounded p-2 dark:bg-gray-700" step="10"></div>
+        <div><label class="block text-sm mb-1">DB Timeout (s)</label><input type="number" id="dbTimeout" class="w-full border rounded p-2 dark:bg-gray-700" step="1"></div>
       </div>
     </div>
-  </div>
-
-  <div id="errorModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden">
-    <div class="bg-white dark:bg-gray-800 rounded-lg p-8 w-full max-w-2xl text-center">
-      <div class="text-red-500 mb-6">
-        <svg class="w-24 h-24 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-        </svg>
-      </div>
-      <h2 class="text-4xl font-bold text-red-600 mb-4">ERROR</h2>
-      <p class="text-xl text-gray-700 dark:text-gray-300 mb-2">Station Two Error Condition Detected</p>
-      <p class="text-lg text-gray-600 dark:text-gray-400 mb-8">Please check Station Two and reset when ready</p>
-      <button id="btnResetError" class="px-8 py-4 bg-red-600 text-white text-xl font-bold rounded-lg hover:bg-red-700 transition-colors">
-        RESET
-      </button>
+    <div class="flex gap-2 mt-6">
+      <button id="btnSaveTimes"  class="btn btn-primary flex-1">Save Settings</button>
+      <button id="btnResetTimes" class="btn btn-ghost">Reset to Defaults</button>
+      <button id="btnCancelTimes" class="btn btn-ghost">Cancel</button>
     </div>
   </div>
+</div>
 
-  <div id="toast" style="display:none"></div>
+<!-- Error Modal -->
+<div id="errorModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden">
+  <div class="bg-white dark:bg-gray-800 rounded-lg p-8 w-full max-w-2xl text-center">
+    <div class="text-red-500 mb-6">
+      <svg class="w-24 h-24 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+      </svg>
+    </div>
+    <h2 class="text-4xl font-bold text-red-600 mb-4">ERROR</h2>
+    <p class="text-xl text-gray-700 dark:text-gray-300 mb-2">Station Two Error Condition Detected</p>
+    <p class="text-lg text-gray-600 dark:text-gray-400 mb-8">Please check Station Two and reset when ready</p>
+    <button id="btnResetError" class="px-8 py-4 bg-red-600 text-white text-xl font-bold rounded-lg hover:bg-red-700 transition-colors">RESET</button>
+  </div>
+</div>
 
-
-  <script>
-    // ==========================================
-    // I/O Mapping Logic
-    // ==========================================
-    const ioDefaultMapping = {
-        LIGHTING_S1: 8, LIGHTING_S2: 1, BUZZER_S1: 2, BUZZER_S2: 3,
-        SCANNER_S1: 4, SCANNER_S2: 5, TESTDONE_S1: 6, TESTDONE_S2: 7, FAILURE: 16,
-        READ_DI0: 0, READ_DI1: 1, READ_INPUTS_REG: 34
-    };
-
-    const ioOutputs = {
-        LIGHTING_S1: "Lighting S1 (D0)", LIGHTING_S2: "Lighting S2 (D1)",
-        BUZZER_S1: "Buzzer S1 (D2)", BUZZER_S2: "Buzzer S2 (D3)",
-        SCANNER_S1: "Scanner S1 (D4)", SCANNER_S2: "Scanner S2 (D5)",
-        TESTDONE_S1: "Test Done S1 (D6)", TESTDONE_S2: "Test Done S2 (D7)",
-        FAILURE: "Failure (D10)"
-    };
-
-    const ioInputs = {
-        READ_DI0: "Read DI0", READ_DI1: "Read DI1", READ_INPUTS_REG: "Read Registers"
-    };
-
-    function loadIoSettings() {
-        const savedData = localStorage.getItem('io_mapping_v2');
-        return savedData ? JSON.parse(savedData) : ioDefaultMapping;
-    }
-
-    function createIoSelectGroup(funcId, funcName, currentValue) {
-        let div = document.createElement('div');
-        div.className = 'flex justify-between items-center text-sm';
-        
-        let label = document.createElement('label');
-        label.className = 'text-gray-700 dark:text-gray-300 font-medium';
-        label.innerText = funcName;
-        
-        let select = document.createElement('select');
-        select.name = funcId;
-        select.className = 'border border-gray-300 dark:border-gray-600 rounded p-1.5 ml-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 w-32';
-        
-        for(let i=0; i<=40; i++) {
-            let option = document.createElement('option');
-            option.value = i;
-            option.text = `Pin/Reg ${i}`;
-            option.className = 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white';
-            if (currentValue === i) option.selected = true;
-            select.appendChild(option);
-        }
-        div.appendChild(label);
-        div.appendChild(select);
-        return div;
-    }
-
-    function renderIoForm(mapping) {
-        const outContainer = document.getElementById('mapping-outputs-container');
-        const inContainer = document.getElementById('mapping-inputs-container');
-        outContainer.innerHTML = ''; inContainer.innerHTML = '';
-        
-        for (const [id, name] of Object.entries(ioOutputs)) {
-            outContainer.appendChild(createIoSelectGroup(id, name, mapping[id]));
-        }
-        for (const [id, name] of Object.entries(ioInputs)) {
-            inContainer.appendChild(createIoSelectGroup(id, name, mapping[id]));
-        }
-    }
-
-    function resetIoMapping() {
-        if(confirm("Are you sure you want to revert to default I/O mappings?")) {
-            renderIoForm(ioDefaultMapping);
-        }
-    }
-
-    document.getElementById('ioMappingForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const formData = new FormData(this);
-        const newMapping = {};
-        formData.forEach((value, key) => newMapping[key] = parseInt(value));
-
-        localStorage.setItem('io_mapping_v2', JSON.stringify(newMapping));
-        
-        fetch('/save_mapping', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(newMapping)
-        }).then(res => res.json())
-          .then(data => {
-            showToast('I/O Mapping saved successfully!', 'green');
-            document.getElementById('ioMappingModal').classList.add('hidden');
-        }).catch(err => {
-            showToast('Saved locally, but backend sync failed.', 'red');
-        });
-    });
-
-    function turnOffAllIO() {
-        fetch('/off_all', { method: 'POST' })
-        .then(res => res.json())
-        .then(data => showToast('OFF ALL command sent!', 'green'))
-        .catch(err => showToast('Failed to send OFF ALL', 'red'));
-    }
-
-    document.getElementById('btnIoMapping').addEventListener('click', function() {
-        renderIoForm(loadIoSettings());
-        document.getElementById('ioMappingModal').classList.remove('hidden');
-    });
-    document.getElementById('btnCloseIoMapping').addEventListener('click', function() {
-        document.getElementById('ioMappingModal').classList.add('hidden');
-    });
-    // ==========================================
-
-    window.__currentProgramS1 = { sku: null, part: null, file: null, label: null, data: null };
-    window.__currentProgramS2 = { sku: null, part: null, file: null, label: null, data: null };
-    let lastSeq = 0, AUTO_SEND_ENABLED = true, lastTriggerAt = 0;
-    const sendQueue = []; let queueWorking = false;
-    const $ = (id) => document.getElementById(id);
-
-    // Times Adjustment Modal Functionality
-    let currentTimeSettings = {};
-
-    const DEFAULT_TIME_SETTINGS = {
-        deviceConnectTimeout: 5.0,
-        deviceRecvTimeout: 1.0,
-        clientSocketTimeout: 1.0,
-        reconnectBaseDelay: 0.5,
-        maxBackoff: 30,
-        reconnectCheckInterval: 1,
-        defaultCharDelay: 100,
-        s1CharDelay: 100,
-        s2CharDelay: 100,
-        frameDelay: 1,
-        followupDelay: 30,
-        statusRefresh: 1500,
-        logPolling: 800,
-        server4Refresh: 2000,
-        sendTimeout: 25,
-        autoSendGap: 120,
-        dbTimeout: 10,
-        ImageTimeout: 10, 
-        PlcSignal: 0.1
-    };
-
-    async function loadTimeSettings() {
-        try {
-            const response = await fetch('/time_settings');
-            const data = await response.json();
-            if (data.ok) {
-                currentTimeSettings = data.settings;
-                populateTimeForm(currentTimeSettings);
-            } else {
-                currentTimeSettings = {...DEFAULT_TIME_SETTINGS};
-                populateTimeForm(currentTimeSettings);
-            }
-        } catch (error) {
-            console.error('Failed to load time settings:', error);
-            currentTimeSettings = {...DEFAULT_TIME_SETTINGS};
-            populateTimeForm(currentTimeSettings);
-        }
-    }
-
-    function populateTimeForm(settings) {
-        for (const [key, value] of Object.entries(settings)) {
-            const element = $(key);
-            if (element) {
-                element.value = value;
-            }
-        }
-        if ($('delayS1')) $('delayS1').value = settings.s1CharDelay;
-        if ($('delayS2')) $('delayS2').value = settings.s2CharDelay;
-        if ($('delay')) $('delay').value = settings.defaultCharDelay;
-    }
-
-    function collectTimeSettings() {
-        const settings = {};
-        for (const key of Object.keys(DEFAULT_TIME_SETTINGS)) {
-            const element = $(key);
-            if (element) {
-                settings[key] = parseFloat(element.value) || DEFAULT_TIME_SETTINGS[key];
-            }
-        }
-        return settings;
-    }
-
-    async function saveTimeSettings(settings) {
-        try {
-            const response = await fetch('/time_settings', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(settings)
-            });
-            const data = await response.json();
-            if (data.ok) {
-                showToast('Time settings saved successfully', 'green');
-                currentTimeSettings = {...settings};
-                updateUIWithNewTimes();
-                return true;
-            } else {
-                showToast('Failed to save time settings: ' + data.msg, 'red');
-                return false;
-            }
-        } catch (error) {
-            showToast('Error saving time settings: ' + error.message, 'red');
-            return false;
-        }
-    }
-
-    /** Station status cards + any future shared status polling */
-    function refreshStatus() {
-        pollStation1Status();
-        pollStation2Status();
-    }
-
-    function updateUIWithNewTimes() {
-        if ($('delayS1')) $('delayS1').value = currentTimeSettings.s1CharDelay;
-        if ($('delayS2')) $('delayS2').value = currentTimeSettings.s2CharDelay;
-        if ($('delay')) $('delay').value = currentTimeSettings.defaultCharDelay;
-        
-        if (window.statusInterval) {
-            clearInterval(window.statusInterval);
-        }
-        const ms = Math.max(200, parseInt(currentTimeSettings.statusRefresh, 10) || DEFAULT_TIME_SETTINGS.statusRefresh);
-        window.statusInterval = setInterval(refreshStatus, ms);
-        if (window.logInterval) {
-            clearInterval(window.logInterval);
-            window.logInterval = setInterval(pullLogs, currentTimeSettings.logPolling);
-        }
-        if (window.server4Interval) {
-            clearInterval(window.server4Interval);
-            window.server4Interval = setInterval(refreshServer4, currentTimeSettings.server4Refresh);
-        }
-    }
-
-    $('btnAdjustTimes').addEventListener('click', function() {
-        loadTimeSettings();
-        $('timesModal').classList.remove('hidden');
-    });
-
-    $('btnCloseTimes').addEventListener('click', function() {
-        $('timesModal').classList.add('hidden');
-    });
-
-    $('btnCancelTimes').addEventListener('click', function() {
-        $('timesModal').classList.add('hidden');
-    });
-
-    $('btnResetTimes').addEventListener('click', async function() {
-        if (confirm('Reset all time settings to defaults?')) {
-            populateTimeForm(DEFAULT_TIME_SETTINGS);
-            const success = await saveTimeSettings(DEFAULT_TIME_SETTINGS);
-            if (success) {
-                showToast('Settings reset to defaults successfully', 'green');
-            }
-        }
-    });
-
-    $('btnSaveTimes').addEventListener('click', async function() {
-        const newSettings = collectTimeSettings();
-        const success = await saveTimeSettings(newSettings);
-        if (success) {
-            $('timesModal').classList.add('hidden');
-        }
-    });
-
-    $('timesModal').addEventListener('click', function(e) {
-        if (e.target === this) {
-            this.classList.add('hidden');
-        }
-    });
-
-    function showErrorPopup() {
-        const modal = $('errorModal');
-        if (modal) {
-            modal.classList.remove('hidden');
-            AUTO_SEND_ENABLED = false;
-            if ($('autoSwitch')) $('autoSwitch').checked = false;
-        }
-    }
-
-    function hideErrorPopup() {
-        const modal = $('errorModal');
-        if (modal) {
-            modal.classList.add('hidden');
-        }
-    }
-
-    async function resetErrorCondition() {
-        try {
-            const response = await fetch('/reset_error', { 
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'}
-            });
-            const result = await response.json();
-            
-            if (result.ok) {
-                showToast('Error condition reset successfully', 'green');
-                hideErrorPopup();
-                AUTO_SEND_ENABLED = true;
-                if ($('autoSwitch')) $('autoSwitch').checked = true;
-            } else {
-                showToast('Reset failed: ' + result.msg, 'red');
-            }
-        } catch (error) {
-            showToast('Reset error: ' + error.message, 'red');
-        }
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-      const sw = $("autoSwitch"); if (sw) sw.addEventListener("change", ()=>{ AUTO_SEND_ENABLED = $("autoSwitch").checked; });
-      
-      const resetBtn = $('btnResetError');
-      if (resetBtn) {
-          resetBtn.addEventListener('click', resetErrorCondition);
-      }
-      
-      renderIoForm(loadIoSettings());
-    });
-
-    function showToast(message, cls){ const t = $("toast"); t.className = "toast " + (cls||""); t.textContent = message; t.style.display = "block"; clearTimeout(window.__toastTimer); window.__toastTimer = setTimeout(()=>{t.style.display='none'}, 2200); }
-
-    // ==========================================
-    // Station Status Flags - Live Polling
-    // ==========================================
-
-    // Helper: update a flag element's look
-    function setFlag(flagEl, dotEl, textEl, state, text) {
-        // Remove all state classes
-        flagEl.classList.remove('flag-pass','flag-fail','flag-idle','flag-arrived','flag-waiting');
-        dotEl.classList.remove('dot-pass','dot-fail','dot-idle','dot-arrived','dot-waiting','pulse-active');
-
-        flagEl.classList.add('flag-' + state);
-        dotEl.classList.add('dot-' + state);
-        if (state === 'pass') dotEl.classList.add('pulse-active');
-        textEl.textContent = text;
-    }
-
-    // Helper: update info display (dummy/SKU may be numeric)
-    function setInfo(el, value) {
-        if (value === null || value === undefined) {
-            el.textContent = '—';
-            el.classList.add('empty');
-            return;
-        }
-        const s = String(value).trim();
-        if (s === '' || s === 'None' || s === 'null' || s === 'undefined') {
-            el.textContent = '—';
-            el.classList.add('empty');
-        } else {
-            el.textContent = s;
-            el.classList.remove('empty');
-        }
-    }
-
-    function normalizePassFail(result) {
-        if (result === true || result === false) return result === true ? 'PASS' : 'FAIL';
-        if (result === null || result === undefined) return '';
-        return String(result).trim().toUpperCase();
-    }
-
-    // Poll Station 1 status
-    function pollStation1Status() {
-        fetch('/station1_status')
-            .then(r => r.json())
-            .then(data => {
-                // Arrived flag
-                const arrivedFlag = $('s1-arrived-flag');
-                const arrivedDot  = arrivedFlag.querySelector('.flag-dot');
-                const arrivedText = $('s1-arrived-text');
-                if (data.arrived === true) {
-                    setFlag(arrivedFlag, arrivedDot, arrivedText, 'arrived', 'Fridge Arrived');
-                } else {
-                    setFlag(arrivedFlag, arrivedDot, arrivedText, 'waiting', 'Waiting...');
-                }
-
-                // Result flag
-                const resultFlag = $('s1-result-flag');
-                const resultDot  = resultFlag.querySelector('.flag-dot');
-                const resultText = $('s1-result-text');
-                const r1 = normalizePassFail(data.result);
-                if (r1 === 'PASS') {
-                    setFlag(resultFlag, resultDot, resultText, 'pass', 'PASS');
-                } else if (r1 === 'FAIL') {
-                    setFlag(resultFlag, resultDot, resultText, 'fail', 'FAIL');
-                } else {
-                    setFlag(resultFlag, resultDot, resultText, 'idle', 'No Result Yet');
-                }
-
-                // Dummy & SKU
-                setInfo($('s1-dummy'), data.dummy_number);
-                setInfo($('s1-sku'),   data.sku_number);
-            })
-            .catch(() => {});
-    }
-
-    // Poll Station 2 status
-    function pollStation2Status() {
-        fetch('/station2_status')
-            .then(r => r.json())
-            .then(data => {
-                const arrivedFlag = $('s2-arrived-flag');
-                const arrivedDot  = arrivedFlag.querySelector('.flag-dot');
-                const arrivedText = $('s2-arrived-text');
-                if (data.arrived === true) {
-                    setFlag(arrivedFlag, arrivedDot, arrivedText, 'arrived', 'Fridge Arrived');
-                } else {
-                    setFlag(arrivedFlag, arrivedDot, arrivedText, 'waiting', 'Waiting...');
-                }
-
-                const resultFlag = $('s2-result-flag');
-                const resultDot  = resultFlag.querySelector('.flag-dot');
-                const resultText = $('s2-result-text');
-                const r2 = normalizePassFail(data.result);
-                if (r2 === 'PASS') {
-                    setFlag(resultFlag, resultDot, resultText, 'pass', 'PASS');
-                } else if (r2 === 'FAIL') {
-                    setFlag(resultFlag, resultDot, resultText, 'fail', 'FAIL');
-                } else {
-                    setFlag(resultFlag, resultDot, resultText, 'idle', 'No Result Yet');
-                }
-
-                setInfo($('s2-dummy'), data.dummy_number);
-                setInfo($('s2-sku'),   data.sku_number);
-            })
-            .catch(() => {});
-    }
-
-    // Station flags: one interval (same cadence as "Status Refresh" in time settings)
-    const _initialRefresh = Math.max(200, DEFAULT_TIME_SETTINGS.statusRefresh);
-    window.statusInterval = setInterval(refreshStatus, _initialRefresh);
-    refreshStatus();
-
-  </script>
-
-
-<!-- station 1 manual scanner -->
+<!-- Manual Scanner Modals -->
 <div id="manualScannerModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[100] hidden">
-    <div class="bg-white dark:bg-gray-800 rounded-lg p-8 w-full max-w-md text-center">
-        <h2 class="text-2xl font-bold text-red-600 mb-4">⚠️ System Alert</h2>
-        <p class="text-gray-700 dark:text-gray-300 mb-6">ERROR: Auto SCANNING FAILED in outer station</p>
-    
-        <div class="flex flex-col gap-4">
-            <input id="manualInput" type="text" class="border p-2 rounded w-full" placeholder="Scan or enter code manually">
-            <button onclick="submitManualData()" class="bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700">
-                OK / Confirm
-            </button>
-        </div>
+  <div class="bg-white dark:bg-gray-800 rounded-lg p-8 w-full max-w-md text-center">
+    <h2 class="text-2xl font-bold text-red-600 mb-4">⚠️ System Alert</h2>
+    <p class="text-gray-700 dark:text-gray-300 mb-6">ERROR: Auto SCANNING FAILED in outer station</p>
+    <div class="flex flex-col gap-4">
+      <input id="manualInput" type="text" class="border p-2 rounded w-full" placeholder="Scan or enter code manually">
+      <button onclick="submitManualData()" class="bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700">OK / Confirm</button>
     </div>
+  </div>
 </div>
 
-<script>
-setInterval(function() {
-    fetch('/check-flags')
-        .then(response => response.json())
-        .then(data => {
-            const modal = document.getElementById('manualScannerModal');
-            const modal2 = document.getElementById('noCsv1');
-            
-            if (data.manual_scanner === true) {
-                modal.classList.remove('hidden');
-            } else {
-                modal.classList.add('hidden');
-            }
-            if (data.no_csv_error === true) {
-                modal2.classList.remove('hidden');
-            } else {
-                modal2.classList.add('hidden');
-            }
-        })
-        .catch(err => console.error("Error fetching flags:", err));
-}, 1000);
-
-async function submitManualData() {
-    const val = document.getElementById('manualInput').value;
-    if (!val) return alert("Please enter data");
-
-    const response = await fetch('/api/station', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ station_data: val })
-    });
-
-    if (response.ok) {
-        document.getElementById('manualScannerModal').classList.add('hidden');
-        document.getElementById('manualInput').value = "";
-        showToast("Data submitted successfully", "green");
-    }
-}
-</script>
-
-
-<!-- station 2 manual scanner -->
 <div id="manualScannerModal2" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[100] hidden">
-    <div class="bg-white dark:bg-gray-800 rounded-lg p-8 w-full max-w-md text-center">
-        <h2 class="text-2xl font-bold text-red-600 mb-4">⚠️ System Alert</h2>
-        <p class="text-gray-700 dark:text-gray-300 mb-6">ERROR: Auto SCANNING FAILED in inner station</p>
-    
-        <div class="flex flex-col gap-4">
-            <input id="manualInput2" type="text" class="border p-2 rounded w-full" placeholder="Scan or enter code manually">
-            <button onclick="submitManualData2()" class="bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700">
-                OK / Confirm
-            </button>
-        </div>
+  <div class="bg-white dark:bg-gray-800 rounded-lg p-8 w-full max-w-md text-center">
+    <h2 class="text-2xl font-bold text-red-600 mb-4">⚠️ System Alert</h2>
+    <p class="text-gray-700 dark:text-gray-300 mb-6">ERROR: Auto SCANNING FAILED in inner station</p>
+    <div class="flex flex-col gap-4">
+      <input id="manualInput2" type="text" class="border p-2 rounded w-full" placeholder="Scan or enter code manually">
+      <button onclick="submitManualData2()" class="bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700">OK / Confirm</button>
     </div>
+  </div>
 </div>
 
-<script>
-setInterval(function() {
-    fetch('/check-flags2')
-        .then(response => response.json())
-        .then(data => {
-            const modal = document.getElementById('manualScannerModal2');
-            const modal2 = document.getElementById('noCsv2');
-            
-            if (data.manual_scanner === true) {
-                modal.classList.remove('hidden');
-            } else {
-                modal.classList.add('hidden');
-            }
-
-            if (data.no_csv_error === true) {
-                modal2.classList.remove('hidden');
-            } 
-            else {
-                modal2.classList.add('hidden');
-            }
-        })
-        .catch(err => console.error("Error fetching flags:", err));
-}, 1000);
-
-async function submitManualData2() {
-    const val = document.getElementById('manualInput2').value;
-    if (!val) return alert("Please enter data");
-
-    const response = await fetch('/api/station2', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ station_data: val })
-    });
-
-    if (response.ok) {
-        document.getElementById('manualScannerModal2').classList.add('hidden');
-        document.getElementById('manualInput2').value = "";
-        showToast("Data submitted successfully", "green");
-    }
-}
-</script>
-
-
-<!-- nocsv station 1 -->
 <div id="noCsv1" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[100] hidden">
-    <div class="bg-white dark:bg-gray-800 rounded-lg p-8 w-full max-w-md text-center">
-        <h2 class="text-2xl font-bold text-red-600 mb-4">⚠️ System Alert</h2>
-        <p class="text-gray-700 dark:text-gray-300 mb-6">ERROR: THERE IS NO CSV IN OUTER STATION</p>
-        <div class="flex flex-col gap-4">
-            <button onclick="submitCsv1()" class="bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700">
-            OK / Confirm
-            </button>
-        </div>
+  <div class="bg-white dark:bg-gray-800 rounded-lg p-8 w-full max-w-md text-center">
+    <h2 class="text-2xl font-bold text-red-600 mb-4">⚠️ System Alert</h2>
+    <p class="text-gray-700 dark:text-gray-300 mb-6">ERROR: THERE IS NO CSV IN OUTER STATION</p>
+    <div class="flex flex-col gap-4">
+      <button onclick="submitCsv1()" class="bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700">OK / Confirm</button>
     </div>
+  </div>
 </div>
 
-<!-- nocsv station 2 -->
 <div id="noCsv2" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[100] hidden">
-    <div class="bg-white dark:bg-gray-800 rounded-lg p-8 w-full max-w-md text-center">
-        <h2 class="text-2xl font-bold text-red-600 mb-4">⚠️ System Alert</h2>
-        <p class="text-gray-700 dark:text-gray-300 mb-6">ERROR: THERE IS NO CSV IN INNER STATION</p>
-        <div class="flex flex-col gap-4">
-            <button onclick="submitCsv2()" class="bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700">
-            OK / Confirm
-            </button>
-        </div>
+  <div class="bg-white dark:bg-gray-800 rounded-lg p-8 w-full max-w-md text-center">
+    <h2 class="text-2xl font-bold text-red-600 mb-4">⚠️ System Alert</h2>
+    <p class="text-gray-700 dark:text-gray-300 mb-6">ERROR: THERE IS NO CSV IN INNER STATION</p>
+    <div class="flex flex-col gap-4">
+      <button onclick="submitCsv2()" class="bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700">OK / Confirm</button>
     </div>
+  </div>
 </div>
 
-<script>
-async function submitCsv1() {
-    fetch('/control', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
-    })
-    .then(response => response.json())
-    .then(response => {
-        if (response.ok) {
-            document.getElementById('noCsv1').classList.add('hidden');
-        } else {
-            console.error("Server error for Station 1:", response.status);
-        }
-    })
-    .catch(error => console.error('Network error:', error));
-}
-
-async function submitCsv2() {
-    fetch('/control2', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
-    })
-    .then(response => response.json())
-    .then(response => {
-        if (response.ok) {
-            document.getElementById('noCsv2').classList.add('hidden');
-        } else {
-            console.error("Server error for Station 2:", response.status);
-        }
-    })
-    .catch(error => console.error('Network error:', error));
-}
-</script>
+<div id="toast" style="display:none"></div>
 
 </body>
 </html>
