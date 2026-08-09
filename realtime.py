@@ -225,14 +225,14 @@ def register_handlers():
 
 def start_tickers():
     if sio is None:
-        print("⚠️ python-socketio غير متسطب — الواجهة هترجع للـ polling")
+        print(" python-socketio غير متسطب — الواجهة هترجع للـ polling")
         return
 
     loop = asyncio.get_event_loop()
     _tasks.append(loop.create_task(_fast_loop()))
     _tasks.append(loop.create_task(_flags_loop()))
     _tasks.append(loop.create_task(_sql_loop()))
-    print("📡 Socket.IO tickers started")
+    print(" Socket.IO tickers started")
 
 
 async def stop_tickers():

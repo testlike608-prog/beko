@@ -900,7 +900,7 @@ class App():
                     self.client_Vision_station1.shared_queue.put(test_results_dict)
                     
                     TEST = self.client_Vision_station1.shared_queue.get()
-                    self.client_Vision_station1._log_add("INFO", f"DATA IN THE Q👌👌😒😒😍😒😒😍🤦‍♀️🙌: [{TEST}]")
+                    self.client_Vision_station1._log_add("INFO", f"DATA IN THE Q‍♀️: [{TEST}]")
                     '''
                     
                     time.sleep(1)
@@ -964,7 +964,7 @@ class App():
                     self.client_Vision_station1.shared_queue.put(test_results_dict)
                     
                     TEST = self.client_Vision_station1.shared_queue.get()
-                    self.client_Vision_station1._log_add("INFO", f"DATA IN THE Q👌👌😒😒😍😒😒😍🤦‍♀️🙌: [{TEST}]")
+                    self.client_Vision_station1._log_add("INFO", f"DATA IN THE Q‍♀️: [{TEST}]")
                     '''
                     
                     time.sleep(1)
@@ -1019,7 +1019,7 @@ class App():
                             return 
                    
                 '''
-                # ✅ CLEAR CSV FOR NEW DUMMY  ← 🆕 NEW LINE
+                # ✅ CLEAR CSV FOR NEW DUMMY  ← NEW LINE
                 hlb.clear_station2_csv_for_new_dummy(dummy_number)
           
                 self.last_dummy_time_station_one[dummy_number] = now2
@@ -1102,7 +1102,7 @@ class App():
                                 return 
                         '''
                 
-                    # ✅ CLEAR CSV FOR NEW DUMMY  ← 🆕 NEW LINE
+                    # ✅ CLEAR CSV FOR NEW DUMMY  ← NEW LINE
                     hlb.clear_station2_csv_for_new_dummy(dummy_number)
             
                     self.last_dummy_time_station_one[dummy_number] = now2
@@ -1197,7 +1197,7 @@ class App():
                             return 
                     '''
                
-                # ✅ CLEAR CSV FOR NEW DUMMY  ← 🆕 NEW LINE
+                # ✅ CLEAR CSV FOR NEW DUMMY  ← NEW LINE
                 hlb.clear_station2_csv_for_new_dummy(dummy_number)
           
                 self.last_dummy_time_station_two[dummy_number] = now2
@@ -1282,7 +1282,7 @@ class App():
                                 return 
                         '''
                 
-                    # ✅ CLEAR CSV FOR NEW DUMMY  ← 🆕 NEW LINE
+                    # ✅ CLEAR CSV FOR NEW DUMMY  ← NEW LINE
                     hlb.clear_station2_csv_for_new_dummy(dummy_number)
             
                     self.last_dummy_time_station_two[dummy_number] = now2
@@ -1670,10 +1670,10 @@ class App():
                 try:
                     # بيستنى داتا من Vision Station 1 لمدة ثانية
                     test_results_dict = self.client_Vision_station1.shared_queue.get(timeout=30)
-                    self.client_scanner_station1._log_add("INFO", f"AAAAAAAAAAAAAAAA😊{test_results_dict}") # بيقف هنا 
+                    self.client_scanner_station1._log_add("INFO", f"AAAAAAAAAAAAAAAA{test_results_dict}") # بيقف هنا 
                 except Empty: 
                     # لو مفيش داتا جات في خلال ثانية، يرجع يلف تاني}
-                    self.client_scanner_station1._log_add("INFO", "AAAAAAAAAAAAAAAA😊")
+                    self.client_scanner_station1._log_add("INFO", "AAAAAAAAAAAAAAAA")
 
                 if test_results_dict and isinstance(test_results_dict, dict):                    
                     # 2. استخراج الاختبارات الفاشلة
@@ -1742,10 +1742,10 @@ class App():
                 try:
                     # بيستنى داتا من Vision Station 1 لمدة ثانية
                     test_results_dict2 = self.client_Vision_station2.shared_queue.get(timeout=100)
-                    self.client_scanner_station2._log_add("INFO", f"AAAAAAAAAAAAAAAA😊{test_results_dict2}")
+                    self.client_scanner_station2._log_add("INFO", f"AAAAAAAAAAAAAAAA{test_results_dict2}")
                 except Empty: 
                     # لو مفيش داتا جات في خلال ثانية، يرجع يلف تاني}
-                    self.client_scanner_station2._log_add("INFO", "AAAAAAAAAAAAAAAA😊")
+                    self.client_scanner_station2._log_add("INFO", "AAAAAAAAAAAAAAAA")
 
                 if test_results_dict2 and isinstance(test_results_dict2, dict):                    
                     # 2. استخراج الاختبارات الفاشلة

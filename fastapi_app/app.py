@@ -125,7 +125,7 @@ def create_app() -> FastAPI:
         realtime.register_handlers()
         realtime.start_tickers()
 
-        print("🌐 Web layer ready — press START in the UI to run the process.")
+        print("Web layer ready — press START in the UI to run the process.")
 
     @app.on_event("shutdown")
     async def _shutdown():

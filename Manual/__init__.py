@@ -26,7 +26,7 @@ def page_CSVPopup():
 def manual_popup_ack():
     
     cc.Buzzer_Flag_to_OFF = True
-    cc.Manual_Scanner_MODE = False   # 👈 الفلاج بيتقفل هنا
+    cc.Manual_Scanner_MODE = False   # الفلاج بيتقفل هنا
     return redirect(url_for('home.page_index'))
 
 
@@ -35,7 +35,7 @@ def manual_popup_ack():
 @Manual.route('/NoCSV/ack', methods=['POST'])
 def csv_popup_ack():
     cc.Buzzer_Flag_to_OFF2 = True
-    cc.NO_CSV_ERROR = False   # 👈 يقفل الفلاج
+    cc.NO_CSV_ERROR = False   # يقفل الفلاج
     return redirect(url_for('home.page_index'))
 
 

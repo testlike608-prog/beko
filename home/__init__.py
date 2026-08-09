@@ -26,8 +26,8 @@ def add_to_queue():
         cc.queue_manual_FOR_FAILURE.put(dummy_number)
         cc.queue_manual_FOR_Proessing.put(dummy_number)
         
-        print(f"📥 New Item Added: {dummy_number}")
-        print(f"📦 Total in Queue: {cc.queue_manual_FOR_FAILURE.qsize()}")
+        print(f"New Item Added: {dummy_number}")
+        print(f"Total in Queue: {cc.queue_manual_FOR_FAILURE.qsize()}")
         
         return jsonify({
             "status": "success", 
@@ -51,8 +51,8 @@ def add_to_queue2():
         cc.is_waiting2 = False
         cc.Manual_Scanner_MODE2 = False
         
-        print(f"📥 New Item Added: {dummy_number}")
-        print(f"📦 Total in Queue: {cc.queue_manual2_FOR_FAILURE.qsize()}")
+        print(f"New Item Added: {dummy_number}")
+        print(f"Total in Queue: {cc.queue_manual2_FOR_FAILURE.qsize()}")
         
         return jsonify({
             "status": "success", 

@@ -34,14 +34,14 @@ async def page_csv_popup(request: Request):
 @router.post("/ManualPopup/ack", name="Manual.manual_popup_ack")
 async def manual_popup_ack():
     cc.Buzzer_Flag_to_OFF = True
-    cc.Manual_Scanner_MODE = False  # 👈 الفلاج بيتقفل هنا
+    cc.Manual_Scanner_MODE = False  # الفلاج بيتقفل هنا
     return redirect("/home")
 
 
 @router.post("/NoCSV/ack", name="Manual.csv_popup_ack")
 async def csv_popup_ack():
     cc.Buzzer_Flag_to_OFF2 = True
-    cc.NO_CSV_ERROR = False  # 👈 يقفل الفلاج
+    cc.NO_CSV_ERROR = False  # يقفل الفلاج
     return redirect("/home")
 
 

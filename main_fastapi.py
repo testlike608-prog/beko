@@ -69,7 +69,7 @@ def _open_browser_if_needed(wait_seconds: float = 4.0):
     deadline = time.time() + wait_seconds
     while time.time() < deadline:
         if client_seen_within(wait_seconds):
-            print("🔁 Existing browser tab detected — refreshing it instead of opening a new one")
+            print(" Existing browser tab detected — refreshing it instead of opening a new one")
             return
         time.sleep(0.25)
 

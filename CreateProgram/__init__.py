@@ -122,7 +122,7 @@ def reset_error():
         cc.Manual_Scanner_MODE2 = False
         cc.your_s1_result = None
         cc.your_s2_result = None
-        print("🔄 Error condition reset")
+        print("Error condition reset")
         return jsonify({"ok": True, "msg": "Error condition reset"})
     except Exception as e:
         return jsonify({"ok": False, "msg": str(e)}), 500
@@ -144,7 +144,7 @@ def delete_test():
             return jsonify({"ok": False, "msg": f"Test '{name}' not found"}), 404
 
         save_tests(remaining)
-        print(f"🗑️ Test deleted: {name}")
+        print(f"️ Test deleted: {name}")
         return jsonify({"ok": True, "msg": f"Test '{name}' deleted", "count": len(remaining)})
     except Exception as e:
         return jsonify({"ok": False, "msg": str(e)}), 500

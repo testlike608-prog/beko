@@ -289,7 +289,7 @@ class ProcessController:
                 "pending_threads": still_alive,
             }
 
-        print("🛑 Process stopped")
+        print("Process stopped")
         return {"ok": True, "running": False, "message": "Process stopped"}
 
     # ------------------------------------------------------------------
