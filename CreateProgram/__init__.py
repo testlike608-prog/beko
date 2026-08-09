@@ -3,7 +3,8 @@ from flask import render_template, redirect, url_for
 from flask import Flask, request, jsonify, render_template_string, send_from_directory, session
 from typing import Dict,Tuple,List
 import os,re
-from helpers import _save_csv_file,_csv_path,load_tests
+from helpers import _save_csv_file,_csv_path,load_tests,save_tests
+import ClientsClass as cc
 import csv
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROGRAMS_DIR = BASE_DIR
@@ -32,10 +33,31 @@ def _load_csv_file(path: str) -> Dict[str, str]:
                 out[row[0]] = row[1]
     return out
 
-def _save_csv_file(path: str, rows: List[Tuple[str, str]]):
-    with open(path, "w", newline="", encoding="utf-8") as f:
+def _save_csv_file(path: str, rows: List[Tuple[str, str]], append: bool = False):
+    """
+    يكتب الصفوف في ملف CSV.
+
+    append=False  -> يكتب الملف من الأول (مع صف العناوين).
+    append=True   -> يضيف الصفوف في آخر الملف من غير ما يكرر العناوين.
+                     لو الملف مش موجود أو فاضي بيكتب العناوين الأول.
+
+    ملحوظة: البارامتر ده كان ناقص، وكان أي استدعاء بـ append=True
+    بيرمي TypeError وبيتبلع في الـ try/except — فالاختبارات الديناميكية
+    كانت بتضيع ومتتحفظش في ملفات الـ CSV.
+    """
+    mode = "a" if append else "w"
+    need_header = True
+
+    if append:
+        try:
+            need_header = (not os.path.isfile(path)) or os.path.getsize(path) == 0
+        except OSError:
+            need_header = True
+
+    with open(path, mode, newline="", encoding="utf-8") as f:
         w = csv.writer(f)
-        w.writerow(["Label", "Value"])
+        if need_header:
+            w.writerow(["Label", "Value"])
         for k, v in rows:
             w.writerow([k, v])
 
@@ -83,6 +105,75 @@ def get_program_cached(sku: str, part: str):
 @CreateProgram.get("/programs/<path:filename>")
 def download_program(filename):
     return send_from_directory(PROGRAMS_DIR, filename, as_attachment=True)
+
+
+# ----------------------------------------------------------------------
+# راوتس كانت ناقصة: static/main.js بيناديهم وكانوا بيرجعوا 404
+# ----------------------------------------------------------------------
+@CreateProgram.route("/reset_error", methods=["POST"])
+def reset_error():
+    """resetErrorCondition() في main.js"""
+    try:
+        cc.NO_CSV_ERROR = False
+        cc.NO_CSV_ERROR2 = False
+        cc.Buzzer_Flag_to_OFF = True
+        cc.Buzzer_Flag_to_OFF2 = True
+        cc.Manual_Scanner_MODE = False
+        cc.Manual_Scanner_MODE2 = False
+        cc.your_s1_result = None
+        cc.your_s2_result = None
+        print("🔄 Error condition reset")
+        return jsonify({"ok": True, "msg": "Error condition reset"})
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
+
+
+@CreateProgram.route("/delete_test", methods=["POST"])
+def delete_test():
+    """deleteTest(name) في main.js — حذف اختبار واحد من tests.json"""
+    payload = request.get_json(silent=True) or {}
+    name = payload.get("name")
+    if not name:
+        return jsonify({"ok": False, "msg": "No test name provided"}), 400
+
+    try:
+        tests = load_tests()
+        remaining = [t for t in tests if t.get("name") != name]
+
+        if len(remaining) == len(tests):
+            return jsonify({"ok": False, "msg": f"Test '{name}' not found"}), 404
+
+        save_tests(remaining)
+        print(f"🗑️ Test deleted: {name}")
+        return jsonify({"ok": True, "msg": f"Test '{name}' deleted", "count": len(remaining)})
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
+
+
+@CreateProgram.route("/blocked")
+def blocked():
+    """main.js بيعمل redirect هنا لو المستخدم فتح الـ DevTools"""
+    return (
+        "<!doctype html><html><head><meta charset='utf-8'><title>Blocked</title></head>"
+        "<body style=\"font-family:system-ui;display:flex;align-items:center;"
+        "justify-content:center;height:100vh;margin:0;background:#0e1628;color:#e2e8f0\">"
+        "<div style='text-align:center'><h1 style='font-size:3rem;margin:0'>&#9888;</h1>"
+        "<h2>Access blocked</h2><p style='opacity:.7'>Developer tools are not allowed "
+        "in this application.</p><a href='/home' style='color:#0382b8'>Back to dashboard</a>"
+        "</div></body></html>",
+        403,
+    )
+
+
+@CreateProgram.route("/reset_tests", methods=["POST"])
+def reset_tests():
+    """resetDefaults() في main.js — مسح كل الاختبارات الديناميكية"""
+    try:
+        save_tests([])
+        print("♻️ All dynamic tests cleared")
+        return jsonify({"ok": True, "msg": "All tests cleared"})
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
 
 @CreateProgram.route("/create_program", methods=["GET", "POST"])
 def page_create_program():
@@ -192,10 +283,8 @@ def page_create_program():
 
             try:
                 _save_csv_file(target_path, [row], append=True)
-                #tcp_server._log_add("INFO", f"Saved {test_name} ({opt_name}, {opt_code}) to {target_path}"  )
             except Exception as e:
-                    print("fdfsdf")
-                    #tcp_server._log_add("ERROR", f"Failed saving {test_name}: {e}")
+                print(f"❌ Failed saving dynamic test '{test_name}' to {target_path}: {e}")
        # ===============================
         #CSV_CACHE.pop((sku, "S1"), None)
        # CSV_CACHE.pop((sku, "S2"), None)

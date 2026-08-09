@@ -7,12 +7,14 @@
   <title>Create Program</title>
   <meta name="color-scheme" content="light dark" />
   <script src="/static/tailwind.cdn.js"></script>
-  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/styles.css?v={{ static_v('styles.css') }}">
   <script>
     /* TESTS injected from Flask — must come before main.js */
     let TESTS = {{ tests|tojson }};
   </script>
-  <script src="/static/main.js"></script>
+{% if static_exists('socket.io.min.js') %}  <script src="/static/socket.io.min.js?v={{ static_v('socket.io.min.js') }}"></script>
+{% endif %}
+  <script src="/static/main.js?v={{ static_v('main.js') }}"></script>
   <script>
     /* Initialize TESTS_MAP after main.js is loaded */
     document.addEventListener('DOMContentLoaded', () => initTestsMap(TESTS));

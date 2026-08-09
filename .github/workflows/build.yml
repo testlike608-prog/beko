@@ -45,9 +45,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
 
-          # في الريبو ملفين: requirements.txt و requirments.txt (إملاء غلط).
-          # التاني بقى بيشاور على الأول، بس بنتأكد إن الصح موجود فعلاً
-          # عشان ما نبنيش بحزم ناقصة من غير ما ناخد بالنا.
+          # بنتأكد إن الملف موجود فعلاً قبل ما نكمّل — قبل كده كان فيه
+          # نسخة تانية بإملاء غلط (requirments.txt) ناقصة حزم، وخلّت
+          # البناء يفشل بـ "failed to locate package 'socketio'".
           if (-not (Test-Path "requirements.txt")) {
             Write-Error "requirements.txt not found in repo — did it get committed?"
             exit 1

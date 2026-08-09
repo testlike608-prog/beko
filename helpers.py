@@ -137,10 +137,21 @@ def _csv_path(sku: str, part: str) -> str:
     safe_sku = re.sub(r'[^\w\-]', '', sku or "")
     return os.path.join(PROGRAMS_DIR, f"{safe_sku}{part}.csv")
 #save the data of sku in csv 
-def _save_csv_file(path: str, rows: List[Tuple[str, str]]):
-    with open(path, "w", newline="", encoding="utf-8") as f:
+def _save_csv_file(path: str, rows: List[Tuple[str, str]], append: bool = False):
+    """append=True يضيف في آخر الملف من غير ما يكرر صف العناوين."""
+    mode = "a" if append else "w"
+    need_header = True
+
+    if append:
+        try:
+            need_header = (not os.path.isfile(path)) or os.path.getsize(path) == 0
+        except OSError:
+            need_header = True
+
+    with open(path, mode, newline="", encoding="utf-8") as f:
         w = csv.writer(f)
-        w.writerow(["Label", "Value"])
+        if need_header:
+            w.writerow(["Label", "Value"])
         for k, v in rows:
             w.writerow([k, v])
     

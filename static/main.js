@@ -105,11 +105,55 @@ function normalizePassFail(result) {
   return String(result).trim().toUpperCase();
 }
 
-function pollStation1Status() {
-  fetch('/station1_status')
-    .then(r => r.json())
-    .then(data => {
+/* ─────────────────────────────────────────────
+   3b. REALTIME (Socket.IO)
+   السيرفر بيبعت التغييرات لوحده بدل ما نسأل كل ثانية.
+   لو socket.io مش متحمّل (المكتبة ناقصة)، بنرجع للـ polling القديم
+   أوتوماتيكيًا — فمفيش حاجة بتتكسر.
+───────────────────────────────────────────── */
+const RT = {
+  socket: null,
+  connected: false,
+  handlers: {},
+
+  // مهم: io() بيرجع أوبچكت *فورًا* حتى لو الاتصال فشل تمامًا
+  // (مكتبة ناقصة على السيرفر، بورت مقفول... إلخ).
+  // فالتحقق من `RT.socket` لوحده بيخدع الصفحة إنها تفتكر إن الـ push شغال
+  // وتوقف الـ polling، وتفضل مستنية أحداث مش هتيجي أبدًا.
+  // isLive() بتتحقق من الاتصال الحقيقي.
+  isLive() {
+    return !!(this.socket && this.socket.connected);
+  },
+
+  on(event, fn) {
+    (this.handlers[event] = this.handlers[event] || []).push(fn);
+    if (this.socket) this.socket.on(event, fn);
+  },
+  init() {
+    if (typeof io === 'undefined') {
+      console.warn('socket.io not available — falling back to HTTP polling');
+      return false;
+    }
+    this.socket = io({ transports: ['websocket', 'polling'] });
+
+    this.socket.on('connect',    () => { this.connected = true; });
+    this.socket.on('disconnect', () => { this.connected = false; });
+
+    for (const [event, fns] of Object.entries(this.handlers)) {
+      fns.forEach(fn => this.socket.on(event, fn));
+    }
+    return true;
+  }
+};
+
+// بنشغّله فورًا (مش في DOMContentLoaded) لأن السكربتات اللي جوه القوالب
+// بتشتغل قبل الحدث ده، ولازم تلاقي RT.socket جاهز عشان تقرر
+// هتستخدم push ولا polling.
+RT.init();
+
+function applyStation1(data) {
       const arrivedFlag = $('s1-arrived-flag');
+      if (!arrivedFlag) return;
       const arrivedDot  = arrivedFlag.querySelector('.flag-dot');
       const arrivedText = $('s1-arrived-text');
       if (data.arrived === true) {
@@ -128,15 +172,11 @@ function pollStation1Status() {
 
       setInfo($('s1-dummy'), data.dummy_number);
       setInfo($('s1-sku'),   data.sku_number);
-    })
-    .catch(() => {});
 }
 
-function pollStation2Status() {
-  fetch('/station2_status')
-    .then(r => r.json())
-    .then(data => {
+function applyStation2(data) {
       const arrivedFlag = $('s2-arrived-flag');
+      if (!arrivedFlag) return;
       const arrivedDot  = arrivedFlag.querySelector('.flag-dot');
       const arrivedText = $('s2-arrived-text');
       if (data.arrived === true) {
@@ -155,8 +195,22 @@ function pollStation2Status() {
 
       setInfo($('s2-dummy'), data.dummy_number);
       setInfo($('s2-sku'),   data.sku_number);
-    })
-    .catch(() => {});
+}
+
+function applyFlags(data, modalId, csvModalId) {
+  const modal  = $(modalId);
+  const modal2 = $(csvModalId);
+  if (modal)  modal.classList.toggle('hidden',  data.manual_scanner !== true);
+  if (modal2) modal2.classList.toggle('hidden', data.no_csv_error   !== true);
+}
+
+// النسخ دي بتستخدم للـ fallback بس (لما Socket.IO مش متاح)
+function pollStation1Status() {
+  fetch('/station1_status').then(r => r.json()).then(applyStation1).catch(() => {});
+}
+
+function pollStation2Status() {
+  fetch('/station2_status').then(r => r.json()).then(applyStation2).catch(() => {});
 }
 
 function refreshStatus() {
@@ -379,30 +433,264 @@ function turnOffAllIO() {
 
 
 /* ─────────────────────────────────────────────
+   6b. VISIONMASTER PATHS (Developer mode only)
+   ملحوظة: مش بنعمل parseInt هنا — دي مسارات نصية مش أرقام بنّات.
+───────────────────────────────────────────── */
+function renderVmCheck(check) {
+  const box = $('vmCheckResult');
+  if (!box || !check) return;
+  box.classList.remove('hidden');
+  if (check.ok) {
+    box.className = 'text-xs rounded p-3 bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200';
+    const size = check.solution_size ? ` (${check.solution_size.toLocaleString()} bytes)` : '';
+    box.innerHTML = `<b>OK</b> — VM.Core.dll found, solution file found${size}.`;
+  } else {
+    box.className = 'text-xs rounded p-3 bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200';
+    box.innerHTML = '<b>Problems:</b><ul class="list-disc ms-5 mt-1">' +
+      (check.errors || []).map(e => `<li>${e}</li>`).join('') + '</ul>';
+  }
+}
+
+async function loadVisionMasterPaths() {
+  if (!$('visionMasterForm')) return;
+  try {
+    const res = await fetch('/vision_master/paths');
+    if (!res.ok) return;
+    const data = await res.json();
+
+    $('vmAssemblyDir').value  = data.assembly_dir  || '';
+    $('vmSolutionPath').value = data.solution_path || '';
+
+    const detected = $('vmDetectedAssembly');
+    if (detected) detected.textContent = data.detected_assembly_dir || 'مفيش VisionMaster متلاقي على الجهاز';
+
+    if (!data.assembly_dir && data.detected_assembly_dir) {
+      $('vmAssemblyDir').placeholder = data.detected_assembly_dir;
+    }
+    if (!data.solution_path && data.detected_solution_path) {
+      $('vmSolutionPath').placeholder = data.detected_solution_path;
+    }
+
+    renderVmCheck(data.check);
+  } catch (err) {
+    console.error('Failed to load VisionMaster paths:', err);
+  }
+}
+
+/* ─────────────────────────────────────────────
+   6c. FILE PICKER (server-side browse, dev only)
+   بيتصفّح ملفات الجهاز اللي شغال عليه التطبيق مش جهاز المتصفح —
+   لأن <input type="file"> بيخفي المسار الكامل، و VisionMaster
+   محتاج مسار حقيقي على الديسك.
+───────────────────────────────────────────── */
+const picker = {
+  mode: 'file',      // 'file' | 'dir'
+  target: null,      // id of the input to fill
+  currentPath: '',
+  parentPath: '',    // بيجي من السيرفر (os.path.dirname) — أأمن من التقطيع في JS
+  selected: ''
+};
+
+function pickerRow(icon, label, sub, onClick, isSelected) {
+  const row = document.createElement('button');
+  row.type = 'button';
+  row.className = 'w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-700 transition ' +
+    (isSelected ? 'bg-purple-100 dark:bg-purple-900/40' : '');
+  row.innerHTML =
+    `<span class="shrink-0">${icon}</span>` +
+    `<span class="flex-1 min-w-0 truncate font-mono text-xs">${label}</span>` +
+    (sub ? `<span class="shrink-0 text-[10px] opacity-60">${sub}</span>` : '');
+  row.addEventListener('click', onClick);
+  return row;
+}
+
+async function pickerLoad(path) {
+  const list = $('pickerList');
+  const errBox = $('pickerError');
+  if (!list) return;
+
+  list.innerHTML = '<div class="px-3 py-4 text-xs opacity-60">Loading…</div>';
+  errBox.classList.add('hidden');
+
+  try {
+    const qs = new URLSearchParams({ path: path || '', only_dirs: picker.mode === 'dir' });
+    const url = '/vision_master/browse?' + qs.toString();
+    const res = await fetch(url);
+
+    if (!res.ok) {
+      list.innerHTML = '';
+      if (res.status === 401 || res.status === 403) {
+        errBox.textContent = 'Developer access required (HTTP ' + res.status + ') — سجّل دخول بمستخدم dev';
+      } else if (res.status === 404) {
+        errBox.textContent =
+          'HTTP 404 — الراوت /vision_master/browse مش متسجّل. ' +
+          'اقفل السيرفر وشغّله تاني (الراوتس بتتسجّل عند الإقلاع بس).';
+      } else {
+        errBox.textContent = 'HTTP ' + res.status + ' من ' + url;
+      }
+      errBox.classList.remove('hidden');
+      return;
+    }
+
+    let data;
+    try {
+      data = await res.json();
+    } catch (parseErr) {
+      list.innerHTML = '';
+      errBox.textContent = 'الرد مش JSON — غالبًا الراوت مش موجود أو رجّع صفحة HTML.';
+      errBox.classList.remove('hidden');
+      return;
+    }
+
+    picker.currentPath = data.path || '';
+    picker.parentPath  = data.parent || '';
+    $('pickerPath').value = picker.currentPath;
+
+    const btnUp = $('btnPickerUp');
+    if (btnUp) btnUp.disabled = !picker.parentPath;
+
+    // في وضع اختيار مجلد، المجلد الحالي نفسه هو الاختيار الافتراضي
+    picker.selected = picker.mode === 'dir' ? picker.currentPath : '';
+
+    // البارتيشنات
+    const drives = $('pickerDrives');
+    drives.innerHTML = '';
+    (data.drives || []).forEach(d => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-xs font-mono py-1 px-2 rounded transition';
+      b.textContent = d;
+      b.addEventListener('click', () => pickerLoad(d));
+      drives.appendChild(b);
+    });
+
+    if (data.error) {
+      errBox.textContent = data.error;
+      errBox.classList.remove('hidden');
+    }
+
+    list.innerHTML = '';
+
+    (data.dirs || []).forEach(d => {
+      const tag = d.has_vm_core ? 'VM.Core.dll ✓' : '';
+      list.appendChild(pickerRow('📁', d.name, tag, () => pickerLoad(d.path), false));
+    });
+
+    (data.files || []).forEach(f => {
+      const size = f.size ? `${f.size.toLocaleString()} B` : '';
+      list.appendChild(pickerRow('📄', f.name, size, function () {
+        picker.selected = f.path;
+        Array.from(list.children).forEach(c => c.classList.remove('bg-purple-100', 'dark:bg-purple-900/40'));
+        this.classList.add('bg-purple-100', 'dark:bg-purple-900/40');
+      }, false));
+    });
+
+    if (!list.children.length && !data.error) {
+      list.innerHTML = picker.mode === 'dir'
+        ? '<div class="px-3 py-4 text-xs opacity-60">مفيش مجلدات جوه المسار ده</div>'
+        : '<div class="px-3 py-4 text-xs opacity-60">مفيش ملفات .sol / .solw هنا — افتح مجلد تاني</div>';
+    }
+  } catch (err) {
+    list.innerHTML = '';
+    errBox.textContent = 'Failed to browse: ' + err;
+    errBox.classList.remove('hidden');
+  }
+}
+
+function openFilePicker(mode, targetInputId, title) {
+  // أي خطأ هنا كان هيفضل مخفي (الـ DevTools متقفلة في التطبيق)،
+  // فبنظهره كـ toast بدل ما الزرار يبان "مش شغال".
+  try {
+    const modal = $('filePickerModal');
+    if (!modal) {
+      showToast('File picker modal not found — امسح الكاش (Ctrl+F5) وجرّب تاني', 'red');
+      return;
+    }
+
+    picker.mode = mode;
+    picker.target = targetInputId;
+    picker.selected = '';
+
+    const titleEl = $('filePickerTitle');
+    if (titleEl) titleEl.textContent = title;
+
+    modal.classList.remove('hidden');
+
+    const input = $(targetInputId);
+    pickerLoad(input ? (input.value || '').trim() : '');
+  } catch (err) {
+    showToast('Browse failed: ' + err.message, 'red');
+  }
+}
+
+function closeFilePicker() {
+  $('filePickerModal').classList.add('hidden');
+}
+
+function confirmFilePicker() {
+  if (!picker.selected) {
+    showToast(picker.mode === 'dir' ? 'اختار مجلد الأول' : 'اختار ملف .sol / .solw الأول', 'red');
+    return;
+  }
+  $(picker.target).value = picker.selected;
+  closeFilePicker();
+  showToast('Path selected — اضغط Save عشان يتحفظ', 'green');
+}
+
+async function saveVisionMasterPaths() {
+  const payload = {
+    assembly_dir:  $('vmAssemblyDir').value.trim(),
+    solution_path: $('vmSolutionPath').value.trim()
+  };
+
+  try {
+    const res = await fetch('/vision_master/paths', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.status === 403 || res.status === 401) {
+      showToast('Developer access required', 'red');
+      return;
+    }
+
+    const data = await res.json();
+    renderVmCheck(data.check);
+
+    if (data.check && data.check.ok) {
+      showToast('VisionMaster paths saved!', 'green');
+    } else {
+      showToast('Saved, but the paths look invalid — check below', 'red');
+    }
+  } catch (err) {
+    showToast('Failed to save VisionMaster paths', 'red');
+  }
+}
+
+
+/* ─────────────────────────────────────────────
    7. MANUAL SCANNER MODALS (shared: index + create_program + sql)
 ───────────────────────────────────────────── */
 function startFlagPolling() {
+  // بنسجّل مستقبلات الـ push دايمًا...
+  RT.on('flags1', d => applyFlags(d, 'manualScannerModal', 'noCsv1'));
+  RT.on('flags2', d => applyFlags(d, 'manualScannerModal2', 'noCsv2'));
+
+  // ...والـ polling بيفضل شغال دايمًا كشبكة أمان.
+  // الفلاجات دي بتفتح مودالات الأعطال، فلو حدث ضاع المشغّل مش هيشوف
+  // إن السكانر فشل. مش هنراهن على ده.
   setInterval(function () {
     fetch('/check-flags')
       .then(r => r.json())
-      .then(data => {
-        const modal  = $('manualScannerModal');
-        const modal2 = $('noCsv1');
-        if (modal)  modal.classList.toggle('hidden',  data.manual_scanner !== true);
-        if (modal2) modal2.classList.toggle('hidden', data.no_csv_error   !== true);
-      })
+      .then(d => applyFlags(d, 'manualScannerModal', 'noCsv1'))
       .catch(err => console.error('Error fetching flags:', err));
   }, 1000);
 
   setInterval(function () {
     fetch('/check-flags2')
       .then(r => r.json())
-      .then(data => {
-        const modal  = $('manualScannerModal2');
-        const modal2 = $('noCsv2');
-        if (modal)  modal.classList.toggle('hidden',  data.manual_scanner !== true);
-        if (modal2) modal2.classList.toggle('hidden', data.no_csv_error   !== true);
-      })
+      .then(d => applyFlags(d, 'manualScannerModal2', 'noCsv2'))
       .catch(err => console.error('Error fetching flags:', err));
   }, 1000);
 }
@@ -705,24 +993,21 @@ function initEditableLabels() {
 /* ─────────────────────────────────────────────
    9. SQL PAGE — STATUS POLLING & DUMMY HANDLERS
 ───────────────────────────────────────────── */
-function updateSqlStatus() {
-  fetch('/sql_status')
-    .then(r => r.json())
-    .then(data => {
+const SQL_PILL_OK  = 'px-3 py-1 rounded-full text-sm font-semibold border bg-emerald-900/50 text-emerald-300 border-emerald-700/50';
+const SQL_PILL_BAD = 'px-3 py-1 rounded-full text-sm font-semibold border bg-red-900/50 text-red-300 border-red-700/50';
+
+function applySqlStatus(data) {
+      if (!data) return;
       // DB connection badges
       const db1 = $('db-status1');
       const db2 = $('db-status2');
       if (db1) {
         db1.textContent = data.db1_connected ? 'Connected' : 'Disconnected';
-        db1.className = data.db1_connected
-          ? 'px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-800'
-          : 'px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-800';
+        db1.className = data.db1_connected ? SQL_PILL_OK : SQL_PILL_BAD;
       }
       if (db2) {
         db2.textContent = data.db2_connected ? 'Connected' : 'Disconnected';
-        db2.className = data.db2_connected
-          ? 'px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-800'
-          : 'px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-800';
+        db2.className = data.db2_connected ? SQL_PILL_OK : SQL_PILL_BAD;
       }
 
       // Helper: update raw/extracted data elements
@@ -765,10 +1050,16 @@ function updateSqlStatus() {
         const val = i === 0 ? data.last_dummy_number1 : data.last_dummy_number2;
         el.textContent = val || 'No data received';
         el.className = val
-          ? 'text-2xl font-bold text-green-600 mt-2'
-          : 'text-2xl font-bold text-gray-500 mt-2';
+          ? 'text-2xl font-bold text-emerald-400 mt-2'
+          : 'text-2xl font-bold text-slate-500 mt-2';
       });
-    })
+}
+
+// fallback بس — لما Socket.IO مش متاح
+function updateSqlStatus() {
+  fetch('/sql_status')
+    .then(r => r.json())
+    .then(applySqlStatus)
     .catch(e => console.error('Error fetching SQL status:', e));
 }
 
@@ -831,6 +1122,34 @@ function initPasswordToggle() {
 ───────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
 
+  // إعادة التحميل بعد إعادة تشغيل السيرفر (بدل ما يتفتح تاب جديد).
+  // boot_id بيتغيّر مع كل تشغيلة — أول ما نلاقيه اتغيّر يبقى السيرفر رجع.
+  let bootId = null;
+  const checkBootId = (data) => {
+    if (!data || !data.boot_id) return;
+    if (bootId === null) bootId = data.boot_id;
+    else if (bootId !== data.boot_id) location.reload();
+  };
+
+  RT.on('process_status', checkBootId);
+
+  const watchServerRestart = async () => {
+    try {
+      const res = await fetch('/process/status', { cache: 'no-store' });
+      if (!res.ok) return;
+      checkBootId(await res.json());
+    } catch (e) {
+      /* السيرفر مقفول دلوقتي — هنحاول تاني في الدورة الجاية */
+    }
+  };
+  watchServerRestart();
+  setInterval(watchServerRestart, 2000);
+
+  // حالة المحطتين: بنسجّل الـ push دايمًا، والـ polling تحت بيشتغل
+  // بس لو الاتصال مش حي
+  RT.on('station1', applyStation1);
+  RT.on('station2', applyStation2);
+
   // Auto-switch (index)
   const sw = $('autoSwitch');
   if (sw) sw.addEventListener('change', () => { AUTO_SEND_ENABLED = $('autoSwitch').checked; });
@@ -863,8 +1182,57 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const btnIo    = $('btnIoMapping');
     const btnClose = $('btnCloseIoMapping');
-    if (btnIo)    btnIo.addEventListener('click', () => { renderIoForm(loadIoSettings()); $('ioMappingModal').classList.remove('hidden'); });
+    if (btnIo)    btnIo.addEventListener('click', () => {
+      renderIoForm(loadIoSettings());
+      loadVisionMasterPaths();
+      $('ioMappingModal').classList.remove('hidden');
+    });
     if (btnClose) btnClose.addEventListener('click', () => $('ioMappingModal').classList.add('hidden'));
+  }
+
+  // VisionMaster paths (index, developer mode only — the form isn't rendered otherwise)
+  if ($('visionMasterForm')) {
+    $('visionMasterForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      saveVisionMasterPaths();
+    });
+
+    const btnVmCheck = $('btnVmCheck');
+    if (btnVmCheck) btnVmCheck.addEventListener('click', loadVisionMasterPaths);
+
+    const btnBrowseAsm = $('btnBrowseAssembly');
+    const btnBrowseSol = $('btnBrowseSolution');
+    if (btnBrowseAsm) btnBrowseAsm.addEventListener('click',
+      () => openFilePicker('dir', 'vmAssemblyDir', 'Select Assembly Directory'));
+    if (btnBrowseSol) btnBrowseSol.addEventListener('click',
+      () => openFilePicker('file', 'vmSolutionPath', 'Select Solution File (.solw / .sol)'));
+  }
+
+  // File picker (index, developer mode only)
+  if ($('filePickerModal')) {
+    const btnPickerClose  = $('btnCloseFilePicker');
+    const btnPickerCancel = $('btnPickerCancel');
+    const btnPickerSelect = $('btnPickerSelect');
+    const btnPickerUp     = $('btnPickerUp');
+    const btnPickerGo     = $('btnPickerGo');
+    const pickerPathInput = $('pickerPath');
+
+    if (btnPickerClose)  btnPickerClose.addEventListener('click', closeFilePicker);
+    if (btnPickerCancel) btnPickerCancel.addEventListener('click', closeFilePicker);
+    if (btnPickerSelect) btnPickerSelect.addEventListener('click', confirmFilePicker);
+
+    if (btnPickerUp) btnPickerUp.addEventListener('click', () => {
+      if (picker.parentPath) pickerLoad(picker.parentPath);
+    });
+
+    if (btnPickerGo) btnPickerGo.addEventListener('click', () => pickerLoad(pickerPathInput.value.trim()));
+    if (pickerPathInput) pickerPathInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); pickerLoad(pickerPathInput.value.trim()); }
+    });
+
+    $('filePickerModal').addEventListener('click', function (e) {
+      if (e.target === this) closeFilePicker();
+    });
   }
 
   // Times modal (index + create_program)
@@ -907,10 +1275,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // Editable labels (create_program)
   if (document.querySelectorAll('.editable-label').length) initEditableLabels();
 
-  // SQL status polling
+  // SQL status: push لو متاح، وإلا polling.
+  // ملحوظة: /sql_status بيفتح اتصال pyodbc حقيقي، فكل تاب كان بيعمل
+  // اتصال كل ثانيتين. دلوقتي السيرفر بيعمله مرة واحدة للكل.
   if ($('db-status1') || $('db-status2')) {
+    RT.on('sql_status', applySqlStatus);
     updateSqlStatus();
     setInterval(updateSqlStatus, 2000);
+
     initDummyHandler('dummyStation1', 'btnDummyStation1', 'dummyStation1Status', '/manual_dummy_station1');
     initDummyHandler('dummyStation2', 'btnDummyStation2', 'dummyStation2Status', '/manual_dummy_station2');
   }
@@ -921,7 +1293,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Manual scanner modals (shared)
   if ($('manualScannerModal') || $('manualScannerModal2')) startFlagPolling();
 
-  // Station status interval (index)
+  // Station status (index) — polling دايمًا، والـ push بيسرّعه بس
   if ($('s1-arrived-flag') || $('s2-arrived-flag')) {
     const ms = Math.max(200, DEFAULT_TIME_SETTINGS.statusRefresh);
     window.statusInterval = setInterval(refreshStatus, ms);

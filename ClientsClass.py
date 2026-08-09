@@ -63,9 +63,9 @@ is_waiting2 = True
 Buzzer_Flag_to_OFF = False
 Buzzer_Flag_to_OFF2 = False
 #Scanner_IP & Port
-Ip_Scanner1 = "192.168.1.16"  #"192.168.1.16"
+Ip_Scanner1 = "127.0.0.1"  #"192.168.1.16"
 Port_Scanner1 = 7940         #7940
-Ip_Scanner2 = "192.168.1.17"   #"192.168.1.17"
+Ip_Scanner2 = "127.0.0.1"   #"192.168.1.17"
 Port_Scanner2 = 7950         #7950
 
 #Vision Master_IP & Port
@@ -80,9 +80,9 @@ Ip_vision_outer_SN = "127.0.0.1"
 Port_vision_outer_SN = 40
 
 #I/O Module_IP & Port
-Ip_read_IO = "192.168.1.30"#"192.168.1.30"
+Ip_read_IO = "127.0.0.1"#"192.168.1.30"
 Port_read_IO = 502
-Ip_write_IO = "192.168.1.30"#"192.168.1.30"
+Ip_write_IO = "127.0.0.1"#"192.168.1.30"
 Port_write_IO = 502
 
 
@@ -387,6 +387,8 @@ class  TCPClient():
         self.buffer_size = buffer_size
         self.sock = None  # هنا هنحتفظ بالسوكيت عشان يفضل مفتوح
         self.connected = False
+        # يتفعّل عند الضغط على Stop لإيقاف كل اللوبات الخلفية بشكل نظيف
+        self._stop_event = threading.Event()
         self._send_queue: "queue.Queue[dict]" = queue.Queue()
         self._log_lock = threading.Lock()
         self._log_seq = 0
@@ -399,8 +401,35 @@ class  TCPClient():
         self.shared_queue2= queue.Queue() #FOR DUMMY shared between scanner and data proccesing function 
         self.shared_queue3= queue.Queue() # for dummies shared between scanner and i/o writer function
 
+    # ------------------------------------------------------------------
+    # Stop / restart support (used by the Start & Stop buttons in the UI)
+    # ------------------------------------------------------------------
+    def is_stopping(self) -> bool:
+        return self._stop_event.is_set()
+
+    def reset_stop_flag(self):
+        """يُستدعى قبل Start عشان اللوبات تشتغل من جديد"""
+        self._stop_event.clear()
+
+    def stop(self):
+        """إيقاف كل اللوبات الخلفية وقفل السوكيت"""
+        self._stop_event.set()
+        self.connected = False
+        if self.sock:
+            try:
+                self.sock.shutdown(socket.SHUT_RDWR)
+            except Exception:
+                pass
+            try:
+                self.sock.close()
+            except Exception:
+                pass
+        self.sock = None
+
     def connect(self):
         """دالة لفتح الاتصال مرة واحدة"""
+        if self._stop_event.is_set():
+            return False
         try:
             if self.connected:
                 print(f"[{self.ip}] Already connected.")
@@ -418,24 +447,26 @@ class  TCPClient():
             return False
             
     def ensure_connected(self):
-        """تتأكد إننا متصلين، ولو مش متصلين تحاول للأبد"""
-        while not self.connected:
+        """تتأكد إننا متصلين، ولو مش متصلين تحاول للأبد (إلا لو اتعمل Stop)"""
+        while not self.connected and not self._stop_event.is_set():
             self._log_add("INFO", f"Trying to reconnect to {self.ip}...")
             if self.connect():
                 self._log_add("INFO", "✅ Reconnected successfully!")
                 break
             else:
                 self._log_add("WARNING", "❌ Retrying in 5 seconds...")
-                time.sleep(5)    
-    
+                if self._stop_event.wait(5):
+                    break
+
     def start_reconnection_watchdog(self):
         """تشغيل خيط المراقبة في الخلفية"""
+        self._stop_event.clear()
         thread = threading.Thread(target=self._connection_monitor, daemon=True)
         thread.start()
 
     def _connection_monitor(self):
         """الدالة اللي بتراقب الاتصال كل كام ثانية"""
-        while True:
+        while not self._stop_event.is_set():
             if not self.connected:
                 # لو لقيناه فصل، نصلحه
                 self.ensure_connected()
@@ -448,8 +479,9 @@ class  TCPClient():
                 except Exception:
                     self._log_add("WARNING", "⚠️ Connection lost in background!")
                     self.connected = False
-            
-            time.sleep(3) # افحص كل 3 ثواني
+
+            if self._stop_event.wait(3):  # افحص كل 3 ثواني
+                break
     
     def _get_sock(self):
          
@@ -460,10 +492,16 @@ class  TCPClient():
         """
         إرسال واستقبال فقط (بدون إغلاق الاتصال)
         """
+        # بعد الضغط على Stop مش بنحاول نبعت أو نعيد الاتصال
+        if self._stop_event.is_set():
+            return None
+
         if not self.connected or self.sock is None:
             print(f"[{self.ip}]:[{self.port}] Error: Not connected! Trying to connect...")
             self.ensure_connected()
-           
+            if not self.connected or self.sock is None:
+                return None
+
 
         try:
             # 1. تجهيز الرسالة
@@ -541,7 +579,7 @@ class  TCPClient():
     
     def disconnect(self):
         """إغلاق الاتصال وإيقاف المونيتور"""
-        self._stop_monitor.set() # وقف اللوب في المونيتور
+        self._stop_event.set()  # وقف اللوب في المونيتور
         if self.sock:
             try:
                 self.sock.close()
@@ -565,6 +603,7 @@ class  TCPClient():
         :param callback: دالة اختيارية يتم استدعاؤها فور استلام بيانات
         """
         self.receive_queue = queue.Queue() # كيو لاستقبال البيانات
+        self._stop_event.clear()
         self.listen_thread = threading.Thread(target=self._listen_loop, args=(callback,), daemon=True)
         self.listen_thread.start()
         self._log_add("INFO", f"[{self.ip}] : [{self.port}] Started listening for incoming data...")
@@ -572,7 +611,7 @@ class  TCPClient():
 
     def _listen_loop(self, callback):
         """الـ Loop الداخلي اللي بيفضل مستني داتا"""
-        while self.connected:
+        while self.connected and not self._stop_event.is_set():
             try:
                 # الكود هيفضل واقف هنا لحد ما السيرفر يبعت حاجة
                 data = self.sock.recv(self.buffer_size)
@@ -640,28 +679,109 @@ class App():
         self.cam_cap_s1= TCPClient("127.0.0.1", 70, timeout=2 )
         self.cam_cap_s2 = TCPClient("127.0.0.1", 80, timeout=2 )
 
+        # علم الإيقاف العام للعملية (Start / Stop من الواجهة)
+        self._stop_event = threading.Event()
+
         #auto connnect with data base
         #self.auto_connect_db()
         #db.auto_connect_db()
 
         #self.test_results_dict = dict()
 
-    def Start_connetion(self):
-        
-        """تفريغ كافة الـ Queues لضمان بداية نظيفة"""
-        queues_to_clear = [
+    # ------------------------------------------------------------------
+    # Start / Stop helpers
+    # ------------------------------------------------------------------
+    def all_clients(self):
+        """كل عملاء الـ TCP الموجودين في التطبيق"""
+        return [
+            self.client_scanner_station1, self.client_scanner_station2,
+            self.client_Vision_station1, self.client_Vision_station2,
+            self.client_Vision_station1_SN, self.client_Vision_station2_SN,
+            self.client_read_io, self.client_write_io,
+            self.cam_cap_s1, self.cam_cap_s2,
+        ]
+
+    def all_queues(self):
+        """كل الكيوهات المستخدمة في التطبيق"""
+        return [
             self.client_scanner_station1.shared_queue,
             self.client_scanner_station1.shared_queue2,
+            self.client_scanner_station1.shared_queue3,
             self.client_scanner_station2.shared_queue,
             self.client_scanner_station2.shared_queue2,
+            self.client_scanner_station2.shared_queue3,
             self.client_Vision_station1.shared_queue,
             self.client_Vision_station2.shared_queue,
             queue_manual_FOR_FAILURE,
             queue_manual_FOR_Proessing,
             queue_manual2_FOR_FAILURE,
             queue_manual2_FOR_Proessing,
-            
         ]
+
+    def is_stopping(self) -> bool:
+        return self._stop_event.is_set()
+
+    def shutdown(self):
+        """
+        إيقاف العملية بالكامل:
+        1. رفع علم الإيقاف عشان كل اللوبات تخرج
+        2. إطفاء كل المخارج على الـ I/O module
+        3. قفل كل السوكيتات
+        4. إيقاظ أي ثريد واقف على queue.get()
+        """
+        self._stop_event.set()
+
+        # 1. علم الإيقاف على مستوى كل عميل (بيوقف الـ watchdog والـ listener)
+        for client in self.all_clients():
+            client._stop_event.set()
+
+        # 2. إطفاء كل المخارج قبل قفل الاتصال
+        try:
+            if self.client_write_io.connected:
+                self.client_write_io.sock.sendall(bytes.fromhex(CMD_OFF_ALL))
+        except Exception as e:
+            print(f"[shutdown] could not send OFF_ALL: {e}")
+
+        # 3. قفل السوكيتات
+        for client in self.all_clients():
+            try:
+                client.stop()
+            except Exception as e:
+                print(f"[shutdown] error stopping {client.ip}:{client.port}: {e}")
+
+        # 4. إيقاظ أي ثريد نايم على get()
+        for q in self.all_queues():
+            try:
+                q.put_nowait(None)
+            except Exception:
+                pass
+
+        # 5. تصفير فلاجات الواجهة
+        global your_s1_arrived_flag, your_s2_arrived_flag
+        global your_s1_result, your_s2_result
+        global Manual_Scanner_MODE, Manual_Scanner_MODE2
+        global NO_CSV_ERROR, NO_CSV_ERROR2
+        your_s1_arrived_flag = False
+        your_s2_arrived_flag = False
+        your_s1_result = None
+        your_s2_result = None
+        Manual_Scanner_MODE = False
+        Manual_Scanner_MODE2 = False
+        NO_CSV_ERROR = False
+        NO_CSV_ERROR2 = False
+
+    def Start_connetion(self):
+
+        # السماح للّوبات بالعمل من جديد بعد أي Stop سابق
+        self._stop_event.clear()
+        for client in self.all_clients():
+            client.reset_stop_flag()
+
+        # تفريغ كافة الـ Queues لضمان بداية نظيفة.
+        # مهم: بنستخدم all_queues() عشان تشمل shared_queue3 كمان،
+        # وإلا الـ sentinel (None) اللي بيتحط وقت الـ Stop يفضل موجود
+        # ويتقري كـ dummy غلط في التشغيلة اللي بعدها.
+        queues_to_clear = self.all_queues()
 
         for q in queues_to_clear:
             with q.mutex: # حماية العملية لضمان عدم حدوث تداخل
@@ -670,14 +790,10 @@ class App():
                 q.unfinished_tasks = 0
             
         # 1. قائمة بكل الكلاينتس اللي عندك
-        all_clients = [
-            self.client_scanner_station1, self.client_scanner_station2,
-            self.client_Vision_station1, self.client_Vision_station2,
-            self.client_read_io, self.client_write_io
-        ]
+        clients = self.all_clients()
         # 2. قفل أولي لكل السوكيتات لضمان بداية نظيفة
         print("Performing initial hard-reset on all sockets...")
-        for client in all_clients:
+        for client in clients:
             try:
                 if client.sock:
                     client.sock.close()
@@ -715,8 +831,8 @@ class App():
             self.client_read_io._log_add("INFO", f"start reading from io")
             last_DI0 = b"\x00"
             last_DI1 = b"\x00"
-            
-            while self.client_read_io.connected:
+
+            while self.client_read_io.connected and not self._stop_event.is_set():
                 try:
                     # توليد كود القراءة بناءً على إعدادات الويب
                     cmd_di0 = generate_modbus_command("READ_DI0", "READ_DI")
@@ -748,10 +864,12 @@ class App():
         تستقبل نص من الـ Queue، تقسمه حرفين حرفين، وترسله إلى Vision Master 1
         """
         
-        global di 
-        while self.client_Vision_station1.connected:
+        global di
+        while self.client_Vision_station1.connected and not self._stop_event.is_set():
             try:
                 message_from_queue = self.client_scanner_station1.shared_queue.get()
+                if self._stop_event.is_set():
+                    break
                 # 1. التأكد أن الرسالة نصية وليست فارغة
                 if not message_from_queue:
                     self.client_Vision_station1._log_add("INFO", f"there is no message from queue")
@@ -805,10 +923,12 @@ class App():
         تستقبل نص من الـ Queue، تقسمه حرفين حرفين، وترسله إلى Vision Master 1
         """
         
-        global di2 
-        while self.client_Vision_station2.connected:
+        global di2
+        while self.client_Vision_station2.connected and not self._stop_event.is_set():
             try:
                 message_from_queue = self.client_scanner_station2.shared_queue.get()
+                if self._stop_event.is_set():
+                    break
                 # 1. التأكد أن الرسالة نصية وليست فارغة
                 if not message_from_queue:
                     self.client_Vision_station2._log_add("INFO", f"there is no message from queue")
@@ -1311,17 +1431,22 @@ class App():
                     self.client_scanner_station1._log_add("info", f"Manual_Scanner_MODE [{Manual_Scanner_MODE}]")
                     
                     Manual_Scanner_MODE = True
-                    while  is_waiting:
-                        
+                    while  is_waiting and not self._stop_event.is_set():
+
                         self.client_write_io.send_request(generate_modbus_command("BUZZER_S1", "ON"), is_hex=True)  # buzzer on
-                    
+
                     self.client_write_io.send_request(generate_modbus_command("BUZZER_S1", "OFF"), is_hex=True)  # buzzer off
                     is_waiting = True
-       
+
+                    if self._stop_event.is_set():
+                        return
+
                     self.client_scanner_station1._log_add("info", f"heyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy")
-                    
+
                     queue = queue_manual_FOR_FAILURE
                     dummy = queue.get()
+                    if dummy is None or self._stop_event.is_set():
+                        return
                     your_s1_dummy = dummy
                 
                         #queue_manual_FOR_FAILURE.task_done()                  
@@ -1357,7 +1482,7 @@ class App():
         # 3. AND image_SN1 is not None
         image_received = False
         your_s1_arrived_flag = False
-        while not image_received:
+        while not image_received and not self._stop_event.is_set():
             current_time = time.time()
             #self.client_write_io._log_add("INFO", f"entered whileeeeeeeeeeeeeeee")
             
@@ -1377,7 +1502,10 @@ class App():
                         plc_signal_period = hlb.get_time_setting('PlcSignal')
                         self.client_write_io.send_request(generate_modbus_command("FAILURE", "OFF"), is_hex=True)
                     image_received = True
-        queue.task_done()
+        try:
+            queue.task_done()
+        except Exception:
+            pass
         di.clear()
         '''
             # Check for timeout
@@ -1453,15 +1581,20 @@ class App():
                     is_waiting2 = True
                     if is_waiting2:
                         self.client_write_io.send_request(generate_modbus_command("BUZZER_S2", "ON"), is_hex=True)  # buzzer on while waiting
-                    while is_waiting2:
+                    while is_waiting2 and not self._stop_event.is_set():
                         time.sleep(0.5)
                     self.client_write_io.send_request(generate_modbus_command("BUZZER_S2", "OFF"), is_hex=True)  # buzzer off
-       
+
+                    if self._stop_event.is_set():
+                        return
+
                     self.client_scanner_station2._log_add("info", f"heyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy")
-                    
+
                     queue = queue_manual2_FOR_FAILURE
                     dummy = queue.get()
-                    your_s2_dummy = dummy   
+                    if dummy is None or self._stop_event.is_set():
+                        return
+                    your_s2_dummy = dummy
                         #queue_manual_FOR_FAILURE.task_done()                 
                     self.client_write_io.send_request(generate_modbus_command("SCANNER_S2", "OFF"), is_hex=True)    # scanner Off
                     self.client_scanner_station2._log_add("info", f"{type(dummy)}")  # R0124090500055
@@ -1494,8 +1627,8 @@ class App():
         # 3. AND image_SN1 is not None
         image_received = False
         your_s2_arrived_flag = False
-        
-        while not image_received:
+
+        while not image_received and not self._stop_event.is_set():
             current_time = time.time()
             
             # Check if we got a new image
@@ -1682,18 +1815,13 @@ class App():
                 return None, f"⚠️ Invalid DB{index} format"
             serveraddr, database_name, Auth, user_name, password = data
 
-        if Auth == "Windows Authentication":
-            conn_str = (
-                f"DRIVER={{ODBC Driver 18 for SQL Server}};"
-                f"SERVER={serveraddr};DATABASE={database_name};"
-                f"Trusted_Connection=yes;Encrypt=no;TrustServerCertificate=yes;"
+        # نفس منطق db.build_conn_str — بيختار أحسن درايفر متاح
+        try:
+            conn_str = db.build_conn_str(
+                serveraddr, database_name, Auth, user_name, password
             )
-        else:
-            conn_str = (
-                f"DRIVER={{ODBC Driver 18 for SQL Server}};"
-                f"SERVER={serveraddr};DATABASE={database_name};"
-                f"UID={user_name};PWD={password};Encrypt=no;TrustServerCertificate=yes;"
-            )
+        except RuntimeError as e:
+            return None, f"❌ DB{index}: {e}"
 
         try:
             with pyodbc.connect(conn_str, timeout=15):

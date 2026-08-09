@@ -21,7 +21,8 @@ from flags import flags
 
 def _application_directory():
     """Project root: source tree when running .py; Nuitka/PyInstaller dist folder when frozen."""
-    if getattr(sys, "frozen", False):
+    # Nuitka مبيحطش sys.frozen — بيحط __compiled__ في الموديول
+    if getattr(sys, "frozen", False) or "__compiled__" in globals():
         return os.path.normpath(os.path.dirname(sys.executable))
     return os.path.normpath(os.path.dirname(os.path.abspath(__file__)))
 
@@ -34,6 +35,18 @@ app = Flask(
     static_folder=os.path.join(APP_ROOT, "static"),
 )
 app.secret_key = "your-secret-key-here"
+
+
+# نفس الـ cache busting بتاع نسخة FastAPI — القوالب مشتركة بين النسختين،
+# فلازم الـ global ده يبقى موجود هنا كمان وإلا القوالب هترمي UndefinedError.
+def _static_v(filename: str) -> str:
+    try:
+        return str(int(os.path.getmtime(os.path.join(APP_ROOT, "static", filename))))
+    except OSError:
+        return "0"
+
+
+app.jinja_env.globals["static_v"] = _static_v
 
 app.register_blueprint(auth) # login app
 app.register_blueprint(flash) #splash page
