@@ -116,7 +116,7 @@ def create_app() -> FastAPI:
             try:
                 await asyncio.to_thread(db.auto_connect_db)
             except Exception as exc:  # noqa: BLE001
-                print(f"❌ Auto-connect to databases failed: {exc}")
+                print(f"Auto-connect to databases failed: {exc}")
 
         asyncio.create_task(_connect_db_background())
 

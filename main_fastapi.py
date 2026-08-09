@@ -22,6 +22,25 @@ import webbrowser
 import uvicorn
 
 
+# ---------------------------------------------------------------------
+# لازم يتنفذ *قبل* أي import بيطبع حاجة.
+#
+# على ويندوز الـ console بيبقى cp1252، وأي print فيه إيموجي أو عربي
+# بيرمي UnicodeEncodeError. ده مش تحذير — ده بيقتل الـ startup:
+# realtime.start_tickers كان بيقع في lifespan والسيرفر بيخرج بـ code 3.
+#
+# errors="replace" هو المهم: أي حرف مش متدعوم بيتحوّل لـ '?' بدل ما
+# يرمي exception. يعني حتى لو حد ضاف إيموجي جديد في print بعدين،
+# التطبيق مش هيقع.
+# ---------------------------------------------------------------------
+for _stream in (sys.stdout, sys.stderr):
+    if _stream is not None and hasattr(_stream, "reconfigure"):
+        try:
+            _stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
+
 def _is_frozen() -> bool:
     """
     هل إحنا شغالين من ملف تنفيذي مبني؟

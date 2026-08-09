@@ -8,7 +8,7 @@
 
 **متعملش الصورة كلها قبل ما تتأكد من ده.**
 
-العميل عنده ترخيص VisionMaster ✔ — بس السؤال مش "عنده ترخيص ولا لأ"،
+العميل عنده ترخيص VisionMaster — بس السؤال مش "عنده ترخيص ولا لأ"،
 السؤال هو **هل الترخيص بيتفعّل جوه كونتينر؟**
 تراخيص الأجهزة الصناعية غالبًا مربوطة بـ hardware ID أو دونجل USB،
 والكونتينر بيشوف هاردوير مختلف عن الجهاز.
@@ -34,8 +34,8 @@ docker run -it --rm vm-licencetest
 
 | النتيجة | اعمل إيه |
 |---|---|
-| ✅ الترخيص متفعّل | كمّل من STEP 1 |
-| ❌ الترخيص مرفوض / دونجل مش متلاقي | Docker مش هينفع — روح لـ PyInstaller (آخر الملف) |
+| الترخيص متفعّل | كمّل من STEP 1 |
+| الترخيص مرفوض / دونجل مش متلاقي | Docker مش هينفع — روح لـ PyInstaller (آخر الملف) |
 
 لو الدونجل USB، جرّب `--device` أو USB passthrough — بس توقّع إنه مش هيشتغل
 في Windows containers.
@@ -48,7 +48,7 @@ docker run -it --rm vm-licencetest
 2. سطّب **Docker Desktop**
 3. كليك يمين على أيقونة Docker في شريط المهام →
    **Switch to Windows containers…**
-   (لو مكتوب "Switch to Linux containers" يبقى إنت أصلاً في وضع ويندوز ✔)
+   (لو مكتوب "Switch to Linux containers" يبقى إنت أصلاً في وضع ويندوز)
 4. حط مثبّت VisionMaster جنب الـ `Dockerfile`
 
 تأكد:
@@ -98,9 +98,9 @@ docker compose logs -f
 
 المفروض تشوف:
 ```
-🌐 Web layer ready — press START in the UI to run the process.
-🔌 ODBC driver in use: ODBC Driver 18 for SQL Server
-📡 Socket.IO tickers started
+Web layer ready — press START in the UI to run the process.
+ODBC driver in use: ODBC Driver 18 for SQL Server
+Socket.IO tickers started
 ```
 
 افتح `http://localhost:5000`
@@ -213,11 +213,11 @@ docker compose up -d
 
 | الجهاز | العنوان | شغال في الكونتينر؟ |
 |---|---|---|
-| Scanner S1 / S2 | 192.168.1.16 / .17 | ✅ اتصال خارج، NAT عادي |
-| I/O module | 192.168.1.30:502 | ✅ نفس الكلام |
-| VisionMaster | 127.0.0.1:20/30/40/50 | ✅ **طالما VisionMaster جوه الصورة** |
-| cam_cap | 127.0.0.1:70/80 | ✅ نفس الكلام |
-| SQL Server | حسب إعدادات العميل | ✅ لو الجهاز شايفه |
+| Scanner S1 / S2 | 192.168.1.16 / .17 | اتصال خارج، NAT عادي |
+| I/O module | 192.168.1.30:502 | نفس الكلام |
+| VisionMaster | 127.0.0.1:20/30/40/50 | **طالما VisionMaster جوه الصورة** |
+| cam_cap | 127.0.0.1:70/80 | نفس الكلام |
+| SQL Server | حسب إعدادات العميل | لو الجهاز شايفه |
 
 > لو VisionMaster **مش** جوه الصورة، كل عناوين `127.0.0.1` هتفشل
 > لأنها وقتها بتشاور على الكونتينر نفسه. وده اللي خلانا نسطّبه جواه.

@@ -8,7 +8,7 @@
   }
 
   function initDevToolsProtection() {
-    console.log('🛡️ DevTools protection active');
+    console.log('DevTools protection active');
     document.addEventListener('contextmenu', e => e.preventDefault());
     document.addEventListener('keydown', e => {
       if (
@@ -302,18 +302,18 @@
           
           // Color code the database status for both servers
           const dbStatusElement1 = document.getElementById('db-operation-status1');
-          if (data.last_db_status1.includes('✅') || data.last_db_status1.includes('Found')) {
+          if (data.last_db_status1.includes('') || data.last_db_status1.includes('Found')) {
             dbStatusElement1.className = 'text-sm font-mono bg-emerald-900/40 text-emerald-200 p-2 rounded border border-emerald-700/40 h-16 overflow-y-auto';
-          } else if (data.last_db_status1.includes('❌') || data.last_db_status1.includes('Error')) {
+          } else if (data.last_db_status1.includes('') || data.last_db_status1.includes('Error')) {
             dbStatusElement1.className = 'text-sm font-mono bg-red-900/40 text-red-200 p-2 rounded border border-red-700/40 h-16 overflow-y-auto';
           } else {
             dbStatusElement1.className = 'text-sm font-mono bg-purple-900/40 text-purple-200 p-2 rounded border border-purple-700/40 h-16 overflow-y-auto';
           }
           
           const dbStatusElement2 = document.getElementById('db-operation-status2');
-          if (data.last_db_status2.includes('✅') || data.last_db_status2.includes('Found')) {
+          if (data.last_db_status2.includes('') || data.last_db_status2.includes('Found')) {
             dbStatusElement2.className = 'text-sm font-mono bg-emerald-900/40 text-emerald-200 p-2 rounded border border-emerald-700/40 h-16 overflow-y-auto';
-          } else if (data.last_db_status2.includes('❌') || data.last_db_status2.includes('Error')) {
+          } else if (data.last_db_status2.includes('') || data.last_db_status2.includes('Error')) {
             dbStatusElement2.className = 'text-sm font-mono bg-red-900/40 text-red-200 p-2 rounded border border-red-700/40 h-16 overflow-y-auto';
           } else {
             dbStatusElement2.className = 'text-sm font-mono bg-purple-900/40 text-purple-200 p-2 rounded border border-purple-700/40 h-16 overflow-y-auto';
@@ -471,7 +471,7 @@
 
 <div id="manualScannerModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[100] hidden">
     <div class="bg-[#16203a] border border-slate-700 rounded-lg p-8 w-full max-w-md text-center">
-        <h2 class="text-2xl font-bold text-red-400 mb-4">⚠️ System Alert</h2>
+        <h2 class="text-2xl font-bold text-red-400 mb-4"> System Alert</h2>
         <p class="text-slate-300 mb-6">ERROR: Auto SCANNING FAILED in outer station</p>
     
         <div class="flex flex-col gap-4">
@@ -531,7 +531,7 @@ async function submitManualData() {
 
 <div id="manualScannerModal2" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[100] hidden">
     <div class="bg-[#16203a] border border-slate-700 rounded-lg p-8 w-full max-w-md text-center">
-        <h2 class="text-2xl font-bold text-red-400 mb-4">⚠️ System Alert</h2>
+        <h2 class="text-2xl font-bold text-red-400 mb-4"> System Alert</h2>
         <p class="text-slate-300 mb-6">ERROR: Auto SCANNING FAILED in inner station</p>
     
         <div class="flex flex-col gap-4">
@@ -593,7 +593,7 @@ async function submitManualData2() {
 
 <div id="noCsv1" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[100] hidden">
     <div class="bg-[#16203a] border border-slate-700 rounded-lg p-8 w-full max-w-md text-center">
-        <h2 class="text-2xl font-bold text-red-400 mb-4">⚠️ System Alert</h2>
+        <h2 class="text-2xl font-bold text-red-400 mb-4"> System Alert</h2>
         <p class="text-slate-300 mb-6">ERROR: THERE IS NO CSV IN OUTER STATION</p>
     
         <div class="flex flex-col gap-4">
@@ -609,7 +609,7 @@ async function submitManualData2() {
 
 <div id="noCsv2" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[100] hidden">
     <div class="bg-[#16203a] border border-slate-700 rounded-lg p-8 w-full max-w-md text-center">
-        <h2 class="text-2xl font-bold text-red-400 mb-4">⚠️ System Alert</h2>
+        <h2 class="text-2xl font-bold text-red-400 mb-4"> System Alert</h2>
         <p class="text-slate-300 mb-6">ERROR: THERE IS NO CSV IN INNER STATION</p>
     
         <div class="flex flex-col gap-4">

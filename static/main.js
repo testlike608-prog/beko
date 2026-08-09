@@ -572,13 +572,13 @@ async function pickerLoad(path) {
     list.innerHTML = '';
 
     (data.dirs || []).forEach(d => {
-      const tag = d.has_vm_core ? 'VM.Core.dll ✓' : '';
-      list.appendChild(pickerRow('📁', d.name, tag, () => pickerLoad(d.path), false));
+      const tag = d.has_vm_core ? 'VM.Core.dll' : '';
+      list.appendChild(pickerRow('', d.name, tag, () => pickerLoad(d.path), false));
     });
 
     (data.files || []).forEach(f => {
       const size = f.size ? `${f.size.toLocaleString()} B` : '';
-      list.appendChild(pickerRow('📄', f.name, size, function () {
+      list.appendChild(pickerRow('', f.name, size, function () {
         picker.selected = f.path;
         Array.from(list.children).forEach(c => c.classList.remove('bg-purple-100', 'dark:bg-purple-900/40'));
         this.classList.add('bg-purple-100', 'dark:bg-purple-900/40');
@@ -799,7 +799,7 @@ function openPicker(fieldKey) {
   list.innerHTML = '';
 
   const editBtn = document.createElement('button');
-  editBtn.textContent = '⚙️ Edit options';
+  editBtn.textContent = 'Edit options';
   editBtn.className = 'btn mb-3';
   editBtn.onclick = () => openOptionsEditor(fieldKey);
   list.appendChild(editBtn);
@@ -946,14 +946,14 @@ async function deleteTest(testName) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name: testName })
   });
-  alert(res.ok ? '✅ Test deleted successfully' : '❌ Something went wrong');
+  alert(res.ok ? 'Test deleted successfully' : 'Something went wrong');
   if (res.ok) location.reload();
 }
 
 async function resetDefaults() {
-  if (!confirm('⚠ Are you sure you want to delete all Tests?')) return;
+  if (!confirm('Are you sure you want to delete all Tests?')) return;
   const res = await fetch('/reset_tests', { method: 'POST' });
-  alert(res.ok ? '✅ Tests reset successfully' : '❌ Something went wrong');
+  alert(res.ok ? 'Tests reset successfully' : 'Something went wrong');
   if (res.ok) location.reload();
 }
 
@@ -1027,9 +1027,9 @@ function applySqlStatus(data) {
         const el = $(elId);
         if (!el) return;
         el.textContent = statusText;
-        if (statusText.includes('✅') || statusText.includes('Found'))
+        if (statusText.includes('') || statusText.includes('Found'))
           el.className = 'text-sm font-mono bg-green-100 p-2 rounded border h-16 overflow-y-auto';
-        else if (statusText.includes('❌') || statusText.includes('Error'))
+        else if (statusText.includes('') || statusText.includes('Error'))
           el.className = 'text-sm font-mono bg-red-100 p-2 rounded border h-16 overflow-y-auto';
         else
           el.className = 'text-sm font-mono bg-purple-100 p-2 rounded border h-16 overflow-y-auto';

@@ -108,7 +108,7 @@ jobs:
             $extra += '--include-package=socketio'
             $extra += '--include-package=engineio'
             $extra += '--include-module=engineio.async_drivers.asgi'
-            Write-Host "✓ socketio found — realtime push included"
+            Write-Host "socketio found — realtime push included"
           } else {
             Write-Warning "python-socketio NOT installed — app will fall back to HTTP polling"
           }
@@ -117,7 +117,7 @@ jobs:
           if ($LASTEXITCODE -eq 0) {
             $extra += '--include-package=clr_loader'
             $extra += '--include-package-data=clr_loader'
-            Write-Host "✓ clr_loader found — VisionMaster SDK included"
+            Write-Host "clr_loader found — VisionMaster SDK included"
           } else {
             Write-Warning "pythonnet NOT installed — VisionMaster will not load at runtime"
           }

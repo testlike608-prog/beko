@@ -50,7 +50,7 @@ async def create_user_submit(
             request,
             "CREATE_USER_HTML.html",
             {
-                "error": "⚠️ Please fill all fields",
+                "error": "Please fill all fields",
                 "NewUser_data": new_user_data,
             },
         )
@@ -70,7 +70,7 @@ async def create_user_submit(
         request,
         "CREATE_USER_HTML.html",
         {
-            "message": "✅ User created  successfully!",
+            "message": "User created  successfully!",
             "NewUser_data": new_user_data,
         },
     )

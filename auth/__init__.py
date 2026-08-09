@@ -62,6 +62,6 @@ def login():
                 
             return redirect(url_for('flash.loading'))
         else:
-            return render_template("LOGIN_HTML.html", error="❌Invalid username or password")
+            return render_template("LOGIN_HTML.html", error="Invalid username or password")
             
     return render_template("LOGIN_HTML.html", error=None)

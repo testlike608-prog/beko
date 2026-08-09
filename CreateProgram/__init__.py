@@ -144,7 +144,7 @@ def delete_test():
             return jsonify({"ok": False, "msg": f"Test '{name}' not found"}), 404
 
         save_tests(remaining)
-        print(f"️ Test deleted: {name}")
+        print(f"Test deleted: {name}")
         return jsonify({"ok": True, "msg": f"Test '{name}' deleted", "count": len(remaining)})
     except Exception as e:
         return jsonify({"ok": False, "msg": str(e)}), 500
@@ -170,7 +170,7 @@ def reset_tests():
     """resetDefaults() في main.js — مسح كل الاختبارات الديناميكية"""
     try:
         save_tests([])
-        print("♻️ All dynamic tests cleared")
+        print("All dynamic tests cleared")
         return jsonify({"ok": True, "msg": "All tests cleared"})
     except Exception as e:
         return jsonify({"ok": False, "msg": str(e)}), 500
@@ -284,7 +284,7 @@ def page_create_program():
             try:
                 _save_csv_file(target_path, [row], append=True)
             except Exception as e:
-                print(f"❌ Failed saving dynamic test '{test_name}' to {target_path}: {e}")
+                print(f"Failed saving dynamic test '{test_name}' to {target_path}: {e}")
        # ===============================
         #CSV_CACHE.pop((sku, "S1"), None)
        # CSV_CACHE.pop((sku, "S2"), None)

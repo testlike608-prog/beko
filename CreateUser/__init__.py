@@ -30,12 +30,12 @@ def create_user():
         NewUser_data = {"username": username, "password": password, "auth": auth}
 
         if not username or not password or not auth:
-            error = "⚠️ Please fill all fields"
+            error = "Please fill all fields"
         else:
             with open(LOGINS_FILE, mode='a', newline='', encoding='utf-8') as file:
                 writer = csv.writer(file)
                 writer.writerow([username, password, auth, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
-                message = "✅ User created  successfully!"
+                message = "User created  successfully!"
             return render_template("CREATE_USER_HTML.html",message=message, NewUser_data=NewUser_data)
 
     return render_template("CREATE_USER_HTML.html", error=error, NewUser_data=NewUser_data)

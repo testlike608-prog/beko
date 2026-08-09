@@ -149,7 +149,7 @@ async def create_program_submit(request: Request):
         try:
             _save_csv_file(target_path, [row], append=True)
         except Exception as exc:  # noqa: BLE001
-            print(f"❌ Failed saving dynamic test '{test_name}' to {target_path}: {exc}")
+            print(f"Failed saving dynamic test '{test_name}' to {target_path}: {exc}")
 
     return templates.TemplateResponse(
         request,

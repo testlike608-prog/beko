@@ -56,7 +56,7 @@ async def delete_test(request: Request):
             return JSONResponse({"ok": False, "msg": f"Test '{name}' not found"}, status_code=404)
 
         save_tests(remaining)
-        print(f"️ Test deleted: {name}")
+        print(f"Test deleted: {name}")
         return JSONResponse({"ok": True, "msg": f"Test '{name}' deleted", "count": len(remaining)})
     except Exception as e:  # noqa: BLE001
         return JSONResponse({"ok": False, "msg": str(e)}, status_code=500)
@@ -67,7 +67,7 @@ def reset_tests():
     """مسح كل الاختبارات الديناميكية من tests.json"""
     try:
         save_tests([])
-        print("♻️ All dynamic tests cleared")
+        print("All dynamic tests cleared")
         return JSONResponse({"ok": True, "msg": "All tests cleared"})
     except Exception as e:  # noqa: BLE001
         return JSONResponse({"ok": False, "msg": str(e)}, status_code=500)

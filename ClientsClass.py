@@ -451,10 +451,10 @@ class  TCPClient():
         while not self.connected and not self._stop_event.is_set():
             self._log_add("INFO", f"Trying to reconnect to {self.ip}...")
             if self.connect():
-                self._log_add("INFO", "✅ Reconnected successfully!")
+                self._log_add("INFO", "Reconnected successfully!")
                 break
             else:
-                self._log_add("WARNING", "❌ Retrying in 5 seconds...")
+                self._log_add("WARNING", "Retrying in 5 seconds...")
                 if self._stop_event.wait(5):
                     break
 
@@ -477,7 +477,7 @@ class  TCPClient():
                     # MSG_PEEK بتشوف الداتا من غير ما تسحبها، أو ابعت حرف تافه لو السيرفر بيسمح
                     self.sock.send(b'', socket.MSG_OOB) 
                 except Exception:
-                    self._log_add("WARNING", "⚠️ Connection lost in background!")
+                    self._log_add("WARNING", "Connection lost in background!")
                     self.connected = False
 
             if self._stop_event.wait(3):  # افحص كل 3 ثواني
@@ -529,7 +529,7 @@ class  TCPClient():
             return None
 
         except (OSError, BrokenPipeError, ConnectionResetError, socket.error) as e:
-            # ⚠️ هنا أهم تعديل: لو حصل أي خطأ في السوكيت (السيرفر قفل أو السلك اتشال)
+            # هنا أهم تعديل: لو حصل أي خطأ في السوكيت (السيرفر قفل أو السلك اتشال)
             print(f"[{self.ip}]:[{self.port}] Connection Lost ({e}). Reconnecting...")
             
             self.connected = False
@@ -900,7 +900,7 @@ class App():
                     self.client_Vision_station1.shared_queue.put(test_results_dict)
                     
                     TEST = self.client_Vision_station1.shared_queue.get()
-                    self.client_Vision_station1._log_add("INFO", f"DATA IN THE Q‍♀️: [{TEST}]")
+                    self.client_Vision_station1._log_add("INFO", f"DATA IN THE Q : [{TEST}]")
                     '''
                     
                     time.sleep(1)
@@ -964,7 +964,7 @@ class App():
                     self.client_Vision_station1.shared_queue.put(test_results_dict)
                     
                     TEST = self.client_Vision_station1.shared_queue.get()
-                    self.client_Vision_station1._log_add("INFO", f"DATA IN THE Q‍♀️: [{TEST}]")
+                    self.client_Vision_station1._log_add("INFO", f"DATA IN THE Q : [{TEST}]")
                     '''
                     
                     time.sleep(1)
@@ -1014,12 +1014,12 @@ class App():
                         if now2 - last_time2 <= 60:
                             return
                         else:
-                            tcp_server._log_add("WARNING", f"⚠️ Duplicate dummy ignored: {dummy_number}")
+                            tcp_server._log_add("WARNING", f"Duplicate dummy ignored: {dummy_number}")
 
                             return 
                    
                 '''
-                # ✅ CLEAR CSV FOR NEW DUMMY  ← NEW LINE
+                # CLEAR CSV FOR NEW DUMMY  ← NEW LINE
                 hlb.clear_station2_csv_for_new_dummy(dummy_number)
           
                 self.last_dummy_time_station_one[dummy_number] = now2
@@ -1045,7 +1045,7 @@ class App():
 
                             if row:
                                 last_product_number = row[0]
-                                status = f"✅ Found ProductNumber: {last_product_number}"
+                                status = f"Found ProductNumber: {last_product_number}"
                                 your_s1_sku = last_product_number
                                 with self.lock:
                                     self.station_one_data["product"] = last_product_number
@@ -1054,20 +1054,20 @@ class App():
                                 
                                 threading.Thread(target=auto_load_csv_by_product_number, args= (last_product_number, "S1", self.client_Vision_station1, self.client_scanner_station1.shared_queue)).start()
                             else:
-                                status = f"❌ Dummy '{dummy_number}' not found"
+                                status = f"Dummy '{dummy_number}' not found"
                                 with self.lock:
                                     self.station_one_data["db_status"] = status
                                 self.client_scanner_station1._log_add("WARNING", status)
                                 
                         except Exception as db_ex:
-                            status = f"❌ DB query error: {db_ex}"
+                            status = f"DB query error: {db_ex}"
                             with self.lock:
                                 self.station_one_data["db_status"] = status
                             self.client_scanner_station1._log_add("ERROR", status)
                 else:
                     with self.lock:
-                        self.station_one_data["db_status"] = "❌ No DB connection"
-                        self.client_scanner_station1._log_add("WARN", "❌ No DB connection")
+                        self.station_one_data["db_status"] = "No DB connection"
+                        self.client_scanner_station1._log_add("WARN", "No DB connection")
         except Exception as e:
             self.client_scanner_station1._log_add("ERROR", f"Error processing Station Two data: {e}")
 
@@ -1097,12 +1097,12 @@ class App():
                             if now2 - last_time2 <= 60:
                                 return
                             else:
-                                tcp_server._log_add("WARNING", f"⚠️ Duplicate dummy ignored: {dummy_number}")
+                                tcp_server._log_add("WARNING", f"Duplicate dummy ignored: {dummy_number}")
 
                                 return 
                         '''
                 
-                    # ✅ CLEAR CSV FOR NEW DUMMY  ← NEW LINE
+                    # CLEAR CSV FOR NEW DUMMY  ← NEW LINE
                     hlb.clear_station2_csv_for_new_dummy(dummy_number)
             
                     self.last_dummy_time_station_one[dummy_number] = now2
@@ -1136,7 +1136,7 @@ class App():
 
                                 if row:
                                     last_product_number = row[0]
-                                    status = f"✅ Found ProductNumber: {last_product_number}"
+                                    status = f"Found ProductNumber: {last_product_number}"
                                     your_s1_sku = last_product_number
                                     with self.lock:
                                         self.station_one_data["product"] = last_product_number
@@ -1145,20 +1145,20 @@ class App():
                                     
                                     threading.Thread(target=auto_load_csv_by_product_number, args= (last_product_number, "S1", self.client_Vision_station1, self.client_scanner_station1.shared_queue)).start()
                                 else:
-                                    status = f"❌ Dummy '{dummy_number}' not found"
+                                    status = f"Dummy '{dummy_number}' not found"
                                     with self.lock:
                                         self.station_one_data["db_status"] = status
                                     self.client_scanner_station1._log_add("WARNING", status)
                                     
                             except Exception as db_ex:
-                                status = f"❌ DB query error: {db_ex}"
+                                status = f"DB query error: {db_ex}"
                                 with self.lock:
                                     self.station_one_data["db_status"] = status
                                 self.client_scanner_station1._log_add("ERROR", status)
                     else:
                         with self.lock:
-                            self.station_one_data["db_status"] = "❌ No DB connection"
-                            self.client_scanner_station1._log_add("WARN", "❌ No DB connection")
+                            self.station_one_data["db_status"] = "No DB connection"
+                            self.client_scanner_station1._log_add("WARN", "No DB connection")
             except Exception as e:
                 self.client_scanner_station1._log_add("ERROR", f"Error processing Station Two data: {e}")
 
@@ -1192,12 +1192,12 @@ class App():
                         if now2 - last_time2 <= 60:
                             return
                         else:
-                            tcp_server._log_add("WARNING", f"⚠️ Duplicate dummy ignored: {dummy_number}")
+                            tcp_server._log_add("WARNING", f"Duplicate dummy ignored: {dummy_number}")
 
                             return 
                     '''
                
-                # ✅ CLEAR CSV FOR NEW DUMMY  ← NEW LINE
+                # CLEAR CSV FOR NEW DUMMY  ← NEW LINE
                 hlb.clear_station2_csv_for_new_dummy(dummy_number)
           
                 self.last_dummy_time_station_two[dummy_number] = now2
@@ -1223,7 +1223,7 @@ class App():
 
                             if row:
                                 last_product_number2 = row[0]
-                                status = f"✅ Found ProductNumber: {last_product_number2}"
+                                status = f"Found ProductNumber: {last_product_number2}"
                                 your_s2_sku = last_product_number2
                                 with self.lock:
                                     self.station_two_data["product"] = last_product_number2
@@ -1232,20 +1232,20 @@ class App():
                                 
                                 threading.Thread(target=auto_load_csv_by_product_number, args= (last_product_number2, "S2", self.client_Vision_station2, self.client_scanner_station2.shared_queue)).start()
                             else:
-                                status = f"❌ Dummy '{dummy_number}' not found"
+                                status = f"Dummy '{dummy_number}' not found"
                                 with self.lock:
                                     self.station_two_data["db_status"] = status
                                 self.client_scanner_station2._log_add("WARNING", status)
                                 
                         except Exception as db_ex:
-                            status = f"❌ DB query error: {db_ex}"
+                            status = f"DB query error: {db_ex}"
                             with self.lock:
                                 self.station_two_data["db_status"] = status
                             self.client_scanner_station2._log_add("ERROR", status)
                 else:
                     with self.lock:
-                        self.station_two_data["db_status"] = "❌ No DB connection"
-                        self.client_scanner_station2._log_add("WARN", "❌ No DB connection")
+                        self.station_two_data["db_status"] = "No DB connection"
+                        self.client_scanner_station2._log_add("WARN", "No DB connection")
         except Exception as e:
             self.client_scanner_station2._log_add("ERROR", f"Error processing Station Two data: {e}")
 
@@ -1277,12 +1277,12 @@ class App():
                             if now2 - last_time2 <= 60:
                                 return
                             else:
-                                tcp_server._log_add("WARNING", f"⚠️ Duplicate dummy ignored: {dummy_number}")
+                                tcp_server._log_add("WARNING", f"Duplicate dummy ignored: {dummy_number}")
 
                                 return 
                         '''
                 
-                    # ✅ CLEAR CSV FOR NEW DUMMY  ← NEW LINE
+                    # CLEAR CSV FOR NEW DUMMY  ← NEW LINE
                     hlb.clear_station2_csv_for_new_dummy(dummy_number)
             
                     self.last_dummy_time_station_two[dummy_number] = now2
@@ -1308,7 +1308,7 @@ class App():
 
                                 if row:
                                     last_product_number2 = row[0]
-                                    status = f"✅ Found ProductNumber: {last_product_number2}"
+                                    status = f"Found ProductNumber: {last_product_number2}"
                                     your_s2_sku = last_product_number2
                                     with self.lock:
                                         self.station_two_data["product"] = last_product_number2
@@ -1317,20 +1317,20 @@ class App():
                                     
                                     threading.Thread(target=auto_load_csv_by_product_number, args= (last_product_number2, "S2", self.client_Vision_station2, self.client_scanner_station2.shared_queue)).start()
                                 else:
-                                    status = f"❌ Dummy '{dummy_number}' not found"
+                                    status = f"Dummy '{dummy_number}' not found"
                                     with self.lock:
                                         self.station_two_data["db_status"] = status
                                     self.client_scanner_station2._log_add("WARNING", status)
                                     
                             except Exception as db_ex:
-                                status = f"❌ DB query error: {db_ex}"
+                                status = f"DB query error: {db_ex}"
                                 with self.lock:
                                     self.station_two_data["db_status"] = status
                                 self.client_scanner_station2._log_add("ERROR", status)
                     else:
                         with self.lock:
-                            self.station_two_data["db_status"] = "❌ No DB connection"
-                            self.client_scanner_station2._log_add("WARN", "❌ No DB connection")
+                            self.station_two_data["db_status"] = "No DB connection"
+                            self.client_scanner_station2._log_add("WARN", "No DB connection")
             except Exception as e:
                 self.client_scanner_station2._log_add("ERROR", f"Error processing Station Two data: {e}")
 
@@ -1468,7 +1468,7 @@ class App():
             self.client_write_io.send_request(CMD_OFF_ALL,is_hex=True)
             return
 
-        # ✅ FIX: Capture the starting state before waiting
+        # FIX: Capture the starting state before waiting
         start_time = time.time()
         initial_image_state = image_SN1  # Remember what image_SN1 was at the start
         image_timeout = hlb.get_time_setting('ImageTimeout')
@@ -1476,7 +1476,7 @@ class App():
         self.client_write_io._log_add("INFO", f"Waiting for new image. Current state: {initial_image_state}")
 
         # ---- wait for NEW image ----
-        # ✅ FIX: Proper loop with three conditions:
+        # FIX: Proper loop with three conditions:
         # 1. Wait while we haven't received a new image
         # 2. New image means: image_SN1 changed from initial_image_state
         # 3. AND image_SN1 is not None
@@ -1613,7 +1613,7 @@ class App():
             self.client_write_io.send_request(CMD_OFF_ALL,is_hex=True)
             return
 
-        # ✅ FIX: Capture the starting state before waiting
+        # FIX: Capture the starting state before waiting
         start_time = time.time()
         initial_image_state = image_SN2  # Remember what image_SN1 was at the start
         image_timeout = hlb.get_time_setting('ImageTimeout')
@@ -1621,7 +1621,7 @@ class App():
         self.client_write_io._log_add("INFO", f"Waiting for new image. Current state: {initial_image_state}")
 
         # ---- wait for NEW image ----
-        # ✅ FIX: Proper loop with three conditions:
+        # FIX: Proper loop with three conditions:
         # 1. Wait while we haven't received a new image
         # 2. New image means: image_SN1 changed from initial_image_state
         # 3. AND image_SN1 is not None
@@ -1808,11 +1808,11 @@ class App():
 
     def connect_from_file(self, filename, index):
         if not os.path.exists(filename):
-            return None, f"⚠️ No saved DB{index} settings"
+            return None, f"No saved DB{index} settings"
         with open(filename, "r") as f:
             data = f.read().strip().split("|")
             if len(data) != 5:
-                return None, f"⚠️ Invalid DB{index} format"
+                return None, f"Invalid DB{index} format"
             serveraddr, database_name, Auth, user_name, password = data
 
         # نفس منطق db.build_conn_str — بيختار أحسن درايفر متاح
@@ -1821,14 +1821,14 @@ class App():
                 serveraddr, database_name, Auth, user_name, password
             )
         except RuntimeError as e:
-            return None, f"❌ DB{index}: {e}"
+            return None, f"DB{index}: {e}"
 
         try:
             with pyodbc.connect(conn_str, timeout=15):
                 pass
-            return conn_str, f"✅ Auto-connected to DB{index}"
+            return conn_str, f"Auto-connected to DB{index}"
         except Exception as e:
-            return None, f"❌ DB{index} connection failed: {e}"
+            return None, f"DB{index} connection failed: {e}"
 
     '''    
 

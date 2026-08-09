@@ -92,14 +92,14 @@ def check_driver():
 def install_driver():
     msi_path = os.path.join(os.path.dirname(__file__), "msodbcsql.msi")
     if not os.path.exists(msi_path):
-        print(f"⚠ ODBC installer not found at {msi_path}")
+        print(f"ODBC installer not found at {msi_path}")
         return False
     try:
         subprocess.run(["msiexec", "/i", msi_path, "/quiet", "/norestart"], check=True)
-        print("✅ ODBC Driver installed")
+        print("ODBC Driver installed")
         return True
     except Exception as e:
-        print(f"❌ Installation failed: {e}")
+        print(f"Installation failed: {e}")
         print("   ملحوظة: msiexec /quiet محتاج صلاحيات أدمن — "
               "افتح msodbcsql.msi يدويًا ووافق على UAC.")
         return False
@@ -110,10 +110,10 @@ if not check_driver():
     if _fallback:
         # مش هنحاول نسطّب تلقائيًا طالما فيه درايفر شغال — التسطيب الصامت
         # محتاج أدمن وبيفشل من غير ما حد ياخد باله.
-        print(f"⚠ ODBC Driver 17/18 not exists, using '{_fallback}' instead")
+        print(f"ODBC Driver 17/18 not exists, using '{_fallback}' instead")
         print("  ( install ODBC Driver 18 x64 manually)")
     else:
-        print("⚠ ODBC Driver not found on the system, attempting installation...")
+        print("ODBC Driver not found on the system, attempting installation...")
         install_driver()
 
 def auto_connect_db():
@@ -122,11 +122,11 @@ def auto_connect_db():
 
     def connect_from_file(filename, index):
         if not os.path.exists(filename):
-            return None, f"⚠️ No saved DB{index} settings"
+            return None, f"No saved DB{index} settings"
         with open(filename, "r") as f:
             data = f.read().strip().split("|")
             if len(data) != 5:
-                return None, f"⚠️ Invalid DB{index} format"
+                return None, f"Invalid DB{index} format"
             serveraddr, database_name, Auth, user_name, password = data
 
         try:
@@ -134,14 +134,14 @@ def auto_connect_db():
                 serveraddr, database_name, Auth, user_name, password
             )
         except RuntimeError as e:
-            return None, f"❌ DB{index}: {e}"
+            return None, f"DB{index}: {e}"
 
         try:
             with pyodbc.connect(conn_str, timeout=CONNECT_TIMEOUT):
                 pass
-            return conn_str, f"✅SUCCESSFUL Auto-connected to DB{index}"
+            return conn_str, f"SUCCESSFUL Auto-connected to DB{index}"
         except Exception as e:
-            return None, f"❌ DB{index} connection failed: {e}"
+            return None, f"DB{index} connection failed: {e}"
 
     print(f"ODBC driver in use: {pick_driver() or 'NONE'}")
 
@@ -165,7 +165,7 @@ def upload_tests_result_to_db(dummy, station_name, station_result, failed_tests,
     try:
         # Check DB connection string exists
         if not conn_str_db2_global:
-            Client._log_add("ERROR", "❌ No DB2 connection string found")
+            Client._log_add("ERROR", "No DB2 connection string found")
             return
 
         # Insert new row
@@ -180,14 +180,14 @@ def upload_tests_result_to_db(dummy, station_name, station_result, failed_tests,
                     (dummy, station_name, station_result, failed_tests)
                 )
                 conn.commit()
-                Client._log_add("INFO",f"✅ Uploaded to DB → SFC={dummy}, TestName={station_name}, Result={station_result}, FailedTests={failed_tests}")
+                Client._log_add("INFO",f"Uploaded to DB → SFC={dummy}, TestName={station_name}, Result={station_result}, FailedTests={failed_tests}")
                
                     
               
                 
             except Exception as e:
-                Client._log_add("ERROR", f"❌ DB Insert Error: {e}")
+                Client._log_add("ERROR", f"DB Insert Error: {e}")
                 pass
     except Exception as ex:
-        Client._log_add("ERROR", f"❌ Error connecting to DB: {ex}")
+        Client._log_add("ERROR", f"Error connecting to DB: {ex}")
         pass

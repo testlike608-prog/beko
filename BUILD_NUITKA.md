@@ -3,11 +3,11 @@
 الطريقة دي بتطلع **مجلد واحد** العميل ينسخه على الـ IPC ويشغّله.
 بيشتغل native، يعني:
 
-- ✅ VisionMaster والترخيص شغالين زي ما هما — مفيش سؤال كونتينر
-- ✅ `127.0.0.1:20/30/40/50` و `cam_cap` على 70/80 شغالين من غير أي تعديل كود
-- ✅ السكانرات والـ I/O module عادي
-- ✅ الحجم بالميجابايت مش الجيجابايت
-- ✅ مفيش Docker ولا Python ولا pip على جهاز العميل
+- VisionMaster والترخيص شغالين زي ما هما — مفيش سؤال كونتينر
+- `127.0.0.1:20/30/40/50` و `cam_cap` على 70/80 شغالين من غير أي تعديل كود
+- السكانرات والـ I/O module عادي
+- الحجم بالميجابايت مش الجيجابايت
+- مفيش Docker ولا Python ولا pip على جهاز العميل
 
 ---
 
@@ -106,14 +106,14 @@ cd dist\main_fastapi.dist
 
 1. الكونسول بيقول:
    ```
-   🌐 Web layer ready — press START in the UI to run the process.
-   🔌 ODBC driver in use: ODBC Driver 18 for SQL Server
-   📡 Socket.IO tickers started
+   Web layer ready — press START in the UI to run the process.
+   ODBC driver in use: ODBC Driver 18 for SQL Server
+   Socket.IO tickers started
    ```
 2. المتصفح بيفتح لوحده على `http://127.0.0.1:5000`
-3. تسجيل الدخول شغال (يعني `logins.csv` اتلاقى ✔)
-4. الحالة بتتحدّث من غير refresh (Socket.IO ✔)
-5. دخول بمستخدم **dev** → I/O Mapping → المسارات ظاهرة (`config.json` ✔)
+3. تسجيل الدخول شغال (يعني `logins.csv` اتلاقى)
+4. الحالة بتتحدّث من غير refresh (Socket.IO)
+5. دخول بمستخدم **dev** → I/O Mapping → المسارات ظاهرة (`config.json`)
 6. **اضغط START**:
    ```
    [VisionMaster][INFO] Assemblies loaded.
@@ -140,7 +140,7 @@ Compress-Archive -Path dist\main_fastapi.dist -DestinationPath beko-vision-v2.zi
 1. فك الضغط في مكان ثابت، مثلاً `C:\beko\`
 2. دبل كليك على `msodbcsql.msi` (اللي جوه المجلد) ووافق على UAC —
    مرة واحدة بس، ومحتاجة صلاحيات أدمن
-3. اتأكد إن **VisionMaster** متسطب ومرخّص (عنده أصلاً ✔)
+3. اتأكد إن **VisionMaster** متسطب ومرخّص (عنده أصلاً)
 4. دبل كليك على `main_fastapi.exe`
 
 مفيش Python، مفيش pip، مفيش Docker، ومفيش إنترنت.

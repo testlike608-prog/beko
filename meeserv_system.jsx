@@ -691,7 +691,7 @@ export default function App() {
       <Modal open={!!alertModal} title="" onClose={() => setAlertModal(null)}>
         {alertModal && (
           <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>⚠</div>
+            <div style={{ fontSize: 40, marginBottom: 12 }}> </div>
             <div style={{ color: "#dc2626", fontWeight: 500, fontSize: 18, marginBottom: 8 }}>System alert</div>
             <p style={{ color: "var(--color-text-secondary)", marginBottom: 20 }}>
               Auto scanning failed in {alertModal.station} station
