@@ -200,6 +200,72 @@ _VmSolution = None
 _load_lock = threading.Lock()
 
 
+def _ensure_python_runtime_next_to_host() -> None:
+    """
+    بيحط نسخة من Python.Runtime.dll جنب البرنامج المضيف.
+
+    ليه؟ .NET Framework بيدوّر على الاسمبليز في مجلد الأساس بتاع الـ
+    AppDomain، وهو مجلد البرنامج اللي شغال. لما بنشتغل من السورس
+    المضيف هو python.exe وكل حاجة بتتلاقى عادي. لكن في البناء
+    المجمّع، الـ DLL بيبقى في pythonnet\\runtime\\ جوه الحزمة،
+    والـ AppDomain مبيلاقيهوش. clr_loader ساعتها بترجع NULL
+    والخطأ اللي بيظهر مضلّل:
+
+        Failed to resolve Python.Runtime.Loader.Initialize from <path>
+
+    الرسالة بتطبع المسار اللي حاول يحمّل منه، فبتوحي إن الملف ناقص
+    وهو موجود فعلاً — المشكلة في مكانه مش في وجوده.
+
+    ليه وقت التشغيل مش وقت البناء؟ في وضع onefile البرنامج بيتفك في
+    فولدر مؤقت وبيشتغل من هناك، فمجلد الأساس بيبقى الفولدر ده — مش
+    المكان اللي المستخدم حاطط فيه الـ exe. يعني مفيش مكان ثابت نقدر
+    نحط فيه الملف وقت البناء.
+
+    الدالة دي بتشتغل بس في البناء المجمّع. وقت التشغيل من السورس
+    مبنعملش حاجة عشان ما نلوّثش مجلد تسطيب بايثون بتاع المستخدم.
+    """
+    if "__compiled__" not in globals():
+        return
+
+    try:
+        import pythonnet
+    except ImportError:
+        return
+
+    package_dir = os.path.dirname(os.path.abspath(pythonnet.__file__))
+    source = os.path.join(package_dir, "runtime", "Python.Runtime.dll")
+    if not os.path.isfile(source):
+        return
+
+    # مكانين محتملين لمجلد الأساس، وبننسخ للاتنين:
+    #
+    #   1) جذر الحزمة (اللي فيه مجلد pythonnet) — ده مكان البرنامج
+    #      اللي بيشتغل فعلاً، وفي onefile ده الفولدر المؤقت.
+    #   2) مجلد sys.executable — نفس المكان في standalone، لكن في
+    #      onefile ممكن يشاور على الـ exe الأصلي بدل الفولدر المؤقت.
+    #
+    # التوثيق مش قاطع في سلوك sys.executable مع onefile، والنسخة
+    # الزيادة رخيصة، فبنغطي الاحتمالين بدل ما نراهن على واحد.
+    candidates = {
+        os.path.dirname(package_dir),
+        os.path.dirname(os.path.abspath(sys.executable)),
+    }
+
+    import shutil
+
+    for host_dir in candidates:
+        target = os.path.join(host_dir, "Python.Runtime.dll")
+        try:
+            if os.path.isfile(target) and os.path.getsize(target) == os.path.getsize(source):
+                continue
+            shutil.copy2(source, target)
+            print(f"[vision_master] Python.Runtime.dll placed in {host_dir}")
+        except OSError as exc:
+            # مش قاتل — يمكن المجلد التاني ينفع، أو .NET يلاقيه بطريقة تانية.
+            # بنطبع عشان لو التحميل فشل بعد كده نعرف السبب.
+            print(f"[vision_master] could not place Python.Runtime.dll in {host_dir}: {exc}")
+
+
 def load_vm(assembly_dir: str):
     """تحميل اسمبليز VisionMaster وإرجاع كلاس VmSolution."""
     global _VmSolution
@@ -219,12 +285,27 @@ def load_vm(assembly_dir: str):
         if not os.path.isfile(core):
             raise VisionMasterError(f"VM.Core.dll غير موجود في: {assembly_dir}")
 
+        _ensure_python_runtime_next_to_host()
+
         try:
             import clr  # noqa: F401  (pythonnet — بيتحمّل هنا بس)
         except ImportError as exc:
             raise VisionMasterError(
                 "pythonnet مش متسطب. شغّل: pip install pythonnet "
                 "(لازم Python 64-bit)"
+            ) from exc
+        except RuntimeError as exc:
+            # clr_loader بيرمي RuntimeError لما الـ AppDomain يفشل يحمّل
+            # Python.Runtime.dll، والرسالة الأصلية مضلّلة لأنها بتطبع
+            # المسار اللي *حاول* يحمّل منه فتوحي إن الملف ناقص.
+            raise VisionMasterError(
+                "فشل تحميل pythonnet.\n"
+                f"{exc}\n\n"
+                "لو الرسالة فيها 'Failed to resolve Python.Runtime.Loader.Initialize' "
+                "جرّب الآتي:\n"
+                "  1) اتأكد إن .NET Framework 4.7.2 أو أحدث متسطب\n"
+                "  2) لو نزّلت البرنامج من الإنترنت، شيل علامة الحجب:\n"
+                "     Get-ChildItem <مجلد البرنامج> -Recurse | Unblock-File"
             ) from exc
 
         # الـ DLLs الأصلية (native) بتتحل من PATH مش من sys.path

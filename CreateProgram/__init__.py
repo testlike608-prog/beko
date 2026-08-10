@@ -6,7 +6,14 @@ import os,re
 from helpers import _save_csv_file,_csv_path,load_tests,save_tests
 import ClientsClass as cc
 import csv
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# ملفات البرامج (CSV) بيعدّلها المستخدم، فلازم تفضل جنب الـ exe.
+# في وضع onefile الـ __file__ بيشاور على فولدر مؤقت، واللي يتكتب فيه
+# بيضيع أول ما البرنامج يقفل. شوف الشرح في fastapi_app/core.py.
+try:
+    BASE_DIR = os.path.join(os.path.normpath(__compiled__.containing_dir), "CreateProgram")  # type: ignore[name-defined]  # noqa: F821
+except NameError:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 PROGRAMS_DIR = BASE_DIR
 #Globals
 CSV_CACHE: Dict[Tuple[str, str], Dict] = {}

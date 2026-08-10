@@ -21,25 +21,56 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 
-def _is_frozen() -> bool:
-    """
-    PyInstaller بيحط sys.frozen، لكن Nuitka بيحط __compiled__ بدلها.
-    لازم نتحقق من الاتنين — من غير كده السطر اللي تحت بيطلع مستويين
-    فوق ويخرج بره مجلد الـ dist، فالقوالب وconfig.json مبيتلاقوش.
-    """
-    return getattr(sys, "frozen", False) or "__compiled__" in globals()
-
-
-def _application_directory() -> str:
-    """جذر المشروع: مجلد السورس عند التشغيل العادي، ومجلد dist عند التجميد."""
-    if _is_frozen():
-        return os.path.normpath(os.path.dirname(sys.executable))
+# ----------------------------------------------------------------------
+# مسارين مختلفين، مش مسار واحد
+#
+# في وضع onefile الـ bootstrap بيفك ضغط البرنامج في مكان مؤقت وبيشغله
+# من هناك. توثيق Nuitka بيقول بالنص:
+#
+#     sys.argv[0] will be the original executable path, whereas __file__
+#     will be the temporary or permanent path the bootstrap executable
+#     unpacks to. Data files will be in the later location; your original
+#     environment files will be in the former location.
+#
+# يعني:
+#   BUNDLE_ROOT = جوه الحزمة    -> templates و static (بنقرا منهم بس)
+#   APP_ROOT    = جنب الـ exe   -> config.json و logins.csv و CreateProgram
+#                                  و data/ و last_db*_settings.txt (بنكتب فيهم)
+#
+# في وضع standalone الاتنين نفس المكان، فالكود ده مبيغيّرش أي سلوك حالي.
+# لو خلطناهم في onefile، إعدادات العميل هتتكتب في فولدر مؤقت وتتمسح
+# أول ما البرنامج يقفل — من غير أي رسالة خطأ.
+# ----------------------------------------------------------------------
+def _bundle_directory() -> str:
+    """مكان الملفات المرفقة مع البرنامج. __file__ بيشتغل صح في الوضعين."""
     return os.path.normpath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
+def _application_directory() -> str:
+    """
+    مكان ملفات المستخدم — لازم يفضل ثابت بين التشغيلات.
+
+    __compiled__.containing_dir هو اللي Nuitka بيرشحه للحالة دي، وبيشتغل
+    مع standalone و onefile الاتنين. مش موجود وقت التشغيل العادي من
+    السورس، عشان كده الـ NameError متوقع ومتعالج.
+    """
+    try:
+        return os.path.normpath(__compiled__.containing_dir)  # type: ignore[name-defined]  # noqa: F821
+    except NameError:
+        pass
+
+    # PyInstaller — مش مستخدم حاليًا بس سيبناه للأمان
+    if getattr(sys, "frozen", False):
+        return os.path.normpath(os.path.dirname(sys.executable))
+
+    return _bundle_directory()
+
+
+BUNDLE_ROOT = _bundle_directory()
 APP_ROOT = _application_directory()
-TEMPLATES_DIR = os.path.join(APP_ROOT, "templates")
-STATIC_DIR = os.path.join(APP_ROOT, "static")
+
+TEMPLATES_DIR = os.path.join(BUNDLE_ROOT, "templates")
+STATIC_DIR = os.path.join(BUNDLE_ROOT, "static")
 
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 

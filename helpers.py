@@ -96,7 +96,23 @@ def get_time_setting(key: str):
     except Exception:
         return TIME_SETTINGS.get(key) # لو حصل مشكلة في فتح الملف يرجع القيمة الافتراضية
         
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# ----------------------------------------------------------------------
+# BASE_DIR لازم يبقى جنب الـ exe مش جوه الحزمة.
+#
+# CSV_SOURCE_DIR تحت بيتبني منه، و ClientsClass بيقرا منه ملفات
+# البرامج (CreateProgram\*.csv) — ودي بيانات بيعدّلها المستخدم.
+# في وضع onefile، __file__ بيشاور على فولدر مؤقت بيتفك فيه البرنامج،
+# فلو سبناه كده كنا هنقرا نسخة قديمة متجمدة وقت البناء بدل النسخة
+# الحقيقية اللي جنب الـ exe.
+#
+# __compiled__.containing_dir بيدي المكان الصح في standalone و onefile،
+# ومش موجود وقت التشغيل من السورس فالـ NameError متوقع.
+# ----------------------------------------------------------------------
+try:
+    BASE_DIR = os.path.normpath(__compiled__.containing_dir)  # type: ignore[name-defined]  # noqa: F821
+except NameError:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 PROGRAMS_DIR = BASE_DIR
 CSV_SOURCE_DIR = os.path.join(PROGRAMS_DIR, "CreateProgram")
 TESTS_FILE = "tests.json"

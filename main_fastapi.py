@@ -41,20 +41,27 @@ for _stream in (sys.stdout, sys.stderr):
             pass
 
 
-def _is_frozen() -> bool:
-    """
-    هل إحنا شغالين من ملف تنفيذي مبني؟
-
-    PyInstaller بيحط sys.frozen، لكن Nuitka *مبيحطهاش* — بيحط
-    __compiled__ في كل موديول متكمبايل. لازم نتحقق من الاتنين، وإلا
-    مسار المشروع بيتحسب غلط ويدوّر على config.json في المكان الخطأ.
-    """
-    return getattr(sys, "frozen", False) or "__compiled__" in globals()
-
-
 def _application_directory() -> str:
-    if _is_frozen():
+    """
+    المكان اللي فيه ملفات المستخدم: config.json و logins.csv و
+    CreateProgram و data/ و last_db*_settings.txt.
+
+    مهم إنه يبقى جنب الـ exe نفسه، مش جوه الحزمة. في وضع onefile
+    الـ bootstrap بيفك ضغط البرنامج في مكان مؤقت، ولو عملنا chdir
+    هناك، كل اللي التطبيق هيكتبه هيتمسح أول ما يقفل.
+
+    __compiled__.containing_dir هو اللي Nuitka بيرشحه، وبيدي المكان
+    الصح في standalone و onefile الاتنين. مش موجود وقت التشغيل من
+    السورس، فالـ NameError متوقع.
+    """
+    try:
+        return os.path.normpath(__compiled__.containing_dir)  # type: ignore[name-defined]  # noqa: F821
+    except NameError:
+        pass
+
+    if getattr(sys, "frozen", False):
         return os.path.normpath(os.path.dirname(sys.executable))
+
     return os.path.normpath(os.path.dirname(os.path.abspath(__file__)))
 
 
