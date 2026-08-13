@@ -63,9 +63,9 @@ is_waiting2 = True
 Buzzer_Flag_to_OFF = False
 Buzzer_Flag_to_OFF2 = False
 #Scanner_IP & Port
-Ip_Scanner1 = "127.0.0.1"  #"192.168.1.16"
+Ip_Scanner1 = "192.168.1.16"  #"192.168.1.16"
 Port_Scanner1 = 7940         #7940
-Ip_Scanner2 = "127.0.0.1"   #"192.168.1.17"
+Ip_Scanner2 = "192.168.1.17"   #"192.168.1.17"
 Port_Scanner2 = 7950         #7950
 
 #Vision Master_IP & Port
@@ -80,9 +80,9 @@ Ip_vision_outer_SN = "127.0.0.1"
 Port_vision_outer_SN = 40
 
 #I/O Module_IP & Port
-Ip_read_IO = "127.0.0.1"#"192.168.1.30"
+Ip_read_IO = "192.168.1.30"#"192.168.1.30"
 Port_read_IO = 502
-Ip_write_IO = "127.0.0.1"#"192.168.1.30"
+Ip_write_IO = "192.168.1.30"#"192.168.1.30"
 Port_write_IO = 502
 
 
