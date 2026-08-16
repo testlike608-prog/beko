@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from typing import Any, Dict
 
 from flask import Blueprint, request, jsonify
@@ -42,8 +43,45 @@ default_vision_master = {
     "solution_path": "",    # مسار ملف .solw / .sol
 }
 
+# ----------------------------------------------------------------------
+# عناوين الأجهزة (IP / Port)
+#
+# دي كانت متكتوبة بإيد جوه ClientsClass.py، فأي تغيير في الشبكة كان
+# محتاج تعديل في الكود وإعادة بناء الـ exe. دلوقتي بقت في config.json
+# وبتتظبط من مودال الإعدادات (Developer mode بس).
+#
+# القيم اللي هنا هي نفس القيم القديمة بالظبط، فأي خط شغال دلوقتي
+# هيفضل شغال زي ما هو من غير ما حد يعمل أي حاجة.
+# ----------------------------------------------------------------------
+ENDPOINT_LABELS = {
+    "scanner_s1":      "Scanner S1 (outer)",
+    "scanner_s2":      "Scanner S2 (inner)",
+    "vision_outer":    "Vision outer (S1)",
+    "vision_inner":    "Vision inner (S2)",
+    "vision_outer_sn": "Vision outer S/N",
+    "vision_inner_sn": "Vision inner S/N",
+    "io_read":         "I/O module - read",
+    "io_write":        "I/O module - write",
+    "cam_cap_s1":      "Camera capture S1",
+    "cam_cap_s2":      "Camera capture S2",
+}
+
+default_endpoints = {
+    "scanner_s1":      {"ip": "192.168.1.16", "port": 7940},
+    "scanner_s2":      {"ip": "192.168.1.17", "port": 7950},
+    "vision_outer":    {"ip": "127.0.0.1",    "port": 20},
+    "vision_inner":    {"ip": "127.0.0.1",    "port": 30},
+    "vision_outer_sn": {"ip": "127.0.0.1",    "port": 40},
+    "vision_inner_sn": {"ip": "127.0.0.1",    "port": 50},
+    "io_read":         {"ip": "192.168.1.30", "port": 502},
+    "io_write":        {"ip": "192.168.1.30", "port": 502},
+    "cam_cap_s1":      {"ip": "127.0.0.1",    "port": 70},
+    "cam_cap_s2":      {"ip": "127.0.0.1",    "port": 80},
+}
+
 io_mapping: Dict[str, Any] = {}
 vision_master_config: Dict[str, Any] = {}
+endpoints: Dict[str, Any] = {}
 
 
 # ----------------------------------------------------------------------
@@ -61,15 +99,43 @@ def _read_config_file() -> dict:
         return {}
 
 
+def _merge_endpoints(saved: Any) -> Dict[str, Any]:
+    """
+    بيدمج اللي في الملف مع الافتراضي.
+
+    أي جهاز ناقص من الملف بياخد قيمته الافتراضية، وأي قيمة بايظة
+    (IP فاضي أو port مش رقم) بترجع للافتراضي كمان — عشان config.json
+    معطوب ميمنعش البرنامج من الاشتغال.
+    """
+    saved = saved if isinstance(saved, dict) else {}
+    merged: Dict[str, Any] = {}
+
+    for key, fallback in default_endpoints.items():
+        entry = saved.get(key) if isinstance(saved.get(key), dict) else {}
+
+        ip = str(entry.get("ip") or "").strip() or fallback["ip"]
+        try:
+            port = int(entry.get("port"))
+            if not (1 <= port <= 65535):
+                raise ValueError
+        except (TypeError, ValueError):
+            port = fallback["port"]
+
+        merged[key] = {"ip": ip, "port": port}
+
+    return merged
+
+
 def load_mapping():
     """تحميل الإعدادات من config.json مع دعم الشكل القديم المسطّح."""
-    global io_mapping, vision_master_config
+    global io_mapping, vision_master_config, endpoints
 
     data = _read_config_file()
 
     if not data:
         io_mapping = default_mapping.copy()
         vision_master_config = default_vision_master.copy()
+        endpoints = _merge_endpoints({})
         return
 
     if "io_mapping" in data:
@@ -79,19 +145,24 @@ def load_mapping():
             **default_vision_master,
             **(data.get("vision_master") or {}),
         }
+        # قسم endpoints مش موجود في الملفات القديمة — _merge_endpoints
+        # بترجّع الافتراضي كله في الحالة دي.
+        endpoints = _merge_endpoints(data.get("endpoints"))
     else:
         # الشكل القديم: الملف كله عبارة عن mapping
         print("[ioSetting] تحويل config.json للشكل الجديد (io_mapping / vision_master)")
         io_mapping = {**default_mapping, **data}
         vision_master_config = default_vision_master.copy()
+        endpoints = _merge_endpoints({})
         save_config_to_file()
 
 
 def save_config_to_file():
-    """كتابة الملف كله (الـ mapping + إعدادات VisionMaster)."""
+    """كتابة الملف كله (الـ mapping + VisionMaster + عناوين الأجهزة)."""
     payload = {
         "io_mapping": io_mapping,
         "vision_master": vision_master_config,
+        "endpoints": endpoints,
     }
     tmp_path = CONFIG_FILE + ".tmp"
     with open(tmp_path, 'w', encoding='utf-8') as file:
@@ -127,6 +198,83 @@ def save_vision_master_config(payload: Dict[str, Any]) -> Dict[str, Any]:
     vision_master_config = {**get_vision_master_config(), **clean}
     save_config_to_file()
     return get_vision_master_config()
+
+
+# ----------------------------------------------------------------------
+# عناوين الأجهزة
+# ----------------------------------------------------------------------
+_IPV4_RE = re.compile(r"^\d{1,3}(\.\d{1,3}){3}$")
+
+
+def _valid_host(value: str) -> bool:
+    """
+    IPv4 أو hostname.
+
+    بنقبل الاتنين عن قصد — في خطوط كتير الأجهزة بتتنادى بالاسم مش
+    بالـ IP، ورفض الاسم كان هيبقى تضييق من غير سبب.
+    """
+    value = (value or "").strip()
+    if not value or len(value) > 255:
+        return False
+
+    if _IPV4_RE.match(value):
+        return all(0 <= int(part) <= 255 for part in value.split("."))
+
+    # hostname: حروف وأرقام و - و . بس
+    return re.match(r"^[A-Za-z0-9]([A-Za-z0-9\-\.]*[A-Za-z0-9])?$", value) is not None
+
+
+def get_endpoints() -> Dict[str, Any]:
+    """نسخة من عناوين الأجهزة (بيستخدمها ClientsClass)."""
+    return {key: dict(value) for key, value in _merge_endpoints(endpoints).items()}
+
+
+def save_endpoints(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    تحديث عناوين الأجهزة وحفظها في config.json.
+
+    بترمي ValueError لو أي IP أو port غلط — الراوتر بيحوّلها لـ 400
+    عشان المستخدم يشوف الغلط بدل ما يتحفظ عنوان بايظ ويقع وقت Start.
+    """
+    global endpoints
+
+    payload = payload if isinstance(payload, dict) else {}
+    current = get_endpoints()
+
+    for key, entry in payload.items():
+        if key not in default_endpoints:
+            raise ValueError(f"Unknown device '{key}'")
+        if not isinstance(entry, dict):
+            raise ValueError(f"Invalid entry for '{key}'")
+
+        label = ENDPOINT_LABELS.get(key, key)
+
+        if "ip" in entry:
+            ip = str(entry.get("ip") or "").strip()
+            if not _valid_host(ip):
+                raise ValueError(f"{label}: invalid IP or host '{ip}'")
+            current[key]["ip"] = ip
+
+        if "port" in entry:
+            try:
+                port = int(entry.get("port"))
+            except (TypeError, ValueError):
+                raise ValueError(f"{label}: port must be a number")
+            if not (1 <= port <= 65535):
+                raise ValueError(f"{label}: port must be between 1 and 65535")
+            current[key]["port"] = port
+
+    endpoints = current
+    save_config_to_file()
+    return get_endpoints()
+
+
+def reset_endpoints() -> Dict[str, Any]:
+    """رجوع لعناوين المصنع الافتراضية."""
+    global endpoints
+    endpoints = _merge_endpoints({})
+    save_config_to_file()
+    return get_endpoints()
 
 
 # تحميل الإعدادات عند عمل Import للملف

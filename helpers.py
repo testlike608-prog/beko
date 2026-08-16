@@ -115,6 +115,14 @@ except NameError:
 
 PROGRAMS_DIR = BASE_DIR
 CSV_SOURCE_DIR = os.path.join(PROGRAMS_DIR, "CreateProgram")
+
+# مجلد البرامج مش بيتنسخ مع الـ exe — بنعمله أول تشغيل.
+# من غير ده صفحة Create Program مش بتقدر تكتب أي CSV في نسخة الـ exe.
+try:
+    os.makedirs(CSV_SOURCE_DIR, exist_ok=True)
+except OSError as _exc:
+    print(f"[helpers] تعذّر إنشاء مجلد البرامج {CSV_SOURCE_DIR}: {_exc}", flush=True)
+
 TESTS_FILE = "tests.json"
 #-----------------check if Statin1.csv exist---------------
 if not os.path.exists(STATION1_FILE):
@@ -157,6 +165,12 @@ def _save_csv_file(path: str, rows: List[Tuple[str, str]], append: bool = False)
     """append=True يضيف في آخر الملف من غير ما يكرر صف العناوين."""
     mode = "a" if append else "w"
     need_header = True
+
+    # نتأكد إن الفولدر موجود قبل الكتابة (نسخة الـ exe مش بيبقى فيها
+    # مجلد CreateProgram، وممكن كمان حد يمسحه والبرنامج شغال).
+    parent = os.path.dirname(os.path.abspath(path))
+    if parent:
+        os.makedirs(parent, exist_ok=True)
 
     if append:
         try:

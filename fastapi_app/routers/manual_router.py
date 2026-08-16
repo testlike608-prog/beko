@@ -72,10 +72,6 @@ async def handle_station_data(request: Request):
         cc.is_waiting = False
         cc.Manual_Scanner_MODE = False
 
-        print(f"Global Variable 'is_waiting' is now: {cc.is_waiting}")
-        print(f"Data added to queue. Queue size: {cc.queue_manual_FOR_FAILURE.qsize()}")
-        print(f"Data content: {data_received}")
-
         return JSONResponse(
             {"status": "success", "message": "تم إضافة الداتا وتغيير المتغير"}, status_code=200
         )
@@ -96,10 +92,6 @@ async def handle_station_data2(request: Request):
         cc.is_waiting2 = False
         cc.Manual_Scanner_MODE2 = False
 
-        print(f"Global Variable 'is_waiting' is now: {cc.is_waiting}")
-        print(f"Data added to queue. Queue size: {cc.queue_manual2_FOR_FAILURE.qsize()}")
-        print(f"Data content: {data_received}")
-
         return JSONResponse(
             {"status": "success", "message": "تم إضافة الداتا وتغيير المتغير"}, status_code=200
         )
@@ -111,11 +103,9 @@ async def handle_station_data2(request: Request):
 
 @router.post("/control", name="Manual.control")
 async def control():
-    print("entred the function")
     try:
         cc.NO_CSV_ERROR = False
         cc.Buzzer_Flag_to_OFF = True
-        print(f"buzzer flag = {cc.Buzzer_Flag_to_OFF}")
         return JSONResponse({"status": "success"}, status_code=200)
     except Exception as e:  # noqa: BLE001
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)

@@ -13,6 +13,7 @@ main_fastapi.py
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
 import threading
@@ -102,7 +103,42 @@ def _open_browser_if_needed(wait_seconds: float = 4.0):
     webbrowser.open(f"http://127.0.0.1:{PORT}")
 
 
+# ---------------------------------------------------------------------
+# تسكيت سطور الـ access log بتاعة الـ polling.
+#
+# الواجهة بتضرب /check-flags و /check-flags2 كل ثانية، و /process/status
+# و /sql_status و /station*_status كل ثانيتين. مع log_level="info" كان
+# uvicorn بيطبع سطر لكل واحدة فيهم — يعني الترمينال بيتملى ٤-٦ سطور في
+# الثانية والبرنامج واقف مش بيعمل حاجة، وأي رسالة مهمة بتضيع وسطهم.
+#
+# الفلتر ده بيشيل السطور دي هي بس. أي request تاني (فتح صفحة، حفظ
+# إعدادات، أي 4xx أو 5xx) بيفضل يتطبع عادي.
+# ---------------------------------------------------------------------
+POLLING_PATHS = (
+    "/check-flags",
+    "/check-flags2",
+    "/station1_status",
+    "/station2_status",
+    "/process/status",
+    "/sql_status",
+)
+
+
+class _SkipPollingAccessLogs(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        # uvicorn.access بيبعت الـ args بالشكل ده:
+        #   (client_addr, method, full_path, http_version, status_code)
+        args = record.args
+        if not isinstance(args, tuple) or len(args) < 3:
+            return True
+
+        path = str(args[2]).split("?", 1)[0]
+        return not any(path == p or path.startswith(p + "/") for p in POLLING_PATHS)
+
+
 if __name__ == "__main__":
     threading.Thread(target=_open_browser_if_needed, daemon=True).start()
+
+    logging.getLogger("uvicorn.access").addFilter(_SkipPollingAccessLogs())
 
     uvicorn.run(app, host=HOST, port=PORT, log_level="info")

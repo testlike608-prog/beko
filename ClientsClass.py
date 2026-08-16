@@ -11,6 +11,7 @@ from typing import Dict
 import textwrap 
 from queue import Empty
 from flask import url_for, Flask
+import ioSetting
 from ioSetting import generate_modbus_command
 
 # هتحتفظ بس بالأمر ده وتمسح الباقي
@@ -62,28 +63,59 @@ is_waiting2 = True
 
 Buzzer_Flag_to_OFF = False
 Buzzer_Flag_to_OFF2 = False
-#Scanner_IP & Port
-Ip_Scanner1 = "192.168.1.16"  #"192.168.1.16"
-Port_Scanner1 = 7940         #7940
-Ip_Scanner2 = "192.168.1.17"   #"192.168.1.17"
-Port_Scanner2 = 7950         #7950
+# ----------------------------------------------------------------------
+# عناوين الأجهزة (IP / Port)
+#
+# القيم دي كانت متكتوبة بإيد هنا، فأي تغيير في الشبكة كان محتاج تعديل
+# في الكود وإعادة بناء الـ exe. دلوقتي مصدرها config.json وبتتظبط من
+# مودال الإعدادات (Developer mode بس).
+#
+# الأسماء القديمة (Ip_Scanner1 … Port_write_IO) اتسابت زي ما هي عشان
+# أي كود تاني بيستخدمها ما يتكسرش — بس بقت بتتملى من ioSetting.
+#
+# reload_endpoints() بتتنادى مرتين: مرة هنا وقت الـ import، ومرة في
+# App.__init__ — يعني أي تعديل بيتطبق أول ما تدوس Restart من الواجهة،
+# من غير ما تقفل البرنامج كله.
+# ----------------------------------------------------------------------
+Ip_Scanner1 = Port_Scanner1 = None
+Ip_Scanner2 = Port_Scanner2 = None
+Ip_vision_inner = Port_vision_inner = None
+Ip_vision_outer = Port_vision_outer = None
+Ip_vision_inner_SN = Port_vision_inner_SN = None
+Ip_vision_outer_SN = Port_vision_outer_SN = None
+Ip_read_IO = Port_read_IO = None
+Ip_write_IO = Port_write_IO = None
+Ip_cam_cap_s1 = Port_cam_cap_s1 = None
+Ip_cam_cap_s2 = Port_cam_cap_s2 = None
 
-#Vision Master_IP & Port
-Ip_vision_inner = "127.0.0.1"
-Port_vision_inner = 30
-Ip_vision_outer = "127.0.0.1"
-Port_vision_outer = 20
 
-Ip_vision_inner_SN = "127.0.0.1"
-Port_vision_inner_SN = 50
-Ip_vision_outer_SN = "127.0.0.1"
-Port_vision_outer_SN = 40
+def reload_endpoints():
+    """قراءة عناوين الأجهزة من config.json وتحديث المتغيرات اللي فوق."""
+    global Ip_Scanner1, Port_Scanner1, Ip_Scanner2, Port_Scanner2
+    global Ip_vision_inner, Port_vision_inner, Ip_vision_outer, Port_vision_outer
+    global Ip_vision_inner_SN, Port_vision_inner_SN
+    global Ip_vision_outer_SN, Port_vision_outer_SN
+    global Ip_read_IO, Port_read_IO, Ip_write_IO, Port_write_IO
+    global Ip_cam_cap_s1, Port_cam_cap_s1, Ip_cam_cap_s2, Port_cam_cap_s2
 
-#I/O Module_IP & Port
-Ip_read_IO = "192.168.1.30"#"192.168.1.30"
-Port_read_IO = 502
-Ip_write_IO = "192.168.1.30"#"192.168.1.30"
-Port_write_IO = 502
+    ioSetting.load_mapping()      # نقرا الملف من الأول عشان نلحق أي تعديل
+    eps = ioSetting.get_endpoints()
+
+    Ip_Scanner1,        Port_Scanner1        = eps["scanner_s1"]["ip"],      eps["scanner_s1"]["port"]
+    Ip_Scanner2,        Port_Scanner2        = eps["scanner_s2"]["ip"],      eps["scanner_s2"]["port"]
+    Ip_vision_outer,    Port_vision_outer    = eps["vision_outer"]["ip"],    eps["vision_outer"]["port"]
+    Ip_vision_inner,    Port_vision_inner    = eps["vision_inner"]["ip"],    eps["vision_inner"]["port"]
+    Ip_vision_outer_SN, Port_vision_outer_SN = eps["vision_outer_sn"]["ip"], eps["vision_outer_sn"]["port"]
+    Ip_vision_inner_SN, Port_vision_inner_SN = eps["vision_inner_sn"]["ip"], eps["vision_inner_sn"]["port"]
+    Ip_read_IO,         Port_read_IO         = eps["io_read"]["ip"],         eps["io_read"]["port"]
+    Ip_write_IO,        Port_write_IO        = eps["io_write"]["ip"],        eps["io_write"]["port"]
+    Ip_cam_cap_s1,      Port_cam_cap_s1      = eps["cam_cap_s1"]["ip"],      eps["cam_cap_s1"]["port"]
+    Ip_cam_cap_s2,      Port_cam_cap_s2      = eps["cam_cap_s2"]["ip"],      eps["cam_cap_s2"]["port"]
+
+    return eps
+
+
+reload_endpoints()
 
 
 
@@ -432,8 +464,7 @@ class  TCPClient():
             return False
         try:
             if self.connected:
-                print(f"[{self.ip}] Already connected.")
-                return True
+                    return True
             
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sock.settimeout(self.timeout) # تحديد وقت الانتظار (أو None للانتظار الدائم)
@@ -649,7 +680,11 @@ class  TCPClient():
 ##################################################################
 class App():
     def __init__(self):
-        
+
+        # نعيد قراءة العناوين من config.json هنا عشان أي تعديل من
+        # مودال الإعدادات يتطبق مع أول Restart من غير ما نقفل التطبيق.
+        reload_endpoints()
+
         #Scanner
         self.client_scanner_station1 = TCPClient(Ip_Scanner1, Port_Scanner1 )
         self.client_scanner_station2 = TCPClient(Ip_Scanner2, Port_Scanner2 )
@@ -676,8 +711,8 @@ class App():
         self.client_read_io = TCPClient(Ip_read_IO, Port_read_IO, timeout=2 )
         self.client_write_io = TCPClient(Ip_write_IO, Port_write_IO, timeout=2 )
 
-        self.cam_cap_s1= TCPClient("127.0.0.1", 70, timeout=2 )
-        self.cam_cap_s2 = TCPClient("127.0.0.1", 80, timeout=2 )
+        self.cam_cap_s1= TCPClient(Ip_cam_cap_s1, Port_cam_cap_s1, timeout=2 )
+        self.cam_cap_s2 = TCPClient(Ip_cam_cap_s2, Port_cam_cap_s2, timeout=2 )
 
         # علم الإيقاف العام للعملية (Start / Stop من الواجهة)
         self._stop_event = threading.Event()

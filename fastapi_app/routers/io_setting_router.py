@@ -61,6 +61,60 @@ async def save_mapping(request: Request):
     return JSONResponse({"status": "success"})
 
 
+# ----------------------------------------------------------------------
+# عناوين الأجهزة (IP / Port) — Developer mode فقط
+#
+# قبل كده كانت متكتوبة بإيد في ClientsClass.py، فتغيير IP كان محتاج
+# إعادة بناء الـ exe. دلوقتي بتتحفظ في config.json وبتتطبق مع Restart.
+# ----------------------------------------------------------------------
+@router.get("/endpoints", name="io_mapping.get_endpoints")
+async def get_endpoints(request: Request):
+    denied = require_dev(request)
+    if denied is not None:
+        return denied
+
+    return JSONResponse(
+        {
+            "endpoints": ioSetting.get_endpoints(),
+            "labels": ioSetting.ENDPOINT_LABELS,
+            "defaults": ioSetting.default_endpoints,
+        }
+    )
+
+
+@router.post("/endpoints", name="io_mapping.save_endpoints")
+async def save_endpoints(request: Request):
+    denied = require_dev(request)
+    if denied is not None:
+        return denied
+
+    payload = await request.json()
+
+    try:
+        saved = ioSetting.save_endpoints(payload or {})
+    except ValueError as exc:
+        # عنوان غلط بيوقّف الخط كله، فبنرفض الحفظ ونوري المستخدم السبب
+        # بدل ما المشكلة تظهر وقت Start.
+        return JSONResponse({"status": "error", "message": str(exc)}, status_code=400)
+
+    return JSONResponse(
+        {
+            "status": "success",
+            "endpoints": saved,
+            "message": "Saved — press Restart to apply.",
+        }
+    )
+
+
+@router.post("/endpoints/reset", name="io_mapping.reset_endpoints")
+async def reset_endpoints(request: Request):
+    denied = require_dev(request)
+    if denied is not None:
+        return denied
+
+    return JSONResponse({"status": "success", "endpoints": ioSetting.reset_endpoints()})
+
+
 @router.post("/command", name="io_mapping.execute_command")
 async def execute_command(request: Request):
     denied = require_dev(request)
@@ -72,7 +126,6 @@ async def execute_command(request: Request):
     action = data.get("action")
 
     hex_command = generate_modbus_command(func_name, action)
-    print(f"[{action}] Command for {func_name}: {hex_command}")
 
     return JSONResponse({"command": hex_command})
 
@@ -84,7 +137,6 @@ async def off_all(request: Request):
         return denied
 
     cmd_off_all = "000100000009010F00000010020000"
-    print(f"Sending OFF ALL Command: {cmd_off_all}")
     return JSONResponse({"command": cmd_off_all, "status": "All Off Sent"})
 
 

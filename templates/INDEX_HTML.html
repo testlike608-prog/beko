@@ -270,6 +270,28 @@
     </form>
 
     {% if auth == 'dev' %}
+    <!-- Device addresses (IP / Port) — Developer mode only.
+         الحقول بتتبني من JS من /endpoints، عشان أي جهاز جديد يتضاف في
+         ioSetting.default_endpoints يظهر هنا لوحده من غير تعديل HTML. -->
+    <form id="endpointsForm" class="mt-8 pt-4 border-t border-gray-200 dark:border-gray-700">
+      <h4 class="font-bold border-b pb-1 text-amber-600 dark:text-amber-400 mb-4">
+        Device Addresses <span class="text-xs font-normal opacity-70">(Developer only)</span>
+      </h4>
+
+      <div id="endpointsContainer" class="space-y-3 text-sm"></div>
+
+      <div id="endpointsResult" class="text-xs rounded p-3 mt-4 hidden"></div>
+
+      <p class="text-xs opacity-60 mt-3">
+        التعديل بيتحفظ في config.json وبيتطبق أول ما تدوس Restart.
+      </p>
+
+      <div class="flex flex-wrap gap-3 mt-4">
+        <button type="submit" class="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-4 rounded-lg transition">Save Addresses</button>
+        <button type="button" id="btnResetEndpoints" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition">Reset to Default</button>
+      </div>
+    </form>
+
     <!-- VisionMaster paths — Developer mode only -->
     <form id="visionMasterForm" class="mt-8 pt-4 border-t border-gray-200 dark:border-gray-700">
       <h4 class="font-bold border-b pb-1 text-purple-600 dark:text-purple-400 mb-4">

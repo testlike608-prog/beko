@@ -433,6 +433,126 @@ function turnOffAllIO() {
 
 
 /* ─────────────────────────────────────────────
+   6a-2. DEVICE ADDRESSES — IP / PORT (Developer mode only)
+
+   العناوين دي كانت متكتوبة بإيد في ClientsClass.py. دلوقتي بتيجي من
+   /endpoints وبتترسم أوتوماتيك، فأي جهاز جديد يتضاف في
+   ioSetting.default_endpoints بيظهر هنا لوحده من غير تعديل JS.
+───────────────────────────────────────────── */
+let EP_LABELS   = {};
+let EP_DEFAULTS = {};
+
+function endpointRow(key, label, entry, fallback) {
+  const row = document.createElement('div');
+  row.className = 'grid grid-cols-12 gap-2 items-center';
+  row.innerHTML = `
+    <label class="col-span-4 text-gray-700 dark:text-gray-300 font-medium truncate" title="${escapeHtml(label)}">
+      ${escapeHtml(label)}
+    </label>
+    <input type="text" data-ep="${escapeHtml(key)}" data-field="ip" spellcheck="false"
+      value="${escapeHtml(entry.ip || '')}" placeholder="${escapeHtml(fallback.ip || '')}"
+      class="col-span-5 min-w-0 border border-gray-300 dark:border-gray-600 rounded p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-xs focus:ring-2 focus:ring-amber-500">
+    <input type="number" min="1" max="65535" data-ep="${escapeHtml(key)}" data-field="port"
+      value="${escapeHtml(String(entry.port == null ? '' : entry.port))}"
+      placeholder="${escapeHtml(String(fallback.port == null ? '' : fallback.port))}"
+      class="col-span-3 min-w-0 border border-gray-300 dark:border-gray-600 rounded p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-xs focus:ring-2 focus:ring-amber-500">
+  `;
+  return row;
+}
+
+function renderEndpointsForm(eps) {
+  const box = $('endpointsContainer');
+  if (!box) return;
+  box.innerHTML = '';
+
+  const header = document.createElement('div');
+  header.className = 'grid grid-cols-12 gap-2 text-xs opacity-60 pb-1';
+  header.innerHTML =
+    '<span class="col-span-4">Device</span>' +
+    '<span class="col-span-5">IP / Host</span>' +
+    '<span class="col-span-3">Port</span>';
+  box.appendChild(header);
+
+  Object.keys(eps || {}).forEach(key => {
+    box.appendChild(endpointRow(key, EP_LABELS[key] || key, eps[key] || {}, EP_DEFAULTS[key] || {}));
+  });
+}
+
+function showEndpointsResult(ok, message) {
+  const box = $('endpointsResult');
+  if (!box) return;
+  box.classList.remove('hidden');
+  box.className = ok
+    ? 'text-xs rounded p-3 mt-4 bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200'
+    : 'text-xs rounded p-3 mt-4 bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200';
+  box.textContent = message;
+}
+
+async function loadEndpoints() {
+  if (!$('endpointsForm')) return;
+  try {
+    const res = await fetch('/endpoints');
+    if (!res.ok) return;
+    const data = await res.json();
+    EP_LABELS   = data.labels   || {};
+    EP_DEFAULTS = data.defaults || {};
+    renderEndpointsForm(data.endpoints);
+  } catch (err) {
+    console.error('Failed to load device addresses:', err);
+  }
+}
+
+function collectEndpoints() {
+  const out = {};
+  document.querySelectorAll('#endpointsContainer input[data-ep]').forEach(input => {
+    const key = input.dataset.ep;
+    out[key] = out[key] || {};
+    out[key][input.dataset.field] =
+      input.dataset.field === 'port' ? parseInt(input.value, 10) : input.value.trim();
+  });
+  return out;
+}
+
+async function saveEndpoints() {
+  try {
+    const res  = await fetch('/endpoints', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(collectEndpoints())
+    });
+    const data = await res.json();
+
+    if (!res.ok || data.status !== 'success') {
+      /* السيرفر بيرفض أي IP أو port غلط وبيقول السبب — بنوريه زي ما هو
+         بدل ما نحفظ عنوان بايظ وتكتشفه وقت START. */
+      showEndpointsResult(false, data.message || 'Failed to save device addresses.');
+      showToast('Device addresses not saved', 'red');
+      return;
+    }
+
+    renderEndpointsForm(data.endpoints);
+    showEndpointsResult(true, data.message || 'Saved — press Restart to apply.');
+    showToast('Device addresses saved', 'green');
+  } catch (err) {
+    showEndpointsResult(false, 'Request failed: ' + err);
+  }
+}
+
+async function resetEndpoints() {
+  if (!confirm('Revert all device addresses to the factory defaults?')) return;
+  try {
+    const res  = await fetch('/endpoints/reset', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) { showEndpointsResult(false, data.message || 'Reset failed.'); return; }
+    renderEndpointsForm(data.endpoints);
+    showEndpointsResult(true, 'Reverted to defaults — press Restart to apply.');
+  } catch (err) {
+    showEndpointsResult(false, 'Request failed: ' + err);
+  }
+}
+
+
+/* ─────────────────────────────────────────────
    6b. VISIONMASTER PATHS (Developer mode only)
    ملحوظة: مش بنعمل parseInt هنا — دي مسارات نصية مش أرقام بنّات.
 ───────────────────────────────────────────── */
@@ -792,6 +912,40 @@ function ensureHiddenInput(sanitizedKey) {
 
 let CURRENT_FIELD = null;
 
+/* الافتراضي لكل الاختبارات بقى None بدل "Select…".
+   الكود 00 هو نفس اللي موجود في defaultFixedOptions فوق. */
+const NONE_OPTION = { name: 'None', code: '00' };
+const NONE_VALUE  = NONE_OPTION.name + '|' + NONE_OPTION.code;
+
+/* بيرجع الاسم من صيغة "Label|Code" عشان نكتبه على الـ chip. */
+function labelFromValue(value) {
+  if (!value) return NONE_OPTION.name;
+  return String(value).split('|', 1)[0] || NONE_OPTION.name;
+}
+
+/* بيمشي على كل الاختبارات في صفحة create_program (الثابتة والديناميكية):
+   - أي حقل فاضي بياخد None|00
+   - الـ chip بيتظبط على القيمة الفعلية
+
+   الجزء التاني ده كان ناقص: لو الفورم رجع بأخطاء، القيم كانت بترجع في
+   الـ hidden inputs بس كل الـ chips تفضل مكتوب عليها "Select…"، فالمستخدم
+   ميعرفش هو مختار إيه. */
+function applyNoneDefaults() {
+  document.querySelectorAll('.picker-btn').forEach(btn => {
+    const key = btn.dataset.test ||
+                btn.querySelector('.editable-label')?.getAttribute('data-key');
+    if (!key) return;
+
+    const hidden = document.getElementById(key);
+    if (!hidden) return;
+
+    if (!hidden.value.trim()) hidden.value = NONE_VALUE;
+
+    const chip = $('selected-' + key) || $('disp_' + key);
+    if (chip) chip.textContent = labelFromValue(hidden.value);
+  });
+}
+
 function openPicker(fieldKey) {
   CURRENT_FIELD = fieldKey;
   $('modalTitle').textContent = 'Choose ' + getLabelName(fieldKey);
@@ -809,6 +963,13 @@ function openPicker(fieldKey) {
     opts = FIXED_OPTIONS[fieldKey].map(o => ({ name: o[0], code: o[1] }));
   } else if (TESTS_MAP[fieldKey]) {
     opts = TESTS_MAP[fieldKey].options.map(o => ({ name: o.name, code: o.code }));
+  }
+
+  /* لازم يكون فيه None في كل قائمة — من غيرها المستخدم يقدر يختار
+     بس ميقدرش يرجّع الاختبار لـ None تاني. الاختبارات الديناميكية
+     في tests.json غالبًا مفيهاش None، فبنضيفه هنا. */
+  if (!opts.some(o => String(o.name).trim().toLowerCase() === 'none')) {
+    opts = [{ ...NONE_OPTION }].concat(opts);
   }
 
   if (!opts || opts.length === 0) {
@@ -959,15 +1120,13 @@ async function resetDefaults() {
 
 function validateForm() {
   const sku = $('sku')?.value.trim();
-  const requiredIds = [
-    'ModelName', 'front_logo', 'display_logo', 'color', 'data_logo',
-    'inverter_logo', 'power_logo', 'eva_cover', 'drawer_printing',
-    'color_logo', 'fan_cover', 'shelve_color'
-  ];
   if (!sku) { alert('Please enter SKU'); return false; }
-  for (const id of requiredIds) {
-    if (!($( id)?.value || '').trim()) { alert('Please select: ' + getLabelName(id)); return false; }
-  }
+  if (!($('ModelName')?.value || '').trim()) { alert('Please enter Model Name'); return false; }
+
+  /* الاختبارات مبقتش إجبارية: أي حقل المستخدم مساه زي ما هو بيتبعت None|00
+     وبيتكتب في الـ CSV عادي. الـ alert القديم "Please select: X" اتشال. */
+  applyNoneDefaults();
+
   const btn = $('submitBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Creating...'; }
   return true;
@@ -1184,10 +1343,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnClose = $('btnCloseIoMapping');
     if (btnIo)    btnIo.addEventListener('click', () => {
       renderIoForm(loadIoSettings());
+      loadEndpoints();
       loadVisionMasterPaths();
       $('ioMappingModal').classList.remove('hidden');
     });
     if (btnClose) btnClose.addEventListener('click', () => $('ioMappingModal').classList.add('hidden'));
+  }
+
+  // Device addresses (index, developer mode only — the form isn't rendered otherwise)
+  if ($('endpointsForm')) {
+    $('endpointsForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      saveEndpoints();
+    });
+
+    const btnResetEp = $('btnResetEndpoints');
+    if (btnResetEp) btnResetEp.addEventListener('click', resetEndpoints);
   }
 
   // VisionMaster paths (index, developer mode only — the form isn't rendered otherwise)
@@ -1274,6 +1445,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Editable labels (create_program)
   if (document.querySelectorAll('.editable-label').length) initEditableLabels();
+
+  // كل الاختبارات تبدأ بـ None (create_program)
+  if (document.querySelectorAll('.picker-btn').length) applyNoneDefaults();
 
   // SQL status: push لو متاح، وإلا polling.
   // ملحوظة: /sql_status بيفتح اتصال pyodbc حقيقي، فكل تاب كان بيعمل

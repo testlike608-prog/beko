@@ -15,6 +15,23 @@ except NameError:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 PROGRAMS_DIR = BASE_DIR
+
+# ----------------------------------------------------------------------
+# لازم نعمل الفولدر بنفسنا.
+#
+# في نسخة الـ exe (standalone أو onefile) مفيش فولدر CreateProgram جنب
+# الـ exe غير لو حد نسخه بإيده. من غيره أي open(path, "w") بيرمي
+# FileNotFoundError، والـ try/except اللي في صفحة create_program كان
+# بيبلع الخطأ — فالمستخدم كان بيدوس Save، مفيش ملف بيتعمل ومفيش رسالة.
+#
+# exist_ok=True معناها إن ده أمان في كل الحالات: أول تشغيل بيعمل
+# الفولدر، وأي تشغيل بعده مش بيعمل حاجة.
+# ----------------------------------------------------------------------
+try:
+    os.makedirs(PROGRAMS_DIR, exist_ok=True)
+except OSError as _exc:
+    print(f"[CreateProgram] تعذّر إنشاء مجلد البرامج {PROGRAMS_DIR}: {_exc}", flush=True)
+
 #Globals
 CSV_CACHE: Dict[Tuple[str, str], Dict] = {}
 CSV_CACHE_MAX = 256
@@ -54,6 +71,12 @@ def _save_csv_file(path: str, rows: List[Tuple[str, str]], append: bool = False)
     """
     mode = "a" if append else "w"
     need_header = True
+
+    # حزام أمان: لو الفولدر اتمسح وهو شغال، أو لو المسار جاي من مكان
+    # تاني، بنعمله قبل الكتابة بدل ما نقع في FileNotFoundError.
+    parent = os.path.dirname(os.path.abspath(path))
+    if parent:
+        os.makedirs(parent, exist_ok=True)
 
     if append:
         try:
@@ -204,21 +227,26 @@ def page_create_program():
         fan_cover = request.form.get("fan_cover", "").strip()
         shelve_color = request.form.get("shelve_color", "").strip()
 
+        # الاختبارات مبقتش إجبارية — الافتراضي None|00 وبيتكتب في الـ CSV
+        # زي أي اختيار تاني. (نفس السلوك في fastapi_app/routers/create_program_router.py)
+        DEFAULT_OPTION = "None|00"
+        front_logo = front_logo or DEFAULT_OPTION
+        display_logo = display_logo or DEFAULT_OPTION
+        color = color or DEFAULT_OPTION
+        data_logo = data_logo or DEFAULT_OPTION
+        inverter_logo = inverter_logo or DEFAULT_OPTION
+        power_logo = power_logo or DEFAULT_OPTION
+        eva_cover = eva_cover or DEFAULT_OPTION
+        drawer_printing = drawer_printing or DEFAULT_OPTION
+        color_logo = color_logo or DEFAULT_OPTION
+        fan_cover = fan_cover or DEFAULT_OPTION
+        shelve_color = shelve_color or DEFAULT_OPTION
+
         errors = []
         if not sku:
             errors.append("SKU is required.")
-        required = [
-            ("Model Name", ModelName),
-            ("Front Logo", front_logo), ("Display logo", display_logo),
-            ("Color", color), ("Data logo", data_logo),
-            ("Inverter logo", inverter_logo), ("Power logo", power_logo),
-            ("Eva cover", eva_cover), ("Drawer printing", drawer_printing),
-            ("Color logo", color_logo), ("Fan cover", fan_cover),
-            ("Shelve color", shelve_color),
-        ]
-        for label, val in required:
-            if not val:
-                errors.append(f"{label} is required.")
+        if not ModelName:
+            errors.append("Model Name is required.")
 
         if errors:
             return render_template(
@@ -271,14 +299,10 @@ def page_create_program():
         # handle all dynamic tests (fixed + new)
         # ===============================
         for test in tests:
-            print("=== TESTS FROM JSON ===", tests)
-
             station = test.get("station", "").upper()
             test_name = test.get("name", "")
             field_key = test_name.replace(" ", "_")
-            selected_value = request.form.get(field_key)
-            if not selected_value:
-                continue
+            selected_value = request.form.get(field_key) or DEFAULT_OPTION
 
             parts = selected_value.split("|", 1)
             if len(parts) == 2:
