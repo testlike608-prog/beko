@@ -3,34 +3,23 @@ from flask import render_template, redirect, url_for
 from flask import Flask, request, jsonify, render_template_string, send_from_directory, session
 from typing import Dict,Tuple,List
 import os,re
+import helpers as hlb
 from helpers import _save_csv_file,_csv_path,load_tests,save_tests
 import ClientsClass as cc
 import csv
-# ملفات البرامج (CSV) بيعدّلها المستخدم، فلازم تفضل جنب الـ exe.
-# في وضع onefile الـ __file__ بيشاور على فولدر مؤقت، واللي يتكتب فيه
-# بيضيع أول ما البرنامج يقفل. شوف الشرح في fastapi_app/core.py.
-try:
-    BASE_DIR = os.path.join(os.path.normpath(__compiled__.containing_dir), "CreateProgram")  # type: ignore[name-defined]  # noqa: F821
-except NameError:
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-PROGRAMS_DIR = BASE_DIR
 
 # ----------------------------------------------------------------------
-# لازم نعمل الفولدر بنفسنا.
+# مجلد البرامج = <مكان الـ exe>\Programs
 #
-# في نسخة الـ exe (standalone أو onefile) مفيش فولدر CreateProgram جنب
-# الـ exe غير لو حد نسخه بإيده. من غيره أي open(path, "w") بيرمي
-# FileNotFoundError، والـ try/except اللي في صفحة create_program كان
-# بيبلع الخطأ — فالمستخدم كان بيدوس Save، مفيش ملف بيتعمل ومفيش رسالة.
+# مصدر واحد للمسار ده هو helpers.CSV_SOURCE_DIR — قبل كده الملف ده كان
+# بيحسب المسار لوحده، فكان سهل إن الاتنين يفترقوا ونبقى بنكتب في مكان
+# وبنقرا من مكان تاني. helpers كمان هي اللي بتعمل الفولدر وبتنقل
+# الملفات القديمة من CreateProgram\، فمفيش داعي نكرر ده هنا.
 #
-# exist_ok=True معناها إن ده أمان في كل الحالات: أول تشغيل بيعمل
-# الفولدر، وأي تشغيل بعده مش بيعمل حاجة.
+# الاسم القديم للفولدر كان "CreateProgram" — نفس اسم الحزمة دي بالظبط،
+# وده كان بيلخبط الكود بالداتا. بقى "Programs".
 # ----------------------------------------------------------------------
-try:
-    os.makedirs(PROGRAMS_DIR, exist_ok=True)
-except OSError as _exc:
-    print(f"[CreateProgram] تعذّر إنشاء مجلد البرامج {PROGRAMS_DIR}: {_exc}", flush=True)
+PROGRAMS_DIR = hlb.CSV_SOURCE_DIR
 
 #Globals
 CSV_CACHE: Dict[Tuple[str, str], Dict] = {}

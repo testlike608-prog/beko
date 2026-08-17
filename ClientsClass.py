@@ -191,7 +191,9 @@ def auto_load_csv_by_product_number(product_number: str, part: str, server_insta
             return False
             
         filename = f"{safe_product}{part}.csv"
-        csv_path  = os.path.join(hlb.PROGRAMS_DIR, "CreateProgram", filename)
+        # مصدر واحد للمسار — الفولدر اتغير اسمه من CreateProgram\ إلى
+        # Programs\ وده بيتبعه أوتوماتيك.
+        csv_path  = os.path.join(hlb.CSV_SOURCE_DIR, filename)
        
 
         

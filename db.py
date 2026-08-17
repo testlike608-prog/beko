@@ -143,8 +143,6 @@ def auto_connect_db():
         except Exception as e:
             return None, f"DB{index} connection failed: {e}"
 
-    print(f"ODBC driver in use: {pick_driver() or 'NONE'}")
-
     conn_str_db1_global, msg1 = connect_from_file("last_db1_settings.txt", 1)
     conn_str_db2_global, msg2= connect_from_file("last_db2_settings.txt", 2)
     print(f"{msg1}\n{msg2}")

@@ -232,7 +232,6 @@ def start_tickers():
     _tasks.append(loop.create_task(_fast_loop()))
     _tasks.append(loop.create_task(_flags_loop()))
     _tasks.append(loop.create_task(_sql_loop()))
-    print("[realtime] Socket.IO tickers started")
 
 
 async def stop_tickers():

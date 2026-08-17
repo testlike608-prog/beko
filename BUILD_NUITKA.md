@@ -79,7 +79,7 @@ dist\main_fastapi.dist\
     logins.csv                   ← المستخدمين
     last_db1_settings.txt        ← إعدادات قاعدة البيانات (لو موجودة)
     last_db2_settings.txt
-    CreateProgram\               ← برامج الـ CSV
+    Programs\                    ← برامج الـ CSV (البرنامج بيعمله لوحده)
     data\                        ← ممكن يبقى فاضي، التطبيق بيعمله لوحده
     msodbcsql.msi                ← درايفر ODBC (شوف تحت)
 ```
@@ -170,7 +170,7 @@ shell:startup
 - `config.json`
 - `logins.csv`
 - `last_db1_settings.txt` / `last_db2_settings.txt`
-- `CreateProgram\`
+- `Programs\` (اختياري — البرنامج بيعمله أول تشغيل)
 - `data\`
 
 ---

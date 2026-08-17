@@ -13,7 +13,6 @@ main_fastapi.py
 
 from __future__ import annotations
 
-import logging
 import os
 import sys
 import threading
@@ -45,7 +44,7 @@ for _stream in (sys.stdout, sys.stderr):
 def _application_directory() -> str:
     """
     المكان اللي فيه ملفات المستخدم: config.json و logins.csv و
-    CreateProgram و data/ و last_db*_settings.txt.
+    Programs و data/ و last_db*_settings.txt.
 
     مهم إنه يبقى جنب الـ exe نفسه، مش جوه الحزمة. في وضع onefile
     الـ bootstrap بيفك ضغط البرنامج في مكان مؤقت، ولو عملنا chdir
@@ -96,7 +95,7 @@ def _open_browser_if_needed(wait_seconds: float = 4.0):
     deadline = time.time() + wait_seconds
     while time.time() < deadline:
         if client_seen_within(wait_seconds):
-            print(" Existing browser tab detected — refreshing it instead of opening a new one")
+            # تفصيلة داخلية — المشغّل مش محتاج يعرفها.
             return
         time.sleep(0.25)
 
@@ -104,41 +103,33 @@ def _open_browser_if_needed(wait_seconds: float = 4.0):
 
 
 # ---------------------------------------------------------------------
-# تسكيت سطور الـ access log بتاعة الـ polling.
+# تسكيت لوج السيرفر بالكامل.
 #
-# الواجهة بتضرب /check-flags و /check-flags2 كل ثانية، و /process/status
-# و /sql_status و /station*_status كل ثانيتين. مع log_level="info" كان
-# uvicorn بيطبع سطر لكل واحدة فيهم — يعني الترمينال بيتملى ٤-٦ سطور في
-# الثانية والبرنامج واقف مش بيعمل حاجة، وأي رسالة مهمة بتضيع وسطهم.
+# uvicorn بيطبع:
+#   - سطر access لكل request. الواجهة بتضرب /check-flags و
+#     /check-flags2 كل ثانية و /process/status و /sql_status و
+#     /station*_status كل ثانيتين، وكل فتحة صفحة معاها /static/main.js
+#     و 303 و 304 … يعني الشاشة بتتملى وهي واقفة مش بتعمل حاجة.
+#   - سطور بدء التشغيل: "Started server process"، "Waiting for
+#     application startup"، "Uvicorn running on http://…" وهكذا.
 #
-# الفلتر ده بيشيل السطور دي هي بس. أي request تاني (فتح صفحة، حفظ
-# إعدادات، أي 4xx أو 5xx) بيفضل يتطبع عادي.
+# مفيش حاجة من دول بتفيد المشغّل على الخط، وكلها كانت بتدفن الرسائل
+# اللي فعلًا مهمة (حالة الاتصال، بدء/إيقاف العملية، الأخطاء).
+#
+#   access_log=False   → مفيش أي سطر request خالص
+#   log_level="error"  → مفيش سطور بدء/إيقاف، بس لو حصل خطأ حقيقي
+#
+# الترمينال دلوقتي بيعرض رسايل البرنامج نفسه بس.
+# (لو احتجت تدبّج مشكلة: غيّر log_level لـ "info" و access_log لـ True.)
 # ---------------------------------------------------------------------
-POLLING_PATHS = (
-    "/check-flags",
-    "/check-flags2",
-    "/station1_status",
-    "/station2_status",
-    "/process/status",
-    "/sql_status",
-)
-
-
-class _SkipPollingAccessLogs(logging.Filter):
-    def filter(self, record: logging.LogRecord) -> bool:
-        # uvicorn.access بيبعت الـ args بالشكل ده:
-        #   (client_addr, method, full_path, http_version, status_code)
-        args = record.args
-        if not isinstance(args, tuple) or len(args) < 3:
-            return True
-
-        path = str(args[2]).split("?", 1)[0]
-        return not any(path == p or path.startswith(p + "/") for p in POLLING_PATHS)
-
 
 if __name__ == "__main__":
     threading.Thread(target=_open_browser_if_needed, daemon=True).start()
 
-    logging.getLogger("uvicorn.access").addFilter(_SkipPollingAccessLogs())
-
-    uvicorn.run(app, host=HOST, port=PORT, log_level="info")
+    uvicorn.run(
+        app,
+        host=HOST,
+        port=PORT,
+        log_level="error",
+        access_log=False,
+    )

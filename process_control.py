@@ -131,7 +131,6 @@ class ProcessController:
                 self._running = False
                 self._started_at = None
                 self._last_error = msg
-            print(f"{msg}")
             return {
                 "ok": False,
                 "running": False,
@@ -155,7 +154,6 @@ class ProcessController:
                     self._running = False
                     self._started_at = None
                     self._last_error = str(exc)
-                    print(f"Failed to create App: {exc}")
                     failure = {
                         "ok": False,
                         "running": False,
@@ -173,16 +171,22 @@ class ProcessController:
             self._safe_vision_stop()
             return failure
 
-        print("Process starting…")
         return {"ok": True, "running": True, "message": "Process started"}
 
-    @staticmethod
-    def _safe_vision_stop():
-        """إيقاف VisionMaster من غير ما أي استثناء يوقف مسار الإيقاف."""
+    def _safe_vision_stop(self):
+        """
+        إيقاف VisionMaster من غير ما أي استثناء يوقف مسار الإيقاف.
+
+        الخطأ مبيتطبعش في الترمينال — بيتسجّل في last_error عشان يوصل
+        للواجهة. وبنكتبه بس لو مفيش خطأ متسجّل قبله، عشان ما يغطّيش
+        السبب الأصلي للفشل (VisionMaster فشل، الـ App مااتعملش … إلخ).
+        """
         try:
             vision_master.controller.stop()
         except Exception as exc:  # noqa: BLE001
-            print(f"Error stopping VisionMaster: {exc}")
+            with self._lock:
+                if not self._last_error:
+                    self._last_error = f"Error stopping VisionMaster: {exc}"
 
     def _boot(self, app: "cc.App"):
         """يفتح الاتصالات ويشغّل ثريدات العمل. بيشتغل في الخلفية."""
@@ -197,7 +201,6 @@ class ProcessController:
             app.Start_connetion()
 
             if app.is_stopping():
-                print("Start aborted — stop was requested during startup")
                 return
 
             workers = [
@@ -219,8 +222,6 @@ class ProcessController:
                 self._threads = threads
                 self._ready = True
 
-            print("Process running")
-
         except Exception as exc:  # noqa: BLE001
             with self._lock:
                 self._last_error = str(exc)
@@ -232,7 +233,6 @@ class ProcessController:
                 app.shutdown()
             except Exception:
                 pass
-            print(f"Failed to start process: {exc}")
 
     # ------------------------------------------------------------------
     # الإيقاف
@@ -266,7 +266,6 @@ class ProcessController:
         except Exception as exc:  # noqa: BLE001
             with self._lock:
                 self._last_error = str(exc)
-            print(f"Error during shutdown: {exc}")
 
         deadline = time.time() + join_timeout
         for t in threads:
@@ -281,7 +280,6 @@ class ProcessController:
             self._started_at = None
 
         if still_alive:
-            print(f"Process stopped, but these threads are still winding down: {still_alive}")
             return {
                 "ok": True,
                 "running": False,
@@ -289,7 +287,6 @@ class ProcessController:
                 "pending_threads": still_alive,
             }
 
-        print("Process stopped")
         return {"ok": True, "running": False, "message": "Process stopped"}
 
     # ------------------------------------------------------------------
@@ -327,7 +324,6 @@ class ProcessController:
             except Exception as exc:  # noqa: BLE001
                 with self._lock:
                     self._last_error = str(exc)
-                print(f"Error during background stop: {exc}")
             finally:
                 with self._lock:
                     self._stopping = False
@@ -358,10 +354,6 @@ class ProcessController:
                             "Stop is taking longer than expected — "
                             "still finishing in the background"
                         )
-                        print(
-                            f"Stop watchdog fired after {self.STOP_WATCHDOG}s — "
-                            "UI unlocked, teardown still running"
-                        )
 
         threading.Thread(target=_watchdog, name="beko-stop-watchdog", daemon=True).start()
 
@@ -384,25 +376,21 @@ class ProcessController:
             except Exception as exc:  # noqa: BLE001
                 with self._lock:
                     self._last_error = str(exc)
-                print(f"Restart — stop phase failed: {exc}")
             finally:
                 # لازم يتصفّى هنا مهما حصل، وإلا الواجهة تفضل مقفولة
                 with self._lock:
                     self._stopping = False
 
             # --- مرحلة التشغيل ---
+            # لو start() فشلت (مثلاً VisionMaster) الرسالة بتبقى في
+            # last_error واللي بيوصل للواجهة مع الحالة.
             try:
-                result = self.start()
-                if not result.get("ok"):
-                    # مثلاً VisionMaster فشل — الرسالة موجودة في last_error
-                    # واللي بيوصل للواجهة مع الحالة
-                    print(f"Restart — start phase failed: {result.get('message')}")
+                self.start()
             except Exception as exc:  # noqa: BLE001
                 with self._lock:
                     self._running = False
                     self._ready = False
                     self._last_error = str(exc)
-                print(f"Restart — start phase crashed: {exc}")
 
         worker = threading.Thread(target=_worker, name="beko-restart", daemon=True)
         worker.start()

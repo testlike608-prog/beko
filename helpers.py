@@ -1,5 +1,6 @@
-import csv 
+import csv
 import os,re,json
+import shutil
 from typing import List,Tuple,Dict
 import threading
 import pandas as pd
@@ -114,14 +115,70 @@ except NameError:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 PROGRAMS_DIR = BASE_DIR
-CSV_SOURCE_DIR = os.path.join(PROGRAMS_DIR, "CreateProgram")
 
-# مجلد البرامج مش بيتنسخ مع الـ exe — بنعمله أول تشغيل.
-# من غير ده صفحة Create Program مش بتقدر تكتب أي CSV في نسخة الـ exe.
+# ----------------------------------------------------------------------
+# مجلد البرامج
+#
+# الاسم كان "CreateProgram" — نفس اسم حزمة البايثون بالظبط، وده كان
+# مربك: المستخدم بيفتح الفولدر اللي جنب الـ exe وميعرفش هو ده كود ولا
+# داتا. بقى اسمه "Programs" — أوضح وأنضف.
+#
+# LEGACY_CSV_DIR هو الاسم القديم. أي جهاز شغال دلوقتي عنده ملفات جواه،
+# فبننقلها مرة واحدة أول تشغيل بعد التحديث.
+# ----------------------------------------------------------------------
+CSV_DIR_NAME = "Programs"
+CSV_SOURCE_DIR = os.path.join(PROGRAMS_DIR, CSV_DIR_NAME)
+LEGACY_CSV_DIR = os.path.join(PROGRAMS_DIR, "CreateProgram")
+
+# المجلد مش بيتنسخ مع الـ exe — بنعمله أول تشغيل. من غيره صفحة
+# Create Program مش بتقدر تكتب أي CSV في نسخة الـ exe.
 try:
     os.makedirs(CSV_SOURCE_DIR, exist_ok=True)
 except OSError as _exc:
     print(f"[helpers] تعذّر إنشاء مجلد البرامج {CSV_SOURCE_DIR}: {_exc}", flush=True)
+
+
+def _migrate_legacy_programs():
+    """
+    نقل ملفات الـ CSV من CreateProgram\\ القديم إلى Programs\\.
+
+    بننقل ملفات .csv بس، ومش بنمسح المجلد القديم — لأن وقت التشغيل من
+    السورس المجلد القديم هو حزمة البايثون نفسها (فيها __init__.py)،
+    ومسحها كان هيكسر البرنامج.
+
+    أي ملف موجود في الجديد مبيتلمسش، فالدالة دي آمنة إنها تتنفذ كل
+    تشغيل — بعد أول مرة مش بتعمل حاجة.
+    """
+    if os.path.normcase(LEGACY_CSV_DIR) == os.path.normcase(CSV_SOURCE_DIR):
+        return
+    if not os.path.isdir(LEGACY_CSV_DIR):
+        return
+
+    try:
+        names = os.listdir(LEGACY_CSV_DIR)
+    except OSError:
+        return
+
+    for name in names:
+        if not name.lower().endswith(".csv"):
+            continue
+
+        src = os.path.join(LEGACY_CSV_DIR, name)
+        dst = os.path.join(CSV_SOURCE_DIR, name)
+        if not os.path.isfile(src) or os.path.exists(dst):
+            continue
+
+        try:
+            shutil.move(src, dst)
+        except OSError:
+            # لو النقل فشل (الملف مفتوح مثلًا) بننسخه بدل ما نضيّعه
+            try:
+                shutil.copy2(src, dst)
+            except OSError:
+                pass
+
+
+_migrate_legacy_programs()
 
 TESTS_FILE = "tests.json"
 #-----------------check if Statin1.csv exist---------------

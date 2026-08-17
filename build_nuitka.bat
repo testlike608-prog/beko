@@ -64,7 +64,6 @@ echo الخطوة الجاية: انسخ الملفات دي جنب main_fastapi
 echo   - config.json   (لو مش موجود، التطبيق بيعمل واحد افتراضي)
 echo   - logins.csv
 echo   - last_db1_settings.txt / last_db2_settings.txt (لو موجودين)
-echo   - مجلد CreateProgram\
 echo   - مجلد data\  (ممكن يبقى فاضي)
 echo.
 endlocal
