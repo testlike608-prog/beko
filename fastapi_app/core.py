@@ -21,6 +21,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 
+<<<<<<< HEAD
 # ----------------------------------------------------------------------
 # مسارين مختلفين، مش مسار واحد
 #
@@ -71,6 +72,18 @@ APP_ROOT = _application_directory()
 
 TEMPLATES_DIR = os.path.join(BUNDLE_ROOT, "templates")
 STATIC_DIR = os.path.join(BUNDLE_ROOT, "static")
+=======
+def _application_directory() -> str:
+    """جذر المشروع: مجلد السورس عند التشغيل العادي، ومجلد dist عند التجميد."""
+    if getattr(sys, "frozen", False):
+        return os.path.normpath(os.path.dirname(sys.executable))
+    return os.path.normpath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+APP_ROOT = _application_directory()
+TEMPLATES_DIR = os.path.join(APP_ROOT, "templates")
+STATIC_DIR = os.path.join(APP_ROOT, "static")
+>>>>>>> 9bf21a6 (ADD debug mode)
 
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
@@ -92,6 +105,7 @@ def static_version(filename: str) -> str:
         return "0"
 
 
+<<<<<<< HEAD
 def static_exists(filename: str) -> bool:
     """
     عشان ما نطلبش ملف مش موجود ونجيب 404 في اللوج.
@@ -102,6 +116,9 @@ def static_exists(filename: str) -> bool:
 
 templates.env.globals["static_v"] = static_version
 templates.env.globals["static_exists"] = static_exists
+=======
+templates.env.globals["static_v"] = static_version
+>>>>>>> 9bf21a6 (ADD debug mode)
 
 
 # ----------------------------------------------------------------------

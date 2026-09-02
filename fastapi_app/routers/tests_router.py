@@ -30,7 +30,11 @@ def reset_error():
         cc.Manual_Scanner_MODE2 = False
         cc.your_s1_result = None
         cc.your_s2_result = None
+<<<<<<< HEAD
         print("Error condition reset")
+=======
+        print("🔄 Error condition reset")
+>>>>>>> 9bf21a6 (ADD debug mode)
         return JSONResponse({"ok": True, "msg": "Error condition reset"})
     except Exception as e:  # noqa: BLE001
         return JSONResponse({"ok": False, "msg": str(e)}, status_code=500)
@@ -56,7 +60,11 @@ async def delete_test(request: Request):
             return JSONResponse({"ok": False, "msg": f"Test '{name}' not found"}, status_code=404)
 
         save_tests(remaining)
+<<<<<<< HEAD
         print(f"Test deleted: {name}")
+=======
+        print(f"🗑️ Test deleted: {name}")
+>>>>>>> 9bf21a6 (ADD debug mode)
         return JSONResponse({"ok": True, "msg": f"Test '{name}' deleted", "count": len(remaining)})
     except Exception as e:  # noqa: BLE001
         return JSONResponse({"ok": False, "msg": str(e)}, status_code=500)
@@ -67,7 +75,11 @@ def reset_tests():
     """مسح كل الاختبارات الديناميكية من tests.json"""
     try:
         save_tests([])
+<<<<<<< HEAD
         print("All dynamic tests cleared")
+=======
+        print("♻️ All dynamic tests cleared")
+>>>>>>> 9bf21a6 (ADD debug mode)
         return JSONResponse({"ok": True, "msg": "All tests cleared"})
     except Exception as e:  # noqa: BLE001
         return JSONResponse({"ok": False, "msg": str(e)}, status_code=500)

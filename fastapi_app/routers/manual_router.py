@@ -34,14 +34,22 @@ async def page_csv_popup(request: Request):
 @router.post("/ManualPopup/ack", name="Manual.manual_popup_ack")
 async def manual_popup_ack():
     cc.Buzzer_Flag_to_OFF = True
+<<<<<<< HEAD
     cc.Manual_Scanner_MODE = False  # الفلاج بيتقفل هنا
+=======
+    cc.Manual_Scanner_MODE = False  # 👈 الفلاج بيتقفل هنا
+>>>>>>> 9bf21a6 (ADD debug mode)
     return redirect("/home")
 
 
 @router.post("/NoCSV/ack", name="Manual.csv_popup_ack")
 async def csv_popup_ack():
     cc.Buzzer_Flag_to_OFF2 = True
+<<<<<<< HEAD
     cc.NO_CSV_ERROR = False  # يقفل الفلاج
+=======
+    cc.NO_CSV_ERROR = False  # 👈 يقفل الفلاج
+>>>>>>> 9bf21a6 (ADD debug mode)
     return redirect("/home")
 
 
@@ -72,6 +80,13 @@ async def handle_station_data(request: Request):
         cc.is_waiting = False
         cc.Manual_Scanner_MODE = False
 
+<<<<<<< HEAD
+=======
+        print(f"Global Variable 'is_waiting' is now: {cc.is_waiting}")
+        print(f"Data added to queue. Queue size: {cc.queue_manual_FOR_FAILURE.qsize()}")
+        print(f"Data content: {data_received}")
+
+>>>>>>> 9bf21a6 (ADD debug mode)
         return JSONResponse(
             {"status": "success", "message": "تم إضافة الداتا وتغيير المتغير"}, status_code=200
         )
@@ -92,6 +107,13 @@ async def handle_station_data2(request: Request):
         cc.is_waiting2 = False
         cc.Manual_Scanner_MODE2 = False
 
+<<<<<<< HEAD
+=======
+        print(f"Global Variable 'is_waiting' is now: {cc.is_waiting}")
+        print(f"Data added to queue. Queue size: {cc.queue_manual2_FOR_FAILURE.qsize()}")
+        print(f"Data content: {data_received}")
+
+>>>>>>> 9bf21a6 (ADD debug mode)
         return JSONResponse(
             {"status": "success", "message": "تم إضافة الداتا وتغيير المتغير"}, status_code=200
         )
@@ -103,9 +125,17 @@ async def handle_station_data2(request: Request):
 
 @router.post("/control", name="Manual.control")
 async def control():
+<<<<<<< HEAD
     try:
         cc.NO_CSV_ERROR = False
         cc.Buzzer_Flag_to_OFF = True
+=======
+    print("entred the function")
+    try:
+        cc.NO_CSV_ERROR = False
+        cc.Buzzer_Flag_to_OFF = True
+        print(f"buzzer flag = {cc.Buzzer_Flag_to_OFF}")
+>>>>>>> 9bf21a6 (ADD debug mode)
         return JSONResponse({"status": "success"}, status_code=200)
     except Exception as e:  # noqa: BLE001
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)

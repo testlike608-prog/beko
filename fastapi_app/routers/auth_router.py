@@ -68,7 +68,11 @@ async def login_submit(
     return templates.TemplateResponse(
         request,
         "LOGIN_HTML.html",
+<<<<<<< HEAD
         {"error": "Invalid username or password"},
+=======
+        {"error": "❌Invalid username or password"},
+>>>>>>> 9bf21a6 (ADD debug mode)
     )
 
 

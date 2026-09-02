@@ -223,12 +223,15 @@ def _save_csv_file(path: str, rows: List[Tuple[str, str]], append: bool = False)
     mode = "a" if append else "w"
     need_header = True
 
+<<<<<<< HEAD
     # نتأكد إن الفولدر موجود قبل الكتابة (نسخة الـ exe مش بيبقى فيها
     # مجلد CreateProgram، وممكن كمان حد يمسحه والبرنامج شغال).
     parent = os.path.dirname(os.path.abspath(path))
     if parent:
         os.makedirs(parent, exist_ok=True)
 
+=======
+>>>>>>> 9bf21a6 (ADD debug mode)
     if append:
         try:
             need_header = (not os.path.isfile(path)) or os.path.getsize(path) == 0

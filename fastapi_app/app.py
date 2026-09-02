@@ -18,6 +18,10 @@ from .routers import (
     auth_router,
     create_program_router,
     create_user_router,
+<<<<<<< HEAD
+=======
+    debug_router,
+>>>>>>> 9bf21a6 (ADD debug mode)
     flags_router,
     flash_router,
     home_router,
@@ -52,8 +56,19 @@ def create_app() -> FastAPI:
 
     @app.middleware("http")
     async def _track_client(request: Request, call_next):
+<<<<<<< HEAD
         """تسجيل إن فيه متصفح شغال — بيستخدمها main_fastapi عشان ما يفتحش تاب زيادة."""
         if not request.url.path.startswith("/static"):
+=======
+        """
+        تسجيل إن فيه متصفح شغال — بيستخدمها main_fastapi عشان ما يفتحش تاب زيادة.
+
+        /healthz مستثنى عن قصد: main_fastapi بيسأل عليه وهو بيستنى السيرفر
+        يجهز، ولو حسبناه "متصفح" مكانش هيفتح التاب أبدًا.
+        """
+        path = request.url.path
+        if not path.startswith("/static") and path != "/healthz":
+>>>>>>> 9bf21a6 (ADD debug mode)
             touch_client()
         return await call_next(request)
 
@@ -73,6 +88,10 @@ def create_app() -> FastAPI:
     app.include_router(io_setting_router.router)
     app.include_router(flags_router.router)
     app.include_router(tests_router.router)
+<<<<<<< HEAD
+=======
+    app.include_router(debug_router.router)
+>>>>>>> 9bf21a6 (ADD debug mode)
 
     @app.get("/", include_in_schema=False, name="root")
     async def root():
@@ -103,6 +122,7 @@ def create_app() -> FastAPI:
         os.chdir(APP_ROOT)
         os.makedirs("data", exist_ok=True)
 
+<<<<<<< HEAD
         import asyncio
 
         import db
@@ -119,13 +139,22 @@ def create_app() -> FastAPI:
                 print(f"Auto-connect to databases failed: {exc}")
 
         asyncio.create_task(_connect_db_background())
+=======
+        import db
+
+        db.auto_connect_db()
+>>>>>>> 9bf21a6 (ADD debug mode)
 
         import realtime
 
         realtime.register_handlers()
         realtime.start_tickers()
 
+<<<<<<< HEAD
         print("Web layer ready — press START in the UI to run the process.")
+=======
+        print("🌐 Web layer ready — press START in the UI to run the process.")
+>>>>>>> 9bf21a6 (ADD debug mode)
 
     @app.on_event("shutdown")
     async def _shutdown():

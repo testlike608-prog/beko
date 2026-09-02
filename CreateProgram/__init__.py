@@ -3,7 +3,10 @@ from flask import render_template, redirect, url_for
 from flask import Flask, request, jsonify, render_template_string, send_from_directory, session
 from typing import Dict,Tuple,List
 import os,re
+<<<<<<< HEAD
 import helpers as hlb
+=======
+>>>>>>> 9bf21a6 (ADD debug mode)
 from helpers import _save_csv_file,_csv_path,load_tests,save_tests
 import ClientsClass as cc
 import csv
@@ -61,12 +64,15 @@ def _save_csv_file(path: str, rows: List[Tuple[str, str]], append: bool = False)
     mode = "a" if append else "w"
     need_header = True
 
+<<<<<<< HEAD
     # حزام أمان: لو الفولدر اتمسح وهو شغال، أو لو المسار جاي من مكان
     # تاني، بنعمله قبل الكتابة بدل ما نقع في FileNotFoundError.
     parent = os.path.dirname(os.path.abspath(path))
     if parent:
         os.makedirs(parent, exist_ok=True)
 
+=======
+>>>>>>> 9bf21a6 (ADD debug mode)
     if append:
         try:
             need_header = (not os.path.isfile(path)) or os.path.getsize(path) == 0
@@ -141,7 +147,11 @@ def reset_error():
         cc.Manual_Scanner_MODE2 = False
         cc.your_s1_result = None
         cc.your_s2_result = None
+<<<<<<< HEAD
         print("Error condition reset")
+=======
+        print("🔄 Error condition reset")
+>>>>>>> 9bf21a6 (ADD debug mode)
         return jsonify({"ok": True, "msg": "Error condition reset"})
     except Exception as e:
         return jsonify({"ok": False, "msg": str(e)}), 500
@@ -163,7 +173,11 @@ def delete_test():
             return jsonify({"ok": False, "msg": f"Test '{name}' not found"}), 404
 
         save_tests(remaining)
+<<<<<<< HEAD
         print(f"Test deleted: {name}")
+=======
+        print(f"🗑️ Test deleted: {name}")
+>>>>>>> 9bf21a6 (ADD debug mode)
         return jsonify({"ok": True, "msg": f"Test '{name}' deleted", "count": len(remaining)})
     except Exception as e:
         return jsonify({"ok": False, "msg": str(e)}), 500
@@ -189,7 +203,11 @@ def reset_tests():
     """resetDefaults() في main.js — مسح كل الاختبارات الديناميكية"""
     try:
         save_tests([])
+<<<<<<< HEAD
         print("All dynamic tests cleared")
+=======
+        print("♻️ All dynamic tests cleared")
+>>>>>>> 9bf21a6 (ADD debug mode)
         return jsonify({"ok": True, "msg": "All tests cleared"})
     except Exception as e:
         return jsonify({"ok": False, "msg": str(e)}), 500
@@ -304,7 +322,11 @@ def page_create_program():
             try:
                 _save_csv_file(target_path, [row], append=True)
             except Exception as e:
+<<<<<<< HEAD
                 print(f"Failed saving dynamic test '{test_name}' to {target_path}: {e}")
+=======
+                print(f"❌ Failed saving dynamic test '{test_name}' to {target_path}: {e}")
+>>>>>>> 9bf21a6 (ADD debug mode)
        # ===============================
         #CSV_CACHE.pop((sku, "S1"), None)
        # CSV_CACHE.pop((sku, "S2"), None)

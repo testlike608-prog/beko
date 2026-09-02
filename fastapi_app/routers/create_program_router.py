@@ -64,6 +64,7 @@ async def create_program_submit(request: Request):
     fan_cover = f("fan_cover")
     shelve_color = f("shelve_color")
 
+<<<<<<< HEAD
     # ------------------------------------------------------------------
     # الاختبارات مبقتش إجبارية.
     #
@@ -90,6 +91,23 @@ async def create_program_submit(request: Request):
         errors.append("SKU is required.")
     if not ModelName:
         errors.append("Model Name is required.")
+=======
+    errors = []
+    if not sku:
+        errors.append("SKU is required.")
+    required = [
+        ("Model Name", ModelName),
+        ("Front Logo", front_logo), ("Display logo", display_logo),
+        ("Color", color), ("Data logo", data_logo),
+        ("Inverter logo", inverter_logo), ("Power logo", power_logo),
+        ("Eva cover", eva_cover), ("Drawer printing", drawer_printing),
+        ("Color logo", color_logo), ("Fan cover", fan_cover),
+        ("Shelve color", shelve_color),
+    ]
+    for label, val in required:
+        if not val:
+            errors.append(f"{label} is required.")
+>>>>>>> 9bf21a6 (ADD debug mode)
 
     if errors:
         return templates.TemplateResponse(
@@ -111,6 +129,7 @@ async def create_program_submit(request: Request):
     path_s1 = os.path.join(PROGRAMS_DIR, filename_s1)
     path_s2 = os.path.join(PROGRAMS_DIR, filename_s2)
 
+<<<<<<< HEAD
     # في نسخة الـ exe المجلد ده ممكن ميكونش موجود. CreateProgram بيعمله
     # وقت الاستيراد، وده تأكيد تاني لو حد مسحه والبرنامج شغال.
     try:
@@ -118,6 +137,8 @@ async def create_program_submit(request: Request):
     except OSError as exc:  # noqa: BLE001
         print(f"[create_program] تعذّر إنشاء {PROGRAMS_DIR}: {exc}", flush=True)
 
+=======
+>>>>>>> 9bf21a6 (ADD debug mode)
     try:
         _save_csv_file(path_s1, [
             ("Model Name", ModelName),
@@ -129,12 +150,17 @@ async def create_program_submit(request: Request):
             ("Power logo", power_logo),
         ])
         save_success_s1 = f"S1 saved: {filename_s1}"
+<<<<<<< HEAD
     except Exception as exc:  # noqa: BLE001
         save_success_s1 = None
         # كان بيتبلع من غير أي أثر — دلوقتي على الأقل بيظهر في الكونسول
         # وفي صفحة الأخطاء.
         print(f"[create_program] فشل حفظ {path_s1}: {exc}", flush=True)
         errors.append(f"Failed to save {filename_s1}: {exc}")
+=======
+    except Exception:  # noqa: BLE001
+        save_success_s1 = None
+>>>>>>> 9bf21a6 (ADD debug mode)
 
     try:
         _save_csv_file(path_s2, [
@@ -146,10 +172,15 @@ async def create_program_submit(request: Request):
             ("Shelve color", shelve_color),
         ])
         save_success_s2 = f"S2 saved: {filename_s2}"
+<<<<<<< HEAD
     except Exception as exc:  # noqa: BLE001
         save_success_s2 = None
         print(f"[create_program] فشل حفظ {path_s2}: {exc}", flush=True)
         errors.append(f"Failed to save {filename_s2}: {exc}")
+=======
+    except Exception:  # noqa: BLE001
+        save_success_s2 = None
+>>>>>>> 9bf21a6 (ADD debug mode)
 
     # ===============================
     # handle all dynamic tests (fixed + new)
@@ -158,9 +189,15 @@ async def create_program_submit(request: Request):
         station = (test.get("station") or "").upper()
         test_name = test.get("name", "")
         field_key = test_name.replace(" ", "_")
+<<<<<<< HEAD
         # الاختبار اللي المستخدم مساه زي ما هو بيتكتب None|00 بدل ما يتشال
         # من الملف خالص — عشان أعمدة الـ CSV تفضل تابتة بين البرامج.
         selected_value = form.get(field_key) or DEFAULT_OPTION
+=======
+        selected_value = form.get(field_key)
+        if not selected_value:
+            continue
+>>>>>>> 9bf21a6 (ADD debug mode)
 
         parts = str(selected_value).split("|", 1)
         if len(parts) == 2:
@@ -173,16 +210,23 @@ async def create_program_submit(request: Request):
         try:
             _save_csv_file(target_path, [row], append=True)
         except Exception as exc:  # noqa: BLE001
+<<<<<<< HEAD
             print(f"Failed saving dynamic test '{test_name}' to {target_path}: {exc}")
+=======
+            print(f"❌ Failed saving dynamic test '{test_name}' to {target_path}: {exc}")
+>>>>>>> 9bf21a6 (ADD debug mode)
 
     return templates.TemplateResponse(
         request,
         "CREATE_PROGRAM_HTML.html",
         {
             "submitted": True,
+<<<<<<< HEAD
             # لو حصل فشل في الحفظ يظهر في نفس بلوك الأخطاء بتاع الصفحة
             # بدل ما المستخدم يفتكر إن كل حاجة اتحفظت.
             "errors": errors or None,
+=======
+>>>>>>> 9bf21a6 (ADD debug mode)
             "sku": sku,
             "ModelName": ModelName,
             "front_logo": front_logo, "display_logo": display_logo, "color": color,

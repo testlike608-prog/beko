@@ -200,6 +200,7 @@ _VmSolution = None
 _load_lock = threading.Lock()
 
 
+<<<<<<< HEAD
 def _ensure_python_runtime_next_to_host() -> None:
     """
     بيحط نسخة من Python.Runtime.dll جنب البرنامج المضيف.
@@ -266,6 +267,8 @@ def _ensure_python_runtime_next_to_host() -> None:
             print(f"[vision_master] could not place Python.Runtime.dll in {host_dir}: {exc}")
 
 
+=======
+>>>>>>> 9bf21a6 (ADD debug mode)
 def load_vm(assembly_dir: str):
     """تحميل اسمبليز VisionMaster وإرجاع كلاس VmSolution."""
     global _VmSolution
@@ -285,8 +288,11 @@ def load_vm(assembly_dir: str):
         if not os.path.isfile(core):
             raise VisionMasterError(f"VM.Core.dll غير موجود في: {assembly_dir}")
 
+<<<<<<< HEAD
         _ensure_python_runtime_next_to_host()
 
+=======
+>>>>>>> 9bf21a6 (ADD debug mode)
         try:
             import clr  # noqa: F401  (pythonnet — بيتحمّل هنا بس)
         except ImportError as exc:
@@ -294,6 +300,7 @@ def load_vm(assembly_dir: str):
                 "pythonnet مش متسطب. شغّل: pip install pythonnet "
                 "(لازم Python 64-bit)"
             ) from exc
+<<<<<<< HEAD
         except RuntimeError as exc:
             # clr_loader بيرمي RuntimeError لما الـ AppDomain يفشل يحمّل
             # Python.Runtime.dll، والرسالة الأصلية مضلّلة لأنها بتطبع
@@ -307,6 +314,8 @@ def load_vm(assembly_dir: str):
                 "  2) لو نزّلت البرنامج من الإنترنت، شيل علامة الحجب:\n"
                 "     Get-ChildItem <مجلد البرنامج> -Recurse | Unblock-File"
             ) from exc
+=======
+>>>>>>> 9bf21a6 (ADD debug mode)
 
         # الـ DLLs الأصلية (native) بتتحل من PATH مش من sys.path
         if assembly_dir not in os.environ.get("PATH", ""):
@@ -379,12 +388,29 @@ class VisionMasterController:
     # ------------------------------------------------------------------
     # اللوج
     # ------------------------------------------------------------------
+<<<<<<< HEAD
     def _log_add(self, level: str, msg: str):
+=======
+    # المستويات دي بتتسجّل في اللوج بس ومش بتتطبع في الكونسول.
+    # "RUN" بييجي مع كل دورة من كل فلو — لو طبعناه بيغرق التيرمنال
+    # طول ما الـ VisionMaster شغال. المهم إننا نشوف بدء وتوقّف بس.
+    CONSOLE_SILENT_LEVELS = frozenset({"RUN"})
+
+    def _log_add(self, level: str, msg: str, console: Optional[bool] = None):
+>>>>>>> 9bf21a6 (ADD debug mode)
         with self._log_lock:
             self._log.append((time.time(), level, msg))
             if len(self._log) > self.MAX_LOG:
                 self._log = self._log[-(self.MAX_LOG // 2):]
+<<<<<<< HEAD
         print(f"[VisionMaster][{level}] {msg}")
+=======
+
+        if console is None:
+            console = level not in self.CONSOLE_SILENT_LEVELS
+        if console:
+            print(f"[VisionMaster][{level}] {msg}")
+>>>>>>> 9bf21a6 (ADD debug mode)
 
     def logs(self, limit: int = 200) -> list[dict]:
         with self._log_lock:
@@ -586,7 +612,10 @@ class VisionMasterController:
             for name, flow in flows:
                 flow.ContinuousRunEnable = True
                 started.append(name)
+<<<<<<< HEAD
                 self._log_add("INFO", f"[RUNNING] {name}")
+=======
+>>>>>>> 9bf21a6 (ADD debug mode)
         except Exception as exc:  # noqa: BLE001
             detail = describe_exception(exc)
             self._log_add("ERROR", f"failed to start flows: {detail}")
@@ -603,7 +632,11 @@ class VisionMasterController:
 
         with self._lock:
             self._running = True
+<<<<<<< HEAD
         self._log_add("INFO", "VisionMaster continuous run started")
+=======
+        self._log_add("INFO", f"continuous run STARTED - {len(started)} flow(s): {started}")
+>>>>>>> 9bf21a6 (ADD debug mode)
         return self.status()
 
     # ------------------------------------------------------------------
@@ -624,17 +657,35 @@ class VisionMasterController:
             was_running = self._running
             self._running = False
 
+<<<<<<< HEAD
+=======
+        stopped: list[str] = []
+>>>>>>> 9bf21a6 (ADD debug mode)
         if was_running:
             for name, flow in flows:
                 try:
                     flow.ContinuousRunEnable = False
+<<<<<<< HEAD
                     self._log_add("INFO", f"[STOPPED] {name}")
+=======
+                    stopped.append(name)
+>>>>>>> 9bf21a6 (ADD debug mode)
                 except Exception as exc:  # noqa: BLE001
                     self._log_add("ERROR", f"error stopping {name}: {exc}")
 
         self._detach_handlers()
 
+<<<<<<< HEAD
         self._log_add("INFO", "VisionMaster stopped")
+=======
+        with self._lock:
+            counters = dict(self._counters)
+        total = sum(counters.values())
+        self._log_add(
+            "INFO",
+            f"continuous run STOPPED - {len(stopped)} flow(s): {stopped} | total runs: {total}",
+        )
+>>>>>>> 9bf21a6 (ADD debug mode)
         return self.status()
 
     def dispose(self):

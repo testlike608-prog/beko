@@ -53,13 +53,21 @@ D:\beko_api\beko\static\socket.io.min.js
 بعد إعادة تشغيل `main_fastapi.py` هتلاقي في الكونسول:
 
 ```
+<<<<<<< HEAD
 Socket.IO tickers started
+=======
+📡 Socket.IO tickers started
+>>>>>>> 9bf21a6 (ADD debug mode)
 ```
 
 لو المكتبة ناقصة هتلاقي بدلها:
 
 ```
+<<<<<<< HEAD
 python-socketio غير متسطب — الواجهة هترجع للـ polling
+=======
+⚠️ python-socketio غير متسطب — الواجهة هترجع للـ polling
+>>>>>>> 9bf21a6 (ADD debug mode)
 ```
 
 ---

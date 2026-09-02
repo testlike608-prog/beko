@@ -464,3 +464,28 @@ input:checked + .slider:before         { transform: translateX(20px); }
   .login-container { padding: 30px 20px; }
   .auth-title      { font-size: 22px; }
 }
+/* ─────────────────────────────────────────────
+   Alerts bell — رنّة بصرية أول ما ييجي أليرت جديد
+───────────────────────────────────────────── */
+@keyframes alertRing {
+  0%, 100% { transform: rotate(0); }
+  15%      { transform: rotate(-14deg); }
+  30%      { transform: rotate(12deg); }
+  45%      { transform: rotate(-8deg); }
+  60%      { transform: rotate(6deg); }
+  75%      { transform: rotate(-3deg); }
+}
+
+.alert-ring {
+  animation: alertRing 0.6s ease-in-out 2;
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.18);
+}
+
+#alertsBadge {
+  animation: alertBadgePop 0.25s ease-out;
+}
+
+@keyframes alertBadgePop {
+  from { transform: scale(0.4); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}

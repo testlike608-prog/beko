@@ -12,8 +12,13 @@
     /* TESTS injected from Flask — must come before main.js */
     let TESTS = {{ tests|tojson }};
   </script>
+<<<<<<< HEAD
 {% if static_exists('socket.io.min.js') %}  <script src="/static/socket.io.min.js?v={{ static_v('socket.io.min.js') }}"></script>
 {% endif %}
+=======
+  <script src="/static/socket.io.min.js?v={{ static_v('socket.io.min.js') }}"></script>
+  <script>window.__ALLOW_DEVTOOLS = {{ 'true' if auth == 'dev' else 'false' }};</script>
+>>>>>>> 9bf21a6 (ADD debug mode)
   <script src="/static/main.js?v={{ static_v('main.js') }}"></script>
   <script>
     /* Initialize TESTS_MAP after main.js is loaded */
@@ -28,7 +33,10 @@
       <a href="{{ url_for('home.page_index') }}" class="px-3 py-2 rounded-lg border">← Back</a>
       <h1 class="text-xl font-semibold">Create Program CSV</h1>
     </div>
-    <img src="/static/meeserve.png" alt="Meeserv Logo" class="h-10" />
+    <div class="flex items-center gap-3">
+      {% include "_alerts_bell.html" %}
+      <img src="/static/meeserve.png" alt="Meeserv Logo" class="h-10" />
+    </div>
   </header>
 
   <div class="flex items-start gap-8 mt-4">
@@ -295,6 +303,7 @@
   </div>
 </div>
 
+<<<<<<< HEAD
 <div id="noCsv1" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[100] hidden">
   <div class="bg-white dark:bg-gray-800 rounded-lg p-8 w-full max-w-md text-center">
     <h2 class="text-2xl font-bold text-red-600 mb-4"> System Alert</h2>
@@ -310,6 +319,9 @@
     <button onclick="submitCsv2()" class="bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700 w-full">OK / Confirm</button>
   </div>
 </div>
+=======
+<!-- NO-CSV alerts now live in the alerts bell in the header -->
+>>>>>>> 9bf21a6 (ADD debug mode)
 
 <div id="toast" style="display:none"></div>
 

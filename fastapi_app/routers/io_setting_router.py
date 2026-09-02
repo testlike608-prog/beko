@@ -61,6 +61,7 @@ async def save_mapping(request: Request):
     return JSONResponse({"status": "success"})
 
 
+<<<<<<< HEAD
 # ----------------------------------------------------------------------
 # عناوين الأجهزة (IP / Port) — Developer mode فقط
 #
@@ -115,6 +116,8 @@ async def reset_endpoints(request: Request):
     return JSONResponse({"status": "success", "endpoints": ioSetting.reset_endpoints()})
 
 
+=======
+>>>>>>> 9bf21a6 (ADD debug mode)
 @router.post("/command", name="io_mapping.execute_command")
 async def execute_command(request: Request):
     denied = require_dev(request)
@@ -126,6 +129,10 @@ async def execute_command(request: Request):
     action = data.get("action")
 
     hex_command = generate_modbus_command(func_name, action)
+<<<<<<< HEAD
+=======
+    print(f"[{action}] Command for {func_name}: {hex_command}")
+>>>>>>> 9bf21a6 (ADD debug mode)
 
     return JSONResponse({"command": hex_command})
 
@@ -137,6 +144,10 @@ async def off_all(request: Request):
         return denied
 
     cmd_off_all = "000100000009010F00000010020000"
+<<<<<<< HEAD
+=======
+    print(f"Sending OFF ALL Command: {cmd_off_all}")
+>>>>>>> 9bf21a6 (ADD debug mode)
     return JSONResponse({"command": cmd_off_all, "status": "All Off Sent"})
 
 

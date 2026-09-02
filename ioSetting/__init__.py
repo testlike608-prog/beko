@@ -21,7 +21,10 @@ from __future__ import annotations
 
 import json
 import os
+<<<<<<< HEAD
 import re
+=======
+>>>>>>> 9bf21a6 (ADD debug mode)
 from typing import Any, Dict
 
 from flask import Blueprint, request, jsonify
@@ -43,6 +46,7 @@ default_vision_master = {
     "solution_path": "",    # مسار ملف .solw / .sol
 }
 
+<<<<<<< HEAD
 # ----------------------------------------------------------------------
 # عناوين الأجهزة (IP / Port)
 #
@@ -82,6 +86,10 @@ default_endpoints = {
 io_mapping: Dict[str, Any] = {}
 vision_master_config: Dict[str, Any] = {}
 endpoints: Dict[str, Any] = {}
+=======
+io_mapping: Dict[str, Any] = {}
+vision_master_config: Dict[str, Any] = {}
+>>>>>>> 9bf21a6 (ADD debug mode)
 
 
 # ----------------------------------------------------------------------
@@ -95,6 +103,7 @@ def _read_config_file() -> dict:
             data = json.load(file)
         return data if isinstance(data, dict) else {}
     except (json.JSONDecodeError, OSError) as exc:
+<<<<<<< HEAD
         print(f"[ioSetting] تعذّرت قراءة {CONFIG_FILE} ({exc}) — هنستخدم الافتراضي")
         return {}
 
@@ -129,13 +138,25 @@ def _merge_endpoints(saved: Any) -> Dict[str, Any]:
 def load_mapping():
     """تحميل الإعدادات من config.json مع دعم الشكل القديم المسطّح."""
     global io_mapping, vision_master_config, endpoints
+=======
+        print(f"[ioSetting] could not read {CONFIG_FILE} ({exc}) - using defaults")
+        return {}
+
+
+def load_mapping():
+    """تحميل الإعدادات من config.json مع دعم الشكل القديم المسطّح."""
+    global io_mapping, vision_master_config
+>>>>>>> 9bf21a6 (ADD debug mode)
 
     data = _read_config_file()
 
     if not data:
         io_mapping = default_mapping.copy()
         vision_master_config = default_vision_master.copy()
+<<<<<<< HEAD
         endpoints = _merge_endpoints({})
+=======
+>>>>>>> 9bf21a6 (ADD debug mode)
         return
 
     if "io_mapping" in data:
@@ -145,6 +166,7 @@ def load_mapping():
             **default_vision_master,
             **(data.get("vision_master") or {}),
         }
+<<<<<<< HEAD
         # قسم endpoints مش موجود في الملفات القديمة — _merge_endpoints
         # بترجّع الافتراضي كله في الحالة دي.
         endpoints = _merge_endpoints(data.get("endpoints"))
@@ -154,15 +176,29 @@ def load_mapping():
         io_mapping = {**default_mapping, **data}
         vision_master_config = default_vision_master.copy()
         endpoints = _merge_endpoints({})
+=======
+    else:
+        # الشكل القديم: الملف كله عبارة عن mapping
+        print("[ioSetting] migrating config.json to the new shape (io_mapping / vision_master)")
+        io_mapping = {**default_mapping, **data}
+        vision_master_config = default_vision_master.copy()
+>>>>>>> 9bf21a6 (ADD debug mode)
         save_config_to_file()
 
 
 def save_config_to_file():
+<<<<<<< HEAD
     """كتابة الملف كله (الـ mapping + VisionMaster + عناوين الأجهزة)."""
     payload = {
         "io_mapping": io_mapping,
         "vision_master": vision_master_config,
         "endpoints": endpoints,
+=======
+    """كتابة الملف كله (الـ mapping + إعدادات VisionMaster)."""
+    payload = {
+        "io_mapping": io_mapping,
+        "vision_master": vision_master_config,
+>>>>>>> 9bf21a6 (ADD debug mode)
     }
     tmp_path = CONFIG_FILE + ".tmp"
     with open(tmp_path, 'w', encoding='utf-8') as file:
@@ -199,6 +235,7 @@ def save_vision_master_config(payload: Dict[str, Any]) -> Dict[str, Any]:
     save_config_to_file()
     return get_vision_master_config()
 
+<<<<<<< HEAD
 
 # ----------------------------------------------------------------------
 # عناوين الأجهزة
@@ -276,6 +313,8 @@ def reset_endpoints() -> Dict[str, Any]:
     save_config_to_file()
     return get_endpoints()
 
+=======
+>>>>>>> 9bf21a6 (ADD debug mode)
 
 # تحميل الإعدادات عند عمل Import للملف
 load_mapping()

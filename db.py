@@ -92,16 +92,26 @@ def check_driver():
 def install_driver():
     msi_path = os.path.join(os.path.dirname(__file__), "msodbcsql.msi")
     if not os.path.exists(msi_path):
+<<<<<<< HEAD
         print(f"ODBC installer not found at {msi_path}")
+=======
+        print(f"⚠ ODBC installer not found at {msi_path}")
+>>>>>>> 9bf21a6 (ADD debug mode)
         return False
     try:
         subprocess.run(["msiexec", "/i", msi_path, "/quiet", "/norestart"], check=True)
         print("ODBC Driver installed")
         return True
     except Exception as e:
+<<<<<<< HEAD
         print(f"Installation failed: {e}")
         print("   ملحوظة: msiexec /quiet محتاج صلاحيات أدمن — "
               "افتح msodbcsql.msi يدويًا ووافق على UAC.")
+=======
+        print(f"❌ Installation failed: {e}")
+        print("   note: msiexec /quiet needs admin rights - "
+              "run msodbcsql.msi manually and accept the UAC prompt.")
+>>>>>>> 9bf21a6 (ADD debug mode)
         return False
 
 
@@ -110,10 +120,17 @@ if not check_driver():
     if _fallback:
         # مش هنحاول نسطّب تلقائيًا طالما فيه درايفر شغال — التسطيب الصامت
         # محتاج أدمن وبيفشل من غير ما حد ياخد باله.
+<<<<<<< HEAD
         print(f"ODBC Driver 17/18 not exists, using '{_fallback}' instead")
         print("  ( install ODBC Driver 18 x64 manually)")
     else:
         print("ODBC Driver not found on the system, attempting installation...")
+=======
+        print(f"⚠ ODBC Driver 17/18 not exists, using '{_fallback}' instead")
+        print("  ( install ODBC Driver 18 x64 manually)")
+    else:
+        print("⚠ ODBC Driver not found on the system, attempting installation...")
+>>>>>>> 9bf21a6 (ADD debug mode)
         install_driver()
 
 def auto_connect_db():
@@ -134,7 +151,11 @@ def auto_connect_db():
                 serveraddr, database_name, Auth, user_name, password
             )
         except RuntimeError as e:
+<<<<<<< HEAD
             return None, f"DB{index}: {e}"
+=======
+            return None, f"❌ DB{index}: {e}"
+>>>>>>> 9bf21a6 (ADD debug mode)
 
         try:
             with pyodbc.connect(conn_str, timeout=CONNECT_TIMEOUT):
@@ -142,6 +163,8 @@ def auto_connect_db():
             return conn_str, f"SUCCESSFUL Auto-connected to DB{index}"
         except Exception as e:
             return None, f"DB{index} connection failed: {e}"
+
+    print(f"🔌 ODBC driver in use: {pick_driver() or 'NONE'}")
 
     conn_str_db1_global, msg1 = connect_from_file("last_db1_settings.txt", 1)
     conn_str_db2_global, msg2= connect_from_file("last_db2_settings.txt", 2)

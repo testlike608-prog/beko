@@ -225,13 +225,21 @@ def register_handlers():
 
 def start_tickers():
     if sio is None:
+<<<<<<< HEAD
         print("[realtime] python-socketio غير متسطب — الواجهة هترجع للـ polling")
+=======
+        print("[realtime] python-socketio is not installed - UI falls back to polling")
+>>>>>>> 9bf21a6 (ADD debug mode)
         return
 
     loop = asyncio.get_event_loop()
     _tasks.append(loop.create_task(_fast_loop()))
     _tasks.append(loop.create_task(_flags_loop()))
     _tasks.append(loop.create_task(_sql_loop()))
+<<<<<<< HEAD
+=======
+    print("[realtime] Socket.IO tickers started")
+>>>>>>> 9bf21a6 (ADD debug mode)
 
 
 async def stop_tickers():

@@ -41,6 +41,13 @@
     setInterval(check, 1000);
   }
 
+  // المطوّر محتاج الـ DevTools عشان يقرا الكونسول — القالب بيحط
+  // window.__ALLOW_DEVTOOLS = true للمستخدم اللي صلاحيته dev.
+  if (window.__ALLOW_DEVTOOLS === true) {
+    console.log('%c🛠 Developer mode — DevTools protection is off', 'color:#d97706;font-weight:bold');
+    return;
+  }
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initDevToolsProtection);
   } else {
@@ -115,6 +122,7 @@ const RT = {
   socket: null,
   connected: false,
   handlers: {},
+<<<<<<< HEAD
 
   // مهم: io() بيرجع أوبچكت *فورًا* حتى لو الاتصال فشل تمامًا
   // (مكتبة ناقصة على السيرفر، بورت مقفول... إلخ).
@@ -125,6 +133,8 @@ const RT = {
     return !!(this.socket && this.socket.connected);
   },
 
+=======
+>>>>>>> 9bf21a6 (ADD debug mode)
   on(event, fn) {
     (this.handlers[event] = this.handlers[event] || []).push(fn);
     if (this.socket) this.socket.on(event, fn);
@@ -197,11 +207,26 @@ function applyStation2(data) {
       setInfo($('s2-sku'),   data.sku_number);
 }
 
+<<<<<<< HEAD
 function applyFlags(data, modalId, csvModalId) {
   const modal  = $(modalId);
   const modal2 = $(csvModalId);
   if (modal)  modal.classList.toggle('hidden',  data.manual_scanner !== true);
   if (modal2) modal2.classList.toggle('hidden', data.no_csv_error   !== true);
+=======
+function applyFlags(data, modalId, station) {
+  // الـ Manual Scanner لسه popup لأنه محتاج إدخال كود من المشغّل.
+  const modal = $(modalId);
+  if (modal) modal.classList.toggle('hidden', data.manual_scanner !== true);
+
+  // الـ NO CSV بقى أليرت في الجرس بدل الـ popup.
+  Alerts.sync('no_csv_s' + station, data.no_csv_error === true, {
+    level: 'error',
+    title: 'NO CSV — ' + (station === 1 ? 'Outer station' : 'Inner station'),
+    detail: 'No CSV file was found for the scanned product number.',
+    ackUrl: station === 1 ? '/control' : '/control2'
+  });
+>>>>>>> 9bf21a6 (ADD debug mode)
 }
 
 // النسخ دي بتستخدم للـ fallback بس (لما Socket.IO مش متاح)
@@ -305,8 +330,11 @@ function updateUIWithNewTimes() {
   if ($('delay'))   $('delay').value   = currentTimeSettings.defaultCharDelay;
 
   if (window.statusInterval) clearInterval(window.statusInterval);
-  const ms = Math.max(200, parseInt(currentTimeSettings.statusRefresh, 10) || DEFAULT_TIME_SETTINGS.statusRefresh);
-  window.statusInterval = setInterval(refreshStatus, ms);
+  // مع Socket.IO الحالة بتيجي push، فمش محتاجين interval أصلاً
+  if (!RT.socket) {
+    const ms = Math.max(200, parseInt(currentTimeSettings.statusRefresh, 10) || DEFAULT_TIME_SETTINGS.statusRefresh);
+    window.statusInterval = setInterval(refreshStatus, ms);
+  }
 
   if (window.logInterval) {
     clearInterval(window.logInterval);
@@ -433,6 +461,7 @@ function turnOffAllIO() {
 
 
 /* ─────────────────────────────────────────────
+<<<<<<< HEAD
    6a-2. DEVICE ADDRESSES — IP / PORT (Developer mode only)
 
    العناوين دي كانت متكتوبة بإيد في ClientsClass.py. دلوقتي بتيجي من
@@ -553,6 +582,8 @@ async function resetEndpoints() {
 
 
 /* ─────────────────────────────────────────────
+=======
+>>>>>>> 9bf21a6 (ADD debug mode)
    6b. VISIONMASTER PATHS (Developer mode only)
    ملحوظة: مش بنعمل parseInt هنا — دي مسارات نصية مش أرقام بنّات.
 ───────────────────────────────────────────── */
@@ -692,13 +723,22 @@ async function pickerLoad(path) {
     list.innerHTML = '';
 
     (data.dirs || []).forEach(d => {
+<<<<<<< HEAD
       const tag = d.has_vm_core ? 'VM.Core.dll' : '';
       list.appendChild(pickerRow('', d.name, tag, () => pickerLoad(d.path), false));
+=======
+      const tag = d.has_vm_core ? 'VM.Core.dll ✓' : '';
+      list.appendChild(pickerRow('📁', d.name, tag, () => pickerLoad(d.path), false));
+>>>>>>> 9bf21a6 (ADD debug mode)
     });
 
     (data.files || []).forEach(f => {
       const size = f.size ? `${f.size.toLocaleString()} B` : '';
+<<<<<<< HEAD
       list.appendChild(pickerRow('', f.name, size, function () {
+=======
+      list.appendChild(pickerRow('📄', f.name, size, function () {
+>>>>>>> 9bf21a6 (ADD debug mode)
         picker.selected = f.path;
         Array.from(list.children).forEach(c => c.classList.remove('bg-purple-100', 'dark:bg-purple-900/40'));
         this.classList.add('bg-purple-100', 'dark:bg-purple-900/40');
@@ -790,6 +830,7 @@ async function saveVisionMasterPaths() {
 
 
 /* ─────────────────────────────────────────────
+<<<<<<< HEAD
    7. MANUAL SCANNER MODALS (shared: index + create_program + sql)
 ───────────────────────────────────────────── */
 function startFlagPolling() {
@@ -804,13 +845,194 @@ function startFlagPolling() {
     fetch('/check-flags')
       .then(r => r.json())
       .then(d => applyFlags(d, 'manualScannerModal', 'noCsv1'))
+=======
+   6b. ALERTS CENTRE (the bell in the header)
+   بدل الـ popups: أيقونة جرس عليها رقم أحمر بعدد الأليرتس،
+   وبالضغط عليها بتنزل منيو فيها الأليرتس + زرار RESET.
+───────────────────────────────────────────── */
+const Alerts = {
+  items: new Map(),          // id -> { id, level, title, detail, time, ackUrl, live }
+  dismissed: new Set(),      // أليرتس المستخدم قفلها بنفسه (للي مش مربوط بفلاج)
+
+  _fmtTime(d) {
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  },
+
+  /** أليرت مربوط بفلاج من السيرفر: بيظهر لما الفلاج يبقى true ويختفي لما يرجع false. */
+  sync(id, active, meta) {
+    if (active) {
+      if (!this.items.has(id)) {
+        this.items.set(id, {
+          id, live: true, time: new Date(),
+          level: meta.level || 'error',
+          title: meta.title || id,
+          detail: meta.detail || '',
+          ackUrl: meta.ackUrl || null
+        });
+        this.render();
+        this.flash();
+      }
+    } else if (this.items.has(id)) {
+      this.items.delete(id);
+      this.render();
+    }
+  },
+
+  /** أليرت لمرة واحدة (مثلاً خطأ في تشغيل البروسيس). */
+  push(id, meta) {
+    if (this.dismissed.has(id) || this.items.has(id)) return;
+    this.items.set(id, {
+      id, live: false, time: new Date(),
+      level: meta.level || 'error',
+      title: meta.title || 'Alert',
+      detail: meta.detail || '',
+      ackUrl: meta.ackUrl || null
+    });
+    this.render();
+    this.flash();
+  },
+
+  async dismiss(id) {
+    const item = this.items.get(id);
+    if (!item) return;
+    if (item.ackUrl) {
+      try {
+        await fetch(item.ackUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+      } catch (e) {
+        showToast('Could not acknowledge on the server', 'red');
+        return;
+      }
+    }
+    if (!item.live) this.dismissed.add(id);
+    this.items.delete(id);
+    this.render();
+  },
+
+  /** زرار RESET: بيعمل acknowledge لكل الأليرتس ويفضّي المنيو. */
+  async reset() {
+    const ids = [...this.items.keys()];
+    for (const id of ids) await this.dismiss(id);
+    this.items.clear();
+    this.render();
+    showToast('Alerts cleared', 'green');
+  },
+
+  flash() {
+    const btn = $('btnAlerts');
+    if (!btn) return;
+    btn.classList.add('alert-ring');
+    setTimeout(() => btn.classList.remove('alert-ring'), 1800);
+  },
+
+  render() {
+    const badge = $('alertsBadge');
+    const list  = $('alertsList');
+    const empty = $('alertsEmpty');
+    const count = $('alertsCount');
+    if (!badge || !list) return;
+
+    const items = [...this.items.values()].sort((a, b) => b.time - a.time);
+    const n = items.length;
+
+    badge.textContent = n > 99 ? '99+' : String(n);
+    badge.classList.toggle('hidden', n === 0);
+    badge.classList.toggle('flex', n > 0);
+    if (count) count.textContent = '(' + n + ')';
+    if (empty) empty.classList.toggle('hidden', n > 0);
+
+    const colors = {
+      error:   'bg-red-500',
+      warning: 'bg-amber-500',
+      info:    'bg-sky-500'
+    };
+
+    list.innerHTML = items.map(it => `
+      <li class="px-4 py-3 flex gap-3 items-start hover:bg-slate-50 dark:hover:bg-slate-800/50">
+        <span class="mt-1.5 w-2.5 h-2.5 rounded-full shrink-0 ${colors[it.level] || colors.error}"></span>
+        <div class="flex-1 min-w-0">
+          <div class="font-semibold text-sm text-slate-800 dark:text-slate-100">${escapeHtml(it.title)}</div>
+          ${it.detail ? `<div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 break-words">${escapeHtml(it.detail)}</div>` : ''}
+          <div class="text-[11px] text-slate-400 mt-1">${this._fmtTime(it.time)}</div>
+        </div>
+        <button type="button" data-alert-dismiss="${escapeHtml(it.id)}"
+          class="shrink-0 text-xs font-bold px-2.5 py-1 rounded-md bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200">
+          OK
+        </button>
+      </li>`).join('');
+  },
+
+  initUI() {
+    const btn  = $('btnAlerts');
+    const menu = $('alertsMenu');
+    if (!btn || !menu) return;
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      menu.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (menu.classList.contains('hidden')) return;
+      if (!menu.contains(e.target) && !btn.contains(e.target)) menu.classList.add('hidden');
+    });
+
+    menu.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-alert-dismiss]');
+      if (b) this.dismiss(b.getAttribute('data-alert-dismiss'));
+    });
+
+    const reset = $('btnAlertsReset');
+    if (reset) reset.addEventListener('click', () => this.reset());
+
+    this.render();
+  },
+
+  /** أخطاء تشغيل البروسيس بتدخل الجرس كمان. */
+  watchProcess(status) {
+    if (!status) return;
+    const err = status.last_error;
+    if (!err) return;
+    this.push('proc_err:' + err, {
+      level: 'warning',
+      title: 'Process error',
+      detail: String(err)
+    });
+  }
+};
+
+
+/* ─────────────────────────────────────────────
+   7. MANUAL SCANNER MODALS (shared: index + create_program + sql)
+───────────────────────────────────────────── */
+function startFlagPolling() {
+  // مع Socket.IO السيرفر بيبعت الفلاجات لوحده — مفيش polling خالص.
+  if (RT.socket) {
+    RT.on('flags1', d => applyFlags(d, 'manualScannerModal', 1));
+    RT.on('flags2', d => applyFlags(d, 'manualScannerModal2', 2));
+    return;
+  }
+
+  // fallback: نفس الـ polling القديم لو المكتبة مش متاحة
+  setInterval(function () {
+    fetch('/check-flags')
+      .then(r => r.json())
+      .then(d => applyFlags(d, 'manualScannerModal', 1))
+>>>>>>> 9bf21a6 (ADD debug mode)
       .catch(err => console.error('Error fetching flags:', err));
   }, 1000);
 
   setInterval(function () {
     fetch('/check-flags2')
       .then(r => r.json())
+<<<<<<< HEAD
       .then(d => applyFlags(d, 'manualScannerModal2', 'noCsv2'))
+=======
+      .then(d => applyFlags(d, 'manualScannerModal2', 2))
+>>>>>>> 9bf21a6 (ADD debug mode)
       .catch(err => console.error('Error fetching flags:', err));
   }, 1000);
 }
@@ -845,19 +1067,10 @@ async function submitManualData2() {
   }
 }
 
-async function submitCsv1() {
-  fetch('/control', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
-    .then(r => r.json())
-    .then(r => { if (r.ok) $('noCsv1').classList.add('hidden'); else console.error('Server error S1:', r.status); })
-    .catch(e => console.error('Network error:', e));
-}
-
-async function submitCsv2() {
-  fetch('/control2', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
-    .then(r => r.json())
-    .then(r => { if (r.ok) $('noCsv2').classList.add('hidden'); else console.error('Server error S2:', r.status); })
-    .catch(e => console.error('Network error:', e));
-}
+// اتساقًا مع القديم: لسه موجودين لو حد بينادي عليهم من أي صفحة تانية،
+// بس دلوقتي بيعدّوا على مركز الأليرتس.
+async function submitCsv1() { return Alerts.dismiss('no_csv_s1'); }
+async function submitCsv2() { return Alerts.dismiss('no_csv_s2'); }
 
 
 /* ─────────────────────────────────────────────
@@ -1277,6 +1490,262 @@ function initPasswordToggle() {
 
 
 /* ─────────────────────────────────────────────
+   10b. DEVELOPER PANEL (dev only)
+   سيمولاشن لتريجرات الـ I/O + Debug mode من غير ما تدوسي START.
+───────────────────────────────────────────── */
+const Dev = {
+  state: { debug: false, dry_run: false, running: false, state: 'stopped', outputs: [] },
+  busy: false,
+  lines: [],
+
+  /** كل حاجة بتحصل بتتكتب هنا — عشان تقدري تشوفي الأخطاء من غير DevTools. */
+  log(msg, kind) {
+    const box = $('devLog');
+    const stamp = new Date().toLocaleTimeString();
+    const icon = kind === 'err' ? '✖' : kind === 'ok' ? '✔' : '·';
+    this.lines.push(`${stamp} ${icon} ${msg}`);
+    if (this.lines.length > 60) this.lines.shift();
+    if (box) {
+      box.textContent = this.lines.join('\n');
+      box.scrollTop = box.scrollHeight;
+    }
+  },
+
+  async call(url, body) {
+    this.log(`POST ${url} ${JSON.stringify(body || {})}`);
+    let res;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body || {})
+      });
+    } catch (e) {
+      this.log(`network error: ${e.message}`, 'err');
+      showToast('Network error', 'red');
+      return null;
+    }
+
+    const data = await res.json().catch(() => ({}));
+
+    if (res.status === 401 || res.status === 403) {
+      this.log(`${res.status} — ${data.message || 'developer access required'}`, 'err');
+      showToast('Developer access required — log in with a dev user', 'red');
+      return null;
+    }
+    if (!res.ok || data.ok === false) {
+      this.log(`${res.status} — ${data.message || 'request failed'}`, 'err');
+      showToast(data.message || 'Request failed', 'red');
+      return data;
+    }
+
+    this.log(`${res.status} — ${data.message || 'ok'}`, 'ok');
+    return data;
+  },
+
+  async refresh() {
+    try {
+      const res = await fetch('/debug/status', { cache: 'no-store' });
+      if (res.status === 401 || res.status === 403) {
+        this.log(`GET /debug/status → ${res.status}: developer access required`, 'err');
+        const hint = $('devModeHint');
+        if (hint) hint.textContent = 'Developer access required — log in with a user whose role is dev.';
+        return;
+      }
+      if (!res.ok) { this.log(`GET /debug/status → ${res.status}`, 'err'); return; }
+      const data = await res.json();
+      this.apply(data);
+      this.log(`status: ${data.state} (debug=${data.debug}, dry_run=${data.dry_run})`);
+    } catch (e) {
+      this.log(`status error: ${e.message}`, 'err');
+    }
+  },
+
+  apply(data) {
+    if (!data) return;
+    this.state = { ...this.state, ...data };
+    this.render();
+  },
+
+  render() {
+    const badge = $('devStateBadge');
+    if (badge) {
+      const st = this.state.dry_run ? 'DRY-RUN'
+               : this.state.debug   ? 'DEBUG'
+               : this.state.running ? 'RUNNING' : 'STOPPED';
+      badge.textContent = st;
+    }
+
+    const dbg = $('devDebugToggle');
+    const dry = $('devDryRunToggle');
+    if (dbg) dbg.checked = !!this.state.debug;
+    if (dry) dry.checked = !!this.state.dry_run;
+
+    const hint = $('devModeHint');
+    if (hint) {
+      hint.textContent =
+        this.state.dry_run ? 'Dry-run: nothing is sent to the hardware — safe for UI testing.'
+      : this.state.debug   ? 'Debug: devices are connected, but DI0 / DI1 are not read — use the buttons below.'
+      : this.state.running ? 'Normal run: triggers come from the real I/O inputs.'
+      : 'Turn Debug mode on to test without pressing START.';
+    }
+
+    // الزراير مش بتتقفل خالص — لو العملية واقفة، الضغطة بتشغّل
+    // Dry-run الأول لوحدها وبعدين تبعت التريجر.
+    const t1 = $('btnTrigS1');
+    const t2 = $('btnTrigS2');
+    if (t1) t1.disabled = this.busy;
+    if (t2) t2.disabled = this.busy;
+
+    this.renderOutputs();
+  },
+
+  renderOutputs() {
+    const box = $('devOutputs');
+    if (!box) return;
+    const outs = this.state.outputs || [];
+    if (box.dataset.rendered === outs.join(',')) return;
+    box.dataset.rendered = outs.join(',');
+
+    box.innerHTML = outs.map(name => `
+      <div class="flex items-center justify-between gap-2">
+        <span class="font-mono text-xs text-slate-600 dark:text-slate-300">${escapeHtml(name)}</span>
+        <span class="flex gap-1">
+          <button type="button" data-io="${escapeHtml(name)}" data-action="ON"
+            class="px-2.5 py-1 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold">ON</button>
+          <button type="button" data-io="${escapeHtml(name)}" data-action="OFF"
+            class="px-2.5 py-1 rounded-md bg-slate-500 hover:bg-slate-600 text-white text-xs font-bold">OFF</button>
+        </span>
+      </div>`).join('');
+  },
+
+  open() {
+    const d = $('devDrawer');
+    if (!d) return;
+    d.classList.remove('hidden');
+    if (!this.lines.length) this.log('developer panel opened');
+    else { const box = $('devLog'); if (box) box.textContent = this.lines.join('\n'); }
+    this.refresh();
+  },
+
+  close() {
+    const d = $('devDrawer');
+    if (d) d.classList.add('hidden');
+  },
+
+  async setMode(debug, dryRun) {
+    this.busy = true;
+    this.render();
+    const data = await this.call('/debug/mode', { enabled: debug, dry_run: dryRun });
+    this.busy = false;
+    if (data) {
+      this.apply(data);
+      if (data.message) showToast(data.message, data.ok === false ? 'red' : 'green');
+    }
+    await this.refresh();
+  },
+
+  async trigger(station) {
+    if (!this.state.running) {
+      this.log('process is not running — starting dry-run first');
+      await this.setMode(true, true);
+      if (!this.state.running) {
+        this.log('could not start any mode — trigger aborted', 'err');
+        return;
+      }
+    }
+
+    const dummy  = ($('devDummy')  || {}).value  || '';
+    const result = ($('devResult') || {}).value || 'PASS';
+    const data = await this.call('/debug/trigger', { station, dummy, result });
+    if (data && data.ok) showToast(data.message || `Station ${station} triggered`, 'green');
+  },
+
+  init() {
+    const btnOpen = $('btnDeveloper');
+    if (!btnOpen || !$('devDrawer')) return;
+
+    btnOpen.addEventListener('click', () => this.open());
+
+    const btnClose = $('btnCloseDev');
+    if (btnClose) btnClose.addEventListener('click', () => this.close());
+
+    const backdrop = $('devDrawerBackdrop');
+    if (backdrop) backdrop.addEventListener('click', () => this.close());
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') this.close();
+    });
+
+    const dbg = $('devDebugToggle');
+    const dry = $('devDryRunToggle');
+
+    if (dbg) dbg.addEventListener('change', () => {
+      const on = dbg.checked;
+      if (!on && dry) dry.checked = false;
+      this.setMode(on, on && dry ? dry.checked : false);
+    });
+
+    if (dry) dry.addEventListener('change', () => {
+      // الـ dry-run هو نكهة من الـ debug mode، فبيشغّله معاه.
+      if (dry.checked && dbg) dbg.checked = true;
+      this.setMode(dbg ? dbg.checked : true, dry.checked);
+    });
+
+    const t1 = $('btnTrigS1');
+    const t2 = $('btnTrigS2');
+    if (t1) t1.addEventListener('click', () => this.trigger(1));
+    if (t2) t2.addEventListener('click', () => this.trigger(2));
+
+    document.querySelectorAll('.dev-alert-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const data = await this.call('/debug/alert', {
+          kind: btn.dataset.alertKind,
+          station: btn.dataset.alertStation,
+          value: true
+        });
+        if (data && data.ok) showToast(data.message, 'green');
+      });
+    });
+
+    const outputsBox = $('devOutputs');
+    if (outputsBox) outputsBox.addEventListener('click', async (e) => {
+      const b = e.target.closest('[data-io]');
+      if (!b) return;
+      const data = await this.call('/debug/io', { function: b.dataset.io, action: b.dataset.action });
+      if (data && data.ok) showToast(data.message, 'green');
+    });
+
+    const offAll = $('btnDevOffAll');
+    if (offAll) offAll.addEventListener('click', async () => {
+      const data = await this.call('/debug/io/off_all', {});
+      if (data && data.ok) showToast(data.message, 'green');
+    });
+
+    const clearLog = $('btnDevClearLog');
+    if (clearLog) clearLog.addEventListener('click', () => {
+      this.lines = [];
+      const box = $('devLog');
+      if (box) box.textContent = 'ready.';
+    });
+
+    const resetFlags = $('btnDevResetFlags');
+    if (resetFlags) resetFlags.addEventListener('click', async () => {
+      const data = await this.call('/debug/reset_flags', {});
+      if (data && data.ok) {
+        Alerts.items.clear();
+        Alerts.render();
+        showToast(data.message, 'green');
+        this.apply(data);
+      }
+    });
+
+    this.refresh();
+  }
+};
+
+
+/* ─────────────────────────────────────────────
    11. DOMContentLoaded — WIRE EVERYTHING UP
 ───────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
@@ -1290,6 +1759,7 @@ document.addEventListener('DOMContentLoaded', () => {
     else if (bootId !== data.boot_id) location.reload();
   };
 
+<<<<<<< HEAD
   RT.on('process_status', checkBootId);
 
   const watchServerRestart = async () => {
@@ -1308,6 +1778,38 @@ document.addEventListener('DOMContentLoaded', () => {
   // بس لو الاتصال مش حي
   RT.on('station1', applyStation1);
   RT.on('station2', applyStation2);
+=======
+  // الجرس + لوحة المطوّر
+  Alerts.initUI();
+  Dev.init();
+
+  if (RT.socket) {
+    // نفس الحدث بيجي من السيرفر، فمفيش داعي لأي polling
+    RT.on('process_status', checkBootId);
+    RT.on('process_status', (d) => { Alerts.watchProcess(d); Dev.apply(d); });
+  } else {
+    const watchServerRestart = async () => {
+      try {
+        const res = await fetch('/process/status', { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        checkBootId(data);
+        Alerts.watchProcess(data);
+        Dev.apply(data);
+      } catch (e) {
+        /* السيرفر مقفول دلوقتي — هنحاول تاني في الدورة الجاية */
+      }
+    };
+    watchServerRestart();
+    setInterval(watchServerRestart, 2000);
+  }
+
+  // حالة المحطتين: push لو متاح، وإلا polling
+  if (RT.socket) {
+    RT.on('station1', applyStation1);
+    RT.on('station2', applyStation2);
+  }
+>>>>>>> 9bf21a6 (ADD debug mode)
 
   // Auto-switch (index)
   const sw = $('autoSwitch');
@@ -1343,13 +1845,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnClose = $('btnCloseIoMapping');
     if (btnIo)    btnIo.addEventListener('click', () => {
       renderIoForm(loadIoSettings());
+<<<<<<< HEAD
       loadEndpoints();
+=======
+>>>>>>> 9bf21a6 (ADD debug mode)
       loadVisionMasterPaths();
       $('ioMappingModal').classList.remove('hidden');
     });
     if (btnClose) btnClose.addEventListener('click', () => $('ioMappingModal').classList.add('hidden'));
   }
 
+<<<<<<< HEAD
   // Device addresses (index, developer mode only — the form isn't rendered otherwise)
   if ($('endpointsForm')) {
     $('endpointsForm').addEventListener('submit', function (e) {
@@ -1361,6 +1867,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnResetEp) btnResetEp.addEventListener('click', resetEndpoints);
   }
 
+=======
+>>>>>>> 9bf21a6 (ADD debug mode)
   // VisionMaster paths (index, developer mode only — the form isn't rendered otherwise)
   if ($('visionMasterForm')) {
     $('visionMasterForm').addEventListener('submit', function (e) {
@@ -1446,17 +1954,29 @@ document.addEventListener('DOMContentLoaded', () => {
   // Editable labels (create_program)
   if (document.querySelectorAll('.editable-label').length) initEditableLabels();
 
+<<<<<<< HEAD
   // كل الاختبارات تبدأ بـ None (create_program)
   if (document.querySelectorAll('.picker-btn').length) applyNoneDefaults();
 
+=======
+>>>>>>> 9bf21a6 (ADD debug mode)
   // SQL status: push لو متاح، وإلا polling.
   // ملحوظة: /sql_status بيفتح اتصال pyodbc حقيقي، فكل تاب كان بيعمل
   // اتصال كل ثانيتين. دلوقتي السيرفر بيعمله مرة واحدة للكل.
   if ($('db-status1') || $('db-status2')) {
+<<<<<<< HEAD
     RT.on('sql_status', applySqlStatus);
     updateSqlStatus();
     setInterval(updateSqlStatus, 2000);
 
+=======
+    if (RT.socket) {
+      RT.on('sql_status', applySqlStatus);
+    } else {
+      updateSqlStatus();
+      setInterval(updateSqlStatus, 2000);
+    }
+>>>>>>> 9bf21a6 (ADD debug mode)
     initDummyHandler('dummyStation1', 'btnDummyStation1', 'dummyStation1Status', '/manual_dummy_station1');
     initDummyHandler('dummyStation2', 'btnDummyStation2', 'dummyStation2Status', '/manual_dummy_station2');
   }
@@ -1465,10 +1985,15 @@ document.addEventListener('DOMContentLoaded', () => {
   initPasswordToggle();
 
   // Manual scanner modals (shared)
-  if ($('manualScannerModal') || $('manualScannerModal2')) startFlagPolling();
+  if ($('manualScannerModal') || $('manualScannerModal2') || $('btnAlerts')) startFlagPolling();
 
+<<<<<<< HEAD
   // Station status (index) — polling دايمًا، والـ push بيسرّعه بس
   if ($('s1-arrived-flag') || $('s2-arrived-flag')) {
+=======
+  // Station status (index) — interval للـ fallback بس
+  if (($('s1-arrived-flag') || $('s2-arrived-flag')) && !RT.socket) {
+>>>>>>> 9bf21a6 (ADD debug mode)
     const ms = Math.max(200, DEFAULT_TIME_SETTINGS.statusRefresh);
     window.statusInterval = setInterval(refreshStatus, ms);
     refreshStatus();

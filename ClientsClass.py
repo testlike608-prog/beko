@@ -487,7 +487,11 @@ class  TCPClient():
                 self._log_add("INFO", "Reconnected successfully!")
                 break
             else:
+<<<<<<< HEAD
                 self._log_add("WARNING", "Retrying in 5 seconds...")
+=======
+                self._log_add("WARNING", "❌ Retrying in 5 seconds...")
+>>>>>>> 9bf21a6 (ADD debug mode)
                 if self._stop_event.wait(5):
                     break
 
@@ -715,6 +719,9 @@ class App():
 
         self.cam_cap_s1= TCPClient(Ip_cam_cap_s1, Port_cam_cap_s1, timeout=2 )
         self.cam_cap_s2 = TCPClient(Ip_cam_cap_s2, Port_cam_cap_s2, timeout=2 )
+
+        # علم الإيقاف العام للعملية (Start / Stop من الواجهة)
+        self._stop_event = threading.Event()
 
         # علم الإيقاف العام للعملية (Start / Stop من الواجهة)
         self._stop_event = threading.Event()
@@ -1858,7 +1865,11 @@ class App():
                 serveraddr, database_name, Auth, user_name, password
             )
         except RuntimeError as e:
+<<<<<<< HEAD
             return None, f"DB{index}: {e}"
+=======
+            return None, f"❌ DB{index}: {e}"
+>>>>>>> 9bf21a6 (ADD debug mode)
 
         try:
             with pyodbc.connect(conn_str, timeout=15):

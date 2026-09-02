@@ -59,8 +59,12 @@ def process_stop(request: Request):
     if denied is not None:
         return denied
 
+<<<<<<< HEAD
     # بيرجع فورًا — الإيقاف بيكمّل في الخلفية والحالة بتتبعت للواجهة
     result = controller.request_stop()
+=======
+    result = controller.stop()
+>>>>>>> 9bf21a6 (ADD debug mode)
     result["status"] = controller.status()
     return JSONResponse(result, status_code=200 if result["ok"] else 409)
 
@@ -71,6 +75,10 @@ def process_restart(request: Request):
     if denied is not None:
         return denied
 
+<<<<<<< HEAD
     result = controller.request_restart()
+=======
+    result = controller.restart()
+>>>>>>> 9bf21a6 (ADD debug mode)
     result["status"] = controller.status()
     return JSONResponse(result, status_code=200 if result["ok"] else 409)
