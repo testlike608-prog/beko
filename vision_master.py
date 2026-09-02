@@ -379,12 +379,21 @@ class VisionMasterController:
     # ------------------------------------------------------------------
     # اللوج
     # ------------------------------------------------------------------
-    def _log_add(self, level: str, msg: str):
+    # المستويات دي بتتسجّل في اللوج بس ومش بتتطبع في الكونسول.
+    # "RUN" بييجي مع كل دورة من كل فلو — لو طبعناه بيغرق التيرمنال
+    # طول ما الـ VisionMaster شغال. المهم إننا نشوف بدء وتوقّف بس.
+    CONSOLE_SILENT_LEVELS = frozenset({"RUN"})
+
+    def _log_add(self, level: str, msg: str, console: Optional[bool] = None):
         with self._log_lock:
             self._log.append((time.time(), level, msg))
             if len(self._log) > self.MAX_LOG:
                 self._log = self._log[-(self.MAX_LOG // 2):]
-        print(f"[VisionMaster][{level}] {msg}")
+
+        if console is None:
+            console = level not in self.CONSOLE_SILENT_LEVELS
+        if console:
+            print(f"[VisionMaster][{level}] {msg}")
 
     def logs(self, limit: int = 200) -> list[dict]:
         with self._log_lock:
@@ -586,7 +595,6 @@ class VisionMasterController:
             for name, flow in flows:
                 flow.ContinuousRunEnable = True
                 started.append(name)
-                self._log_add("INFO", f"[RUNNING] {name}")
         except Exception as exc:  # noqa: BLE001
             detail = describe_exception(exc)
             self._log_add("ERROR", f"failed to start flows: {detail}")
@@ -603,7 +611,7 @@ class VisionMasterController:
 
         with self._lock:
             self._running = True
-        self._log_add("INFO", "VisionMaster continuous run started")
+        self._log_add("INFO", f"continuous run STARTED - {len(started)} flow(s): {started}")
         return self.status()
 
     # ------------------------------------------------------------------
@@ -624,17 +632,24 @@ class VisionMasterController:
             was_running = self._running
             self._running = False
 
+        stopped: list[str] = []
         if was_running:
             for name, flow in flows:
                 try:
                     flow.ContinuousRunEnable = False
-                    self._log_add("INFO", f"[STOPPED] {name}")
+                    stopped.append(name)
                 except Exception as exc:  # noqa: BLE001
                     self._log_add("ERROR", f"error stopping {name}: {exc}")
 
         self._detach_handlers()
 
-        self._log_add("INFO", "VisionMaster stopped")
+        with self._lock:
+            counters = dict(self._counters)
+        total = sum(counters.values())
+        self._log_add(
+            "INFO",
+            f"continuous run STOPPED - {len(stopped)} flow(s): {stopped} | total runs: {total}",
+        )
         return self.status()
 
     def dispose(self):

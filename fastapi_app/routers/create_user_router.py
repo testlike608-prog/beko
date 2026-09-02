@@ -14,10 +14,17 @@ router = APIRouter(tags=["create_user"])
 
 LOGINS_FILE = "logins.csv"
 
+# مين اللي مسموح له يفتح صفحة إنشاء المستخدمين
+ALLOWED_ROLES = ("admin", "dev")
+
+# الأدوار اللي ينفع تتحط ليوزر جديد
+ASSIGNABLE_ROLES = ("admin", "user", "dev")
+
 
 @router.get("/create_user", response_class=HTMLResponse, name="CreateUser.create_user")
 async def create_user_page(request: Request):
-    if request.session.get("auth") != "admin":
+    auth_role = request.session.get("auth")
+    if auth_role not in ALLOWED_ROLES:
         return PlainTextResponse("Access denied", status_code=403)
 
     return templates.TemplateResponse(
@@ -25,6 +32,7 @@ async def create_user_page(request: Request):
         "CREATE_USER_HTML.html",
         {
             "error": "",
+            "auth": auth_role,
             "NewUser_data": {"username": "", "password": "", "auth": ""},
         },
     )
@@ -37,7 +45,8 @@ async def create_user_submit(
     password: str = Form(""),
     Authentication: str = Form(""),
 ):
-    if request.session.get("auth") != "admin":
+    auth_role = request.session.get("auth")
+    if auth_role not in ALLOWED_ROLES:
         return PlainTextResponse("Access denied", status_code=403)
 
     username = (username or "").strip()
@@ -51,6 +60,18 @@ async def create_user_submit(
             "CREATE_USER_HTML.html",
             {
                 "error": "Please fill all fields",
+                "auth": auth_role,
+                "NewUser_data": new_user_data,
+            },
+        )
+
+    if auth not in ASSIGNABLE_ROLES:
+        return templates.TemplateResponse(
+            request,
+            "CREATE_USER_HTML.html",
+            {
+                "error": "Unknown role",
+                "auth": auth_role,
                 "NewUser_data": new_user_data,
             },
         )
@@ -71,6 +92,7 @@ async def create_user_submit(
         "CREATE_USER_HTML.html",
         {
             "message": "User created  successfully!",
+            "auth": auth_role,
             "NewUser_data": new_user_data,
         },
     )

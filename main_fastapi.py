@@ -81,9 +81,67 @@ if not os.path.exists("data"):
 
 from fastapi_app.app import app  # noqa: E402
 
+# العنوان اللي المتصفح بيفتحه. مهم: uvicorn بيستمع على 0.0.0.0 وده
+# عنوان استماع مش عنوان تصفح — لو فتحتيه في المتصفح بيدي
+# ERR_ADDRESS_INVALID.
+BROWSE_URL = f"http://127.0.0.1:{PORT}"
+
+
+def _open_url(url: str) -> bool:
+    """يفتح اللينك بأي طريقة متاحة. بيرجع True لو نجح."""
+    try:
+        if webbrowser.open(url):
+            return True
+    except Exception as exc:  # noqa: BLE001
+        print(f"[browser] webbrowser.open failed: {exc}")
+
+    # على ويندوز الـ default browser مش دايمًا بيتسجّل في webbrowser،
+    # فبنجرّب الطريقة بتاعة النظام نفسه.
+    try:
+        if os.name == "nt":
+            os.startfile(url)  # type: ignore[attr-defined]
+            return True
+    except Exception as exc:  # noqa: BLE001
+        print(f"[browser] os.startfile failed: {exc}")
+
+    try:
+        import subprocess
+
+        subprocess.Popen(["cmd", "/c", "start", "", url], shell=False)
+        return True
+    except Exception as exc:  # noqa: BLE001
+        print(f"[browser] start command failed: {exc}")
+
+    return False
+
+
+def _wait_until_ready(timeout: float = 60.0) -> bool:
+    """
+    بيفضل يسأل /healthz لحد ما السيرفر يرد فعلًا.
+
+    الطريقة دي أضمن من مجرد sleep: التاب ما بتتفتحش غير لما الصفحة
+    تبقى جاهزة، فما بتقعديش تتفرجي على صفحة بتحمّل.
+    """
+    import urllib.request
+
+    url = f"{BROWSE_URL}/healthz"
+    deadline = time.time() + timeout
+
+    while time.time() < deadline:
+        try:
+            with urllib.request.urlopen(url, timeout=1.0) as response:
+                if response.status == 200:
+                    return True
+        except Exception:
+            pass
+        time.sleep(0.3)
+
+    return False
+
+
 def _open_browser_if_needed(wait_seconds: float = 4.0):
     """
-    بيفتح المتصفح *بس* لو مفيش تاب مفتوح أصلاً.
+    بيفتح المتصفح *بس* لو مفيش تاب مفتوح أصلاً، وبعد ما السيرفر يجهز.
 
     الصفحة المفتوحة بتعمل polling على /process/status كل ثانيتين، فلو
     السيرفر شاف أي request في أول كام ثانية معناها إن فيه تاب شغال —
@@ -92,14 +150,34 @@ def _open_browser_if_needed(wait_seconds: float = 4.0):
     """
     from fastapi_app.core import client_seen_within
 
+    if not _wait_until_ready():
+        print("[startup] server did not become ready in time - not opening a browser")
+        return
+
+    print("")
+    print("=" * 60)
+    print(f"  Refrigerator Vision System   ->   {BROWSE_URL}")
+    print("=" * 60)
+    print("")
+
     deadline = time.time() + wait_seconds
     while time.time() < deadline:
-        if client_seen_within(wait_seconds):
-            # تفصيلة داخلية — المشغّل مش محتاج يعرفها.
+        if client_seen_within(4.0):
+            # فيه تاب مفتوح بالفعل — هيعمل reload لنفسه.
             return
         time.sleep(0.25)
 
-    webbrowser.open(f"http://127.0.0.1:{PORT}")
+    if not _open_url(BROWSE_URL):
+        print(f"[browser] could not open automatically - open {BROWSE_URL} manually")
+
+
+def _browser_thread():
+    """أي استثناء هنا ما يوقفش السيرفر — بس لازم يتطبع مش يتبلع."""
+    try:
+        _open_browser_if_needed()
+    except Exception as exc:  # noqa: BLE001
+        print(f"[browser] helper failed: {exc!r}")
+        print(f"[browser] open {BROWSE_URL} manually")
 
 
 # ---------------------------------------------------------------------
@@ -124,7 +202,7 @@ def _open_browser_if_needed(wait_seconds: float = 4.0):
 # ---------------------------------------------------------------------
 
 if __name__ == "__main__":
-    threading.Thread(target=_open_browser_if_needed, daemon=True).start()
+    threading.Thread(target=_browser_thread, daemon=True).start()
 
     uvicorn.run(
         app,

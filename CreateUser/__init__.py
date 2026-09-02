@@ -17,8 +17,9 @@ CreateUser = Blueprint(
 
 @CreateUser.route('/create_user', methods=['GET', 'POST'])
 def create_user():
-    # Only admins are allowed to create new users
-    if session.get("auth") != "admin":
+    # Admins and developers are allowed to create new users
+    auth_role = session.get("auth")
+    if auth_role not in ("admin", "dev"):
         return "Access denied", 403
     error = ""
     NewUser_data = {"username": "", "password": "", "auth": ""}
@@ -36,6 +37,6 @@ def create_user():
                 writer = csv.writer(file)
                 writer.writerow([username, password, auth, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
                 message = "User created  successfully!"
-            return render_template("CREATE_USER_HTML.html",message=message, NewUser_data=NewUser_data)
+            return render_template("CREATE_USER_HTML.html", message=message, auth=auth_role, NewUser_data=NewUser_data)
 
-    return render_template("CREATE_USER_HTML.html", error=error, NewUser_data=NewUser_data)
+    return render_template("CREATE_USER_HTML.html", error=error, auth=auth_role, NewUser_data=NewUser_data)

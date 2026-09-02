@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="/static/styles.css?v={{ static_v('styles.css') }}">
 {% if static_exists('socket.io.min.js') %}  <script src="/static/socket.io.min.js?v={{ static_v('socket.io.min.js') }}"></script>
 {% endif %}
+  <script>window.__ALLOW_DEVTOOLS = {{ 'true' if auth == 'dev' else 'false' }};</script>
   <script src="/static/main.js?v={{ static_v('main.js') }}"></script>
 </head>
 <body class="min-h-full">
@@ -21,6 +22,7 @@
           class="text-xl font-semibold">Refrigerator Vision System</h1>
     </div>
     <div class="absolute right-0 flex items-center gap-3">
+      {% include "_alerts_bell.html" %}
       <img src="/static/meeserve.png" alt="Meeserv Logo" class="h-20">
     </div>
   </header>
@@ -52,6 +54,17 @@
           <span class="flex items-center gap-2"><span class="font-medium">Settings</span></span>
           <span class="opacity-50 group-hover:opacity-80">›</span>
         </button>
+
+        {% if auth == 'dev' %}
+        <button id="btnDeveloper"
+          class="group flex items-center justify-between w-full px-3 py-2 rounded-lg border border-amber-300/60 dark:border-amber-500/30 bg-amber-50/60 dark:bg-amber-500/10 hover:bg-amber-100/70 dark:hover:bg-amber-500/20 transition text-left">
+          <span class="flex items-center gap-2">
+            <span class="text-amber-600 dark:text-amber-400">&#9881;</span>
+            <span class="font-medium">Developer</span>
+          </span>
+          <span class="opacity-50 group-hover:opacity-80">&rsaquo;</span>
+        </button>
+        {% endif %}
 
         <a href="{{ url_for('CreateUser.create_user') }}"
           class="group flex items-center justify-between w-full px-3 py-2 rounded-lg border border-transparent hover:border-slate-300/70 hover:bg-slate-50/40 dark:hover:bg-slate-800/40 transition {% if auth != 'admin' and auth != 'dev' %}pointer-events-none opacity-50 cursor-not-allowed{% endif %}">
@@ -460,25 +473,126 @@
   </div>
 </div>
 
-<div id="noCsv1" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[100] hidden">
-  <div class="bg-white dark:bg-gray-800 rounded-lg p-8 w-full max-w-md text-center">
-    <h2 class="text-2xl font-bold text-red-600 mb-4"> System Alert</h2>
-    <p class="text-gray-700 dark:text-gray-300 mb-6">ERROR: THERE IS NO CSV IN OUTER STATION</p>
-    <div class="flex flex-col gap-4">
-      <button onclick="submitCsv1()" class="bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700">OK / Confirm</button>
-    </div>
-  </div>
-</div>
+<!-- NO-CSV alerts now live in the alerts bell in the header (see main.js -> Alerts) -->
 
-<div id="noCsv2" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[100] hidden">
-  <div class="bg-white dark:bg-gray-800 rounded-lg p-8 w-full max-w-md text-center">
-    <h2 class="text-2xl font-bold text-red-600 mb-4"> System Alert</h2>
-    <p class="text-gray-700 dark:text-gray-300 mb-6">ERROR: THERE IS NO CSV IN INNER STATION</p>
-    <div class="flex flex-col gap-4">
-      <button onclick="submitCsv2()" class="bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700">OK / Confirm</button>
+<!-- ============================================================
+     DEVELOPER DRAWER (dev only) - simulation & debug tools
+     ============================================================ -->
+{% if auth == 'dev' %}
+<div id="devDrawer" class="hidden fixed inset-0 z-[110]">
+  <div id="devDrawerBackdrop" class="absolute inset-0 bg-black/40"></div>
+
+  <aside class="absolute right-0 top-0 h-full w-full max-w-md bg-white dark:bg-[#0e1628] shadow-2xl border-l border-gray-200 dark:border-slate-700 flex flex-col">
+
+    <div class="flex items-center justify-between px-5 py-3 bg-gradient-to-r from-amber-600 to-amber-500 text-white shrink-0">
+      <span class="font-bold text-lg tracking-wide">Developer</span>
+      <div class="flex items-center gap-3">
+        <span id="devStateBadge" class="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-black/25 uppercase tracking-wider">&mdash;</span>
+        <button id="btnCloseDev" class="text-2xl leading-none hover:opacity-70">&times;</button>
+      </div>
     </div>
-  </div>
+
+    <div class="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+
+      <!-- ===== Debug mode ===== -->
+      <section class="rounded-xl border border-gray-200 dark:border-slate-700 p-4">
+        <h3 class="font-bold text-slate-700 dark:text-slate-200 mb-1">Debug mode</h3>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">
+          Runs the process without pressing START and without listening to the I/O inputs &mdash;
+          triggers come from the buttons below instead of DI0 / DI1.
+        </p>
+
+        <label class="flex items-center justify-between gap-3 py-2">
+          <span class="text-sm font-medium">Debug mode</span>
+          <input id="devDebugToggle" type="checkbox" class="w-11 h-6 accent-amber-600 cursor-pointer">
+        </label>
+
+        <label class="flex items-center justify-between gap-3 py-2 border-t border-gray-100 dark:border-slate-800">
+          <span class="text-sm font-medium">
+            Dry&#8209;run <span class="block text-xs font-normal text-slate-500 dark:text-slate-400">No sockets at all &mdash; UI only, no network</span>
+          </span>
+          <input id="devDryRunToggle" type="checkbox" class="w-11 h-6 accent-amber-600 cursor-pointer">
+        </label>
+
+        <p id="devModeHint" class="text-xs mt-2 text-slate-500 dark:text-slate-400"></p>
+      </section>
+
+      <!-- ===== Triggers ===== -->
+      <section class="rounded-xl border border-gray-200 dark:border-slate-700 p-4">
+        <h3 class="font-bold text-slate-700 dark:text-slate-200 mb-1">Simulate I/O trigger</h3>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">
+          Same as a rising edge on the station input &mdash; runs the whole station sequence.
+        </p>
+
+        <div class="grid grid-cols-2 gap-3">
+          <button id="btnTrigS1" type="button"
+            class="flex flex-col items-center gap-1 px-3 py-4 rounded-lg bg-[#0382b8] hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold shadow transition">
+            <span class="text-sm">Fridge Arrived</span>
+            <span class="text-[11px] font-normal opacity-80">Station 1 &middot; DI0</span>
+          </button>
+          <button id="btnTrigS2" type="button"
+            class="flex flex-col items-center gap-1 px-3 py-4 rounded-lg bg-[#0382b8] hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold shadow transition">
+            <span class="text-sm">Fridge Arrived</span>
+            <span class="text-[11px] font-normal opacity-80">Station 2 &middot; DI1</span>
+          </button>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 mt-3">
+          <input id="devDummy" type="text" placeholder="Dummy (optional)"
+                 class="col-span-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-800 rounded-lg px-2 py-1.5 text-sm">
+          <select id="devResult"
+                  class="border border-gray-300 dark:border-slate-600 dark:bg-slate-800 rounded-lg px-2 py-1.5 text-sm">
+            <option value="PASS">PASS</option>
+            <option value="FAIL">FAIL</option>
+          </select>
+        </div>
+        <p class="text-[11px] text-slate-400 mt-1">Dummy &amp; result are used in dry&#8209;run only.</p>
+      </section>
+
+      <!-- ===== Alert simulation ===== -->
+      <section class="rounded-xl border border-gray-200 dark:border-slate-700 p-4">
+        <h3 class="font-bold text-slate-700 dark:text-slate-200 mb-3">Simulate alerts</h3>
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" data-alert-kind="no_csv" data-alert-station="1"
+            class="dev-alert-btn px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold">NO CSV &middot; S1</button>
+          <button type="button" data-alert-kind="no_csv" data-alert-station="2"
+            class="dev-alert-btn px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold">NO CSV &middot; S2</button>
+          <button type="button" data-alert-kind="manual_scanner" data-alert-station="1"
+            class="dev-alert-btn px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold">Manual scan &middot; S1</button>
+          <button type="button" data-alert-kind="manual_scanner" data-alert-station="2"
+            class="dev-alert-btn px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold">Manual scan &middot; S2</button>
+        </div>
+      </section>
+
+      <!-- ===== Outputs ===== -->
+      <section class="rounded-xl border border-gray-200 dark:border-slate-700 p-4">
+        <h3 class="font-bold text-slate-700 dark:text-slate-200 mb-3">I/O outputs</h3>
+        <div id="devOutputs" class="space-y-2 text-sm"></div>
+        <button id="btnDevOffAll" type="button"
+          class="mt-3 w-full px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold">ALL OUTPUTS OFF</button>
+      </section>
+
+      <!-- ===== Reset ===== -->
+      <section class="rounded-xl border border-gray-200 dark:border-slate-700 p-4">
+        <h3 class="font-bold text-slate-700 dark:text-slate-200 mb-2">Reset</h3>
+        <button id="btnDevResetFlags" type="button"
+          class="w-full px-3 py-2 rounded-lg bg-slate-600 hover:bg-slate-700 text-white text-sm font-bold">Clear display flags &amp; alerts</button>
+      </section>
+
+      <!-- ===== Log ===== -->
+      <section class="rounded-xl border border-gray-200 dark:border-slate-700 p-4">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-bold text-slate-700 dark:text-slate-200">Log</h3>
+          <button id="btnDevClearLog" type="button"
+            class="text-xs px-2 py-1 rounded bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600">clear</button>
+        </div>
+        <pre id="devLog" class="text-[11px] leading-relaxed font-mono whitespace-pre-wrap break-words max-h-56 overflow-y-auto bg-slate-50 dark:bg-slate-900/60 border border-gray-200 dark:border-slate-700 rounded-lg p-2 text-slate-600 dark:text-slate-300">ready.</pre>
+      </section>
+
+    </div>
+  </aside>
 </div>
+{% endif %}
 
 <div id="toast" style="display:none"></div>
 
@@ -528,12 +642,16 @@
     badge.textContent =
       state === 'running'  ? 'Running'  :
       state === 'starting' ? 'Connecting…' :
+      state === 'debug'    ? 'Debug mode' :
+      state === 'dry-run'  ? 'Dry-run'    :
       stopping             ? 'Stopping…' : 'Stopped';
 
     badge.className =
       'shrink-0 text-xs font-semibold px-3 py-1 rounded-full tracking-wider uppercase transition-opacity ' +
       (state === 'running'  ? 'bg-green-500 animate-pulse' :
        state === 'starting' ? 'bg-amber-500 animate-pulse' :
+       state === 'debug'    ? 'bg-amber-600 animate-pulse' :
+       state === 'dry-run'  ? 'bg-purple-600 animate-pulse' :
        stopping             ? 'bg-orange-500 animate-pulse' : 'bg-gray-500/80');
 
     // أثناء الإيقاف كل الأزرار مقفولة — العملية بتتفكّك في الخلفية

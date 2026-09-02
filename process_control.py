@@ -39,6 +39,13 @@ class ProcessController:
         self._stopping = False        # الإيقاف شغال في الخلفية دلوقتي
         self._started_at: Optional[float] = None
         self._last_error: Optional[str] = None
+        # وضع المطوّر:
+        #   _debug   = العملية شغالة من غير ثريد قراءة الـ I/O
+        #              (التريجر بييجي من الداشبورد بدل الـ DI).
+        #   _dry_run = من غير أي اتصال بالهاردوير خالص — الفلاجات
+        #              بتتحرّك في الواجهة بس عشان تجربة الـ UI.
+        self._debug = False
+        self._dry_run = False
 
     # ------------------------------------------------------------------
     # الحالة
@@ -75,8 +82,12 @@ class ProcessController:
                 "running": self._running,
                 "ready": self._ready,
                 "stopping": self._stopping,
+                "debug": self._debug,
+                "dry_run": self._dry_run,
                 "state": (
                     "stopping" if self._stopping
+                    else "dry-run" if self._dry_run
+                    else "debug" if (self._debug and self._running and self._ready)
                     else "running" if (self._running and self._ready)
                     else "starting" if self._running
                     else "stopped"
@@ -96,8 +107,14 @@ class ProcessController:
     # ------------------------------------------------------------------
     # التشغيل
     # ------------------------------------------------------------------
-    def start(self) -> dict:
+    def start(self, debug: bool = False, dry_run: bool = False) -> dict:
         """
+        debug=True   -> نفس التشغيل العادي بالظبط، بس من غير ثريد قراءة الـ I/O.
+                        يعني التريجر ("وصلت تلاجة") بييجي من الداشبورد بدل الـ DI.
+        dry_run=True -> ما بنفتحش أي سوكيت ولا VisionMaster خالص. الزراير
+                        بتحرّك فلاجات الواجهة بس — للتجربة من غير هاردوير
+                        ومن غير أي مشاكل نتورك.
+
         بيرجع فورًا. الاتصال بالأجهزة بيحصل في ثريد منفصل عشان
         Start_connetion ممكن تفضل مستنية جهاز مش متصل لوقت طويل،
         وده كان هيعلّق الـ HTTP request.
@@ -114,10 +131,23 @@ class ProcessController:
             self._ready = False
             self._threads = []
             self._app = None
+            self._debug = bool(debug or dry_run)
+            self._dry_run = bool(dry_run)
             # بنحجز الحالة بدري عشان ما حدش يضغط START مرتين
             # أثناء تحميل الـ .NET assemblies
             self._running = True
             self._started_at = time.time()
+
+            if self._dry_run:
+                # مفيش أي هاردوير: بنعتبر نفسنا جاهزين على طول.
+                self._ready = True
+                return {
+                    "ok": True,
+                    "running": True,
+                    "debug": True,
+                    "dry_run": True,
+                    "message": "Dry-run mode started (no hardware)",
+                }
 
         # ------------------------------------------------------------------
         # 1. VisionMaster — بره الـ lock لأن التحميل ممكن ياخد ثواني
@@ -204,10 +234,14 @@ class ProcessController:
                 return
 
             workers = [
-                ("io_read", app._IO_read),
                 ("vision_station_2", app._vision_station_2),
                 ("vision_station_1", app._vision_station_1),
             ]
+
+            # في وضع الديباج مش بنسمع للـ I/O خالص — التريجر بييجي من
+            # الداشبورد (simulate_trigger) بدل الـ DI0/DI1.
+            if not self._debug:
+                workers.insert(0, ("io_read", app._IO_read))
 
             threads = []
             for name, target in workers:
@@ -239,6 +273,17 @@ class ProcessController:
     # ------------------------------------------------------------------
     def stop(self, join_timeout: float = 5.0) -> dict:
         with self._lock:
+            if self._dry_run:
+                # مفيش سوكيتات ولا ثريدات — بس تصفير الحالة والفلاجات.
+                self._running = False
+                self._ready = False
+                self._debug = False
+                self._dry_run = False
+                self._threads = []
+                self._started_at = None
+                self._reset_ui_flags()
+                return {"ok": True, "running": False, "message": "Dry-run mode stopped"}
+
             app = self._app
             threads = list(self._threads)
             if self._boot_thread is not None:
@@ -249,6 +294,8 @@ class ProcessController:
             self._app = None
             self._running = False
             self._ready = False
+            self._debug = False
+            self._dry_run = False
 
         # VisionMaster بيتقفل في كل الحالات، حتى لو العملية ما وصلتش لمرحلة App
         self._safe_vision_stop()
@@ -290,11 +337,167 @@ class ProcessController:
         return {"ok": True, "running": False, "message": "Process stopped"}
 
     # ------------------------------------------------------------------
+    # أدوات المطوّر (Developer tab)
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _reset_ui_flags():
+        """تصفير فلاجات العرض بعد الخروج من وضع التجربة."""
+        cc.your_s1_arrived_flag = False
+        cc.your_s2_arrived_flag = False
+
+    def is_debug(self) -> bool:
+        with self._lock:
+            return self._debug
+
+    def is_dry_run(self) -> bool:
+        with self._lock:
+            return self._dry_run
+
+    def set_debug_mode(self, enabled: bool, dry_run: bool = False) -> dict:
+        """
+        تشغيل/إطفاء وضع المطوّر. مش محتاج تدوسي START:
+        الدالة دي بتعمل الـ start بنفسها بالوضع المطلوب.
+        """
+        if not enabled:
+            if self.is_running():
+                result = self.stop()
+                result["message"] = "Debug mode off - process stopped"
+                result["status"] = self.status()
+                return result
+            return {
+                "ok": True,
+                "running": False,
+                "message": "Debug mode is already off",
+                "status": self.status(),
+            }
+
+        with self._lock:
+            already = self._running and self._debug and self._dry_run == bool(dry_run)
+        if already:
+            return {
+                "ok": True,
+                "running": True,
+                "message": "Debug mode is already on",
+                "status": self.status(),
+            }
+
+        if self.is_running():
+            self.stop()
+            time.sleep(0.3)
+
+        result = self.start(debug=True, dry_run=dry_run)
+        result["status"] = self.status()
+        return result
+
+    # ------------------------------------------------------------------
+    def _dry_run_sequence(self, station: int, result: str, dummy: str, sku: str):
+        """محاكاة دورة كاملة في الواجهة من غير أي هاردوير."""
+        try:
+            if station == 1:
+                cc.your_s1_arrived_flag = True
+                cc.your_s1_dummy = dummy
+                cc.your_s1_sku = sku
+                cc.your_s1_result = None
+                time.sleep(2.0)
+                cc.your_s1_result = result
+                time.sleep(2.0)
+                cc.your_s1_arrived_flag = False
+            else:
+                cc.your_s2_arrived_flag = True
+                cc.your_s2_dummy = dummy
+                cc.your_s2_sku = sku
+                cc.your_s2_result = None
+                time.sleep(2.0)
+                cc.your_s2_result = result
+                time.sleep(2.0)
+                cc.your_s2_arrived_flag = False
+        except Exception as exc:  # noqa: BLE001
+            with self._lock:
+                self._last_error = f"Dry-run sequence error: {exc}"
+
+    def simulate_trigger(self, station: int, result: str = "PASS",
+                         dummy: str = "", sku: str = "") -> dict:
+        """
+        نفس اللي بيحصل لما الـ DI بتاع المحطة يقرا حافة صاعدة —
+        بس من الداشبورد بدل الهاردوير.
+        """
+        if station not in (1, 2):
+            return {"ok": False, "message": "station must be 1 or 2"}
+
+        with self._lock:
+            running = self._running
+            dry = self._dry_run
+            app = self._app
+
+        if not running:
+            return {"ok": False, "message": "Process is not running - turn Debug mode on first"}
+
+        dummy = dummy or f"SIM{station}0000000000"
+        sku = sku or f"SIM-SKU-{station}"
+
+        if dry:
+            threading.Thread(
+                target=self._dry_run_sequence,
+                args=(station, str(result or "PASS").upper(), dummy, sku),
+                name=f"beko-dryrun-s{station}", daemon=True,
+            ).start()
+            return {
+                "ok": True, "mode": "dry_run", "station": station,
+                "message": f"Simulated fridge arrival at station {station} (dry-run)",
+            }
+
+        if app is None:
+            return {"ok": False, "message": "Process is still starting - try again in a moment"}
+
+        target = app._IO_Writer_station_1 if station == 1 else app._IO_Writer_station_2
+        if station == 1:
+            cc.your_s1_arrived_flag = True
+        else:
+            cc.your_s2_arrived_flag = True
+
+        threading.Thread(target=target, name=f"beko-sim-s{station}", daemon=True).start()
+        return {
+            "ok": True, "mode": "debug", "station": station,
+            "message": f"Triggered station {station} sequence",
+        }
+
+    # ------------------------------------------------------------------
+    def write_output(self, function_name: str, action: str) -> dict:
+        """إرسال أمر Modbus لمخرج واحد — لاختبار الأسلاك من الداشبورد."""
+        from ioSetting import generate_modbus_command
+
+        command = generate_modbus_command(function_name, action)
+        if isinstance(command, str) and command.startswith("Error"):
+            return {"ok": False, "message": command}
+
+        with self._lock:
+            app = self._app
+            dry = self._dry_run
+
+        if dry or app is None:
+            return {
+                "ok": True, "sent": False, "command": command,
+                "message": f"{function_name} {action} - command built only (no hardware)",
+            }
+
+        try:
+            app.client_write_io.send_request(command, is_hex=True)
+        except Exception as exc:  # noqa: BLE001
+            return {"ok": False, "message": f"Failed to send: {exc}", "command": command}
+
+        return {
+            "ok": True, "sent": True, "command": command,
+            "message": f"{function_name} {action} sent",
+        }
+
+    # ------------------------------------------------------------------
     def restart(self) -> dict:
+        with self._lock:
+            debug, dry_run = self._debug, self._dry_run
         if self.is_running():
             self.stop()
             time.sleep(0.5)
-        return self.start()
+        return self.start(debug=debug, dry_run=dry_run)
 
     # ------------------------------------------------------------------
     # نسخ غير محجوبة للواجهة
@@ -365,6 +568,9 @@ class ProcessController:
         with self._lock:
             if self._stopping:
                 return {"ok": False, "running": self._running, "message": "Stop in progress…"}
+            # stop() بيصفّر أعلام وضع المطوّر، فبنحفظها هنا عشان
+            # الـ restart يرجّع نفس الوضع اللي كان شغال.
+            debug, dry_run = self._debug, self._dry_run
             self._stopping = True
 
         def _worker():
@@ -385,7 +591,7 @@ class ProcessController:
             # لو start() فشلت (مثلاً VisionMaster) الرسالة بتبقى في
             # last_error واللي بيوصل للواجهة مع الحالة.
             try:
-                self.start()
+                self.start(debug=debug, dry_run=dry_run)
             except Exception as exc:  # noqa: BLE001
                 with self._lock:
                     self._running = False

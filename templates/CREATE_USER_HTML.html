@@ -6,13 +6,18 @@
   <title>Create New User</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/styles.css?v={{ static_v('styles.css') }}">
+  <script src="/static/tailwind.cdn.js"></script>
 {% if static_exists('socket.io.min.js') %}  <script src="/static/socket.io.min.js?v={{ static_v('socket.io.min.js') }}"></script>
 {% endif %}
+  <script>window.__ALLOW_DEVTOOLS = {{ 'true' if auth == 'dev' else 'false' }};</script>
   <script src="/static/main.js?v={{ static_v('main.js') }}"></script>
 </head>
 <body class="auth-body">
 
-  <a href="/home" class="back-link">← Back to Console</a>
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;">
+    <a href="/home" class="back-link" style="margin:0;">← Back to Console</a>
+    {% include "_alerts_bell.html" %}
+  </div>
 
   <div class="login-container">
     <div class="auth-logo">M</div>
@@ -40,6 +45,7 @@
           <option value="">--choose--</option>
           <option value="admin" {% if NewUser_data.get('auth') == 'admin' %}selected{% endif %}>Admin</option>
           <option value="user"  {% if NewUser_data.get('auth') == 'user'  %}selected{% endif %}>User</option>
+          <option value="dev"   {% if NewUser_data.get('auth') == 'dev'   %}selected{% endif %}>Developer</option>
         </select>
       </div>
       <button type="submit" class="auth-btn">ADD</button>
