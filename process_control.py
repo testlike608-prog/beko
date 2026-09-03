@@ -46,6 +46,11 @@ class ProcessController:
         #              بتتحرّك في الواجهة بس عشان تجربة الـ UI.
         self._debug = False
         self._dry_run = False
+        # في وضع الديباج: هل نفضل نسمع لمداخل الـ I/O كمان؟
+        #   True  = التريجر بييجي من الداشبورد *أو* من حافة صاعدة (0 -> 1)
+        #           على الـ DI، زي السيكونس العادي بالظبط.
+        #   False = الداشبورد بس.
+        self._listen_io = True
 
     # ------------------------------------------------------------------
     # الحالة
@@ -82,8 +87,13 @@ class ProcessController:
                 "running": self._running,
                 "ready": self._ready,
                 "stopping": self._stopping,
-                "debug": self._debug,
+                # مهم: داخليًا _debug بترتفع مع الـ dry_run كمان (الاتنين
+                # وضع مطوّر)، بس الواجهة محتاجة تفرّق بينهم عشان كل شيك
+                # بوكس يعبّر عن نفسه لوحده من غير ما الاتنين يتعلّموا.
+                "debug": bool(self._debug and not self._dry_run),
+                "developer_mode": self._debug,
                 "dry_run": self._dry_run,
+                "listen_io": self._listen_io,
                 "state": (
                     "stopping" if self._stopping
                     else "dry-run" if self._dry_run
@@ -107,7 +117,8 @@ class ProcessController:
     # ------------------------------------------------------------------
     # التشغيل
     # ------------------------------------------------------------------
-    def start(self, debug: bool = False, dry_run: bool = False) -> dict:
+    def start(self, debug: bool = False, dry_run: bool = False,
+              listen_io: bool = True) -> dict:
         """
         debug=True   -> نفس التشغيل العادي بالظبط، بس من غير ثريد قراءة الـ I/O.
                         يعني التريجر ("وصلت تلاجة") بييجي من الداشبورد بدل الـ DI.
@@ -133,6 +144,8 @@ class ProcessController:
             self._app = None
             self._debug = bool(debug or dry_run)
             self._dry_run = bool(dry_run)
+            # في التشغيل العادي بنسمع للـ I/O دايمًا
+            self._listen_io = True if not self._debug else bool(listen_io)
             # بنحجز الحالة بدري عشان ما حدش يضغط START مرتين
             # أثناء تحميل الـ .NET assemblies
             self._running = True
@@ -238,9 +251,12 @@ class ProcessController:
                 ("vision_station_1", app._vision_station_1),
             ]
 
-            # في وضع الديباج مش بنسمع للـ I/O خالص — التريجر بييجي من
-            # الداشبورد (simulate_trigger) بدل الـ DI0/DI1.
-            if not self._debug:
+            # ثريد قراءة الـ I/O:
+            #   - التشغيل العادي: شغال دايمًا.
+            #   - الديباج: شغال إلا لو المستخدم قفل "Listen to I/O inputs".
+            # الحافة الصاعدة (0 -> 1) هي اللي بتشغّل السيكونس، ونفس
+            # السيكونس بالظبط هو اللي بيتنفّذ من زرار الداشبورد.
+            if self._listen_io:
                 workers.insert(0, ("io_read", app._IO_read))
 
             threads = []
@@ -296,6 +312,7 @@ class ProcessController:
             self._ready = False
             self._debug = False
             self._dry_run = False
+            self._listen_io = True
 
         # VisionMaster بيتقفل في كل الحالات، حتى لو العملية ما وصلتش لمرحلة App
         self._safe_vision_stop()
@@ -353,7 +370,8 @@ class ProcessController:
         with self._lock:
             return self._dry_run
 
-    def set_debug_mode(self, enabled: bool, dry_run: bool = False) -> dict:
+    def set_debug_mode(self, enabled: bool, dry_run: bool = False,
+                       listen_io: bool = True) -> dict:
         """
         تشغيل/إطفاء وضع المطوّر. مش محتاج تدوسي START:
         الدالة دي بتعمل الـ start بنفسها بالوضع المطلوب.
@@ -372,7 +390,9 @@ class ProcessController:
             }
 
         with self._lock:
-            already = self._running and self._debug and self._dry_run == bool(dry_run)
+            already = (self._running and self._debug
+                       and self._dry_run == bool(dry_run)
+                       and self._listen_io == bool(listen_io))
         if already:
             return {
                 "ok": True,
@@ -385,7 +405,7 @@ class ProcessController:
             self.stop()
             time.sleep(0.3)
 
-        result = self.start(debug=True, dry_run=dry_run)
+        result = self.start(debug=True, dry_run=dry_run, listen_io=listen_io)
         result["status"] = self.status()
         return result
 
@@ -449,13 +469,16 @@ class ProcessController:
         if app is None:
             return {"ok": False, "message": "Process is still starting - try again in a moment"}
 
-        target = app._IO_Writer_station_1 if station == 1 else app._IO_Writer_station_2
-        if station == 1:
-            cc.your_s1_arrived_flag = True
-        else:
-            cc.your_s2_arrived_flag = True
+        # نفس الدالة اللي بيناديها ثريد قراءة الـ I/O عند الحافة الصاعدة،
+        # فالسيكونس اللي بيجري واحد بالظبط: كاميرا المحطة 2، رفع فلاج
+        # الوصول، ثم _IO_Writer_station_x في ثريد، مع منع التكرار.
+        started = app.trigger_station(station, source="gui")
+        if not started:
+            return {
+                "ok": False,
+                "message": f"Station {station} sequence is still running - wait for it to finish",
+            }
 
-        threading.Thread(target=target, name=f"beko-sim-s{station}", daemon=True).start()
         return {
             "ok": True, "mode": "debug", "station": station,
             "message": f"Triggered station {station} sequence",
@@ -474,10 +497,26 @@ class ProcessController:
             app = self._app
             dry = self._dry_run
 
-        if dry or app is None:
+        if dry:
+            # في الـ dry-run مفيش سوكيتات مفتوحة أصلاً، فمفيش طريقة نبعت بيها
+            # أي أمر. بنرفض بوضوح بدل ما نقول "تمام" والحاجة ما حصلتش.
             return {
-                "ok": True, "sent": False, "command": command,
-                "message": f"{function_name} {action} - command built only (no hardware)",
+                "ok": False, "sent": False, "command": command,
+                "message": "Dry-run has no connection to the I/O - switch to Debug mode",
+            }
+
+        if app is None:
+            return {
+                "ok": False, "sent": False, "command": command,
+                "message": "Process is not running - start Debug mode first",
+            }
+
+        # من غير الفحص ده، send_request بتنادي ensure_connected() اللي بتفضل
+        # تحاول للأبد لو الموديول مش موصّل، فالطلب كان هيعلّق من غير رسالة.
+        if not app.client_write_io.connected:
+            return {
+                "ok": False, "sent": False, "command": command,
+                "message": "I/O write module is not connected yet",
             }
 
         try:
@@ -487,17 +526,17 @@ class ProcessController:
 
         return {
             "ok": True, "sent": True, "command": command,
-            "message": f"{function_name} {action} sent",
+            "message": f"{function_name} {action} sent to the I/O module",
         }
 
     # ------------------------------------------------------------------
     def restart(self) -> dict:
         with self._lock:
-            debug, dry_run = self._debug, self._dry_run
+            debug, dry_run, listen_io = self._debug, self._dry_run, self._listen_io
         if self.is_running():
             self.stop()
             time.sleep(0.5)
-        return self.start(debug=debug, dry_run=dry_run)
+        return self.start(debug=debug, dry_run=dry_run, listen_io=listen_io)
 
     # ------------------------------------------------------------------
     # نسخ غير محجوبة للواجهة
@@ -570,7 +609,7 @@ class ProcessController:
                 return {"ok": False, "running": self._running, "message": "Stop in progress…"}
             # stop() بيصفّر أعلام وضع المطوّر، فبنحفظها هنا عشان
             # الـ restart يرجّع نفس الوضع اللي كان شغال.
-            debug, dry_run = self._debug, self._dry_run
+            debug, dry_run, listen_io = self._debug, self._dry_run, self._listen_io
             self._stopping = True
 
         def _worker():
@@ -591,7 +630,7 @@ class ProcessController:
             # لو start() فشلت (مثلاً VisionMaster) الرسالة بتبقى في
             # last_error واللي بيوصل للواجهة مع الحالة.
             try:
-                self.start(debug=debug, dry_run=dry_run)
+                self.start(debug=debug, dry_run=dry_run, listen_io=listen_io)
             except Exception as exc:  # noqa: BLE001
                 with self._lock:
                     self._running = False

@@ -209,11 +209,15 @@ function applyFlags(data, modalId, station) {
   const modal = $(modalId);
   if (modal) modal.classList.toggle('hidden', data.manual_scanner !== true);
 
-  // الـ NO CSV بقى أليرت في الجرس بدل الـ popup.
+  // الـ NO CSV بقى أليرت في الجرس بدل الـ popup، والأليرت بيقول
+  // اسم الملف اللي مش لاقيه بالظبط.
+  const missing = (data.no_csv_file || '').trim();
   Alerts.sync('no_csv_s' + station, data.no_csv_error === true, {
     level: 'error',
     title: 'NO CSV - ' + (station === 1 ? 'Outer station' : 'Inner station'),
-    detail: 'No CSV file was found for the scanned product number.',
+    detail: missing
+      ? `Missing file: ${missing}  (looked in the Programs folder)`
+      : 'No CSV file was found for the scanned product number.',
     ackUrl: station === 1 ? '/control' : '/control2'
   });
 }
@@ -819,7 +823,8 @@ const Alerts = {
   /** أليرت مربوط بفلاج من السيرفر: بيظهر لما الفلاج يبقى true ويختفي لما يرجع false. */
   sync(id, active, meta) {
     if (active) {
-      if (!this.items.has(id)) {
+      const existing = this.items.get(id);
+      if (!existing) {
         this.items.set(id, {
           id, live: true, time: new Date(),
           level: meta.level || 'error',
@@ -829,6 +834,10 @@ const Alerts = {
         });
         this.render();
         this.flash();
+      } else if (meta.detail && meta.detail !== existing.detail) {
+        // التفاصيل ممكن توصل بعد الفلاج بجزء من الثانية (اسم ملف الـ CSV مثلاً)
+        existing.detail = meta.detail;
+        this.render();
       }
     } else if (this.items.has(id)) {
       this.items.delete(id);
@@ -1446,7 +1455,8 @@ function initPasswordToggle() {
    سيمولاشن لتريجرات الـ I/O + Debug mode من غير ما تدوسي START.
 ───────────────────────────────────────────── */
 const Dev = {
-  state: { debug: false, dry_run: false, running: false, state: 'stopped', outputs: [] },
+  state: { debug: false, dry_run: false, listen_io: true, running: false,
+           state: 'stopped', outputs: [], station_busy: {} },
   busy: false,
   lines: [],
 
@@ -1519,6 +1529,21 @@ const Dev = {
     this.render();
   },
 
+  /** الوضع الحالي زي ما السيرفر شايفه بالظبط. */
+  mode() {
+    if (this.state.dry_run) return 'dry';
+    if (this.state.debug) return 'debug';
+    return 'off';
+  },
+
+  /** mode: 'off' | 'debug' | 'dry' */
+  async setModeByName(mode) {
+    if (mode === 'off') return this.setMode(false, false, false);
+    if (mode === 'dry') return this.setMode(true, true, false);
+    const lio = $('devListenIoToggle');
+    return this.setMode(true, false, lio ? lio.checked : true);
+  },
+
   render() {
     const badge = $('devStateBadge');
     if (badge) {
@@ -1526,18 +1551,38 @@ const Dev = {
         : this.state.state === 'starting' ? 'CONNECTING…'
         : this.state.dry_run ? 'DRY-RUN'
         : this.state.debug   ? 'DEBUG'
-        : this.state.running ? 'RUNNING' : 'STOPPED';
+        : this.state.running ? 'RUNNING' : 'OFF';
     }
 
+    // ------- الشيك بوكسات -------
+    // كل واحد بيعبّر عن نفسه من حالة السيرفر مباشرة:
+    //   state.debug   = ديباج متصل بالهاردوير (بيبقى false في الـ dry-run)
+    //   state.dry_run = دراي رن
+    // فمستحيل الاتنين يبقوا متعلّمين مع بعض.
     const dbg = $('devDebugToggle');
     const dry = $('devDryRunToggle');
-    // أثناء الطلب بنقفل التوجلز عشان ما تتبعتش طلبات متداخلة،
-    // وما بنغيّرش قيمتهم عشان ما نلغيش ضغطة المستخدم.
+    const lio = $('devListenIoToggle');
+
     if (dbg) dbg.disabled = this.busy;
     if (dry) dry.disabled = this.busy;
+    if (lio) lio.disabled = this.busy || !this.state.debug;
+
+    // أثناء الطلب مابنلمسش القيم عشان ضغطة المستخدم ما تترجعش قدامه
     if (!this.busy) {
       if (dbg) dbg.checked = !!this.state.debug;
       if (dry) dry.checked = !!this.state.dry_run;
+      if (lio) lio.checked = this.state.debug ? !!this.state.listen_io : false;
+    }
+
+    // تنبيه لو سيكونس محطة لسه شغال — التريجر بيتجاهل في الحالة دي
+    const busyHint = $('devBusyHint');
+    if (busyHint) {
+      const sb = this.state.station_busy || {};
+      const running = [1, 2].filter(n => sb[n] || sb[String(n)]);
+      busyHint.textContent = running.length
+        ? `Station ${running.join(' & ')} sequence is still running — new triggers are ignored until it finishes.`
+        : '';
+      busyHint.classList.toggle('hidden', running.length === 0);
     }
 
     const hint = $('devModeHint');
@@ -1546,7 +1591,9 @@ const Dev = {
         this.state.state === 'starting'
           ? 'Connecting to the devices… if no hardware is attached this can wait forever — switch on Dry-run instead.'
       : this.state.dry_run ? 'Dry-run: nothing is sent to the hardware - safe for UI testing.'
-      : this.state.debug   ? 'Debug: devices are connected, but DI0 / DI1 are not read - use the buttons below.'
+      : this.state.debug   ? (this.state.listen_io
+            ? 'Debug: triggers come from the buttons below, or from a real 0 -> 1 edge on DI0 / DI1 - same sequence either way.'
+            : 'Debug: I/O inputs are not read at all - triggers come from the buttons below only.')
       : this.state.running ? 'Normal run: triggers come from the real I/O inputs.'
       : 'Turn Debug mode on to test without pressing START.';
     }
@@ -1561,10 +1608,30 @@ const Dev = {
     this.renderOutputs();
   },
 
+  /** المخارج بتشتغل بس لما يكون فيه اتصال حقيقي بالهاردوير. */
+  outputsEnabled() {
+    return !!this.state.running && !this.state.dry_run;
+  },
+
   renderOutputs() {
     const box = $('devOutputs');
     if (!box) return;
     const outs = this.state.outputs || [];
+    const enabled = this.outputsEnabled();
+
+    // تعطيل/تفعيل الزراير الموجودة
+    box.querySelectorAll('button[data-io]').forEach(b => { b.disabled = !enabled; });
+    const offAll = $('btnDevOffAll');
+    if (offAll) offAll.disabled = !enabled;
+    const hint = $('devOutputsHint');
+    if (hint) {
+      hint.textContent = enabled
+        ? 'Commands are sent to the I/O module for real.'
+        : (this.state.dry_run
+            ? 'Disabled in Dry-run — no sockets are open, so nothing can reach the I/O.'
+            : 'Disabled — start Debug mode (or the normal process) first.');
+    }
+
     if (box.dataset.rendered === outs.join(',')) return;
     box.dataset.rendered = outs.join(',');
 
@@ -1573,11 +1640,13 @@ const Dev = {
         <span class="font-mono text-xs text-slate-600 dark:text-slate-300">${escapeHtml(name)}</span>
         <span class="flex gap-1">
           <button type="button" data-io="${escapeHtml(name)}" data-action="ON"
-            class="px-2.5 py-1 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold">ON</button>
+            class="px-2.5 py-1 rounded-md bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white text-xs font-bold">ON</button>
           <button type="button" data-io="${escapeHtml(name)}" data-action="OFF"
-            class="px-2.5 py-1 rounded-md bg-slate-500 hover:bg-slate-600 text-white text-xs font-bold">OFF</button>
+            class="px-2.5 py-1 rounded-md bg-slate-500 hover:bg-slate-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white text-xs font-bold">OFF</button>
         </span>
       </div>`).join('');
+
+    box.querySelectorAll('button[data-io]').forEach(b => { b.disabled = !enabled; });
   },
 
   open() {
@@ -1594,12 +1663,16 @@ const Dev = {
     if (d) d.classList.add('hidden');
   },
 
-  async setMode(debug, dryRun) {
+  async setMode(debug, dryRun, listenIo) {
     if (this.busy) { this.log('another request is still running - ignored'); return; }
+    if (listenIo === undefined) {
+      const lio = $('devListenIoToggle');
+      listenIo = lio ? lio.checked : true;
+    }
 
     this.busy = true;
     this.render();
-    this.log(`switching mode -> debug=${debug}, dry_run=${dryRun}`);
+    this.log(`switching mode -> debug=${debug}, dry_run=${dryRun}, listen_io=${listenIo}`);
 
     // تحميل VisionMaster وفتح السوكيتات ممكن ياخدوا وقت. من غير
     // التنبيه ده الشاشة بتبان كأنها واقفة مش عارفة بتعمل إيه.
@@ -1610,7 +1683,8 @@ const Dev = {
 
     let data = null;
     try {
-      data = await this.call('/debug/mode', { enabled: debug, dry_run: dryRun });
+      data = await this.call('/debug/mode',
+        { enabled: debug, dry_run: dryRun, listen_io: listenIo });
     } finally {
       clearTimeout(slow);
       this.busy = false;
@@ -1625,13 +1699,11 @@ const Dev = {
   },
 
   async trigger(station) {
+    // مفيش تشغيل تلقائي لأي وضع — المستخدم هو اللي بيقرر.
     if (!this.state.running) {
-      this.log('process is not running - starting dry-run first');
-      await this.setMode(true, true);
-      if (!this.state.running) {
-        this.log('could not start any mode - trigger aborted', 'err');
-        return;
-      }
+      this.log('nothing is running - turn Debug mode or Dry-run on first', 'err');
+      showToast('Turn Debug mode (or Dry-run) on first', 'red');
+      return;
     }
 
     const dummy  = ($('devDummy')  || {}).value  || '';
@@ -1658,17 +1730,31 @@ const Dev = {
 
     const dbg = $('devDebugToggle');
     const dry = $('devDryRunToggle');
+    const lio = $('devListenIoToggle');
 
+    // Debug mode: علّمي = يشتغل، شيلي العلامة = يقف.
     if (dbg) dbg.addEventListener('change', () => {
-      const on = dbg.checked;
-      if (!on && dry) dry.checked = false;
-      this.setMode(on, on && dry ? dry.checked : false);
+      if (dbg.checked) {
+        if (dry) dry.checked = false;          // الوضعين مش بيشتغلوا مع بعض
+        this.setMode(true, false, lio ? lio.checked : true);
+      } else {
+        this.setMode(false, false, false);     // إيقاف كامل
+      }
     });
 
+    // Dry-run: نفس الفكرة بالظبط
     if (dry) dry.addEventListener('change', () => {
-      // الـ dry-run هو نكهة من الـ debug mode، فبيشغّله معاه.
-      if (dry.checked && dbg) dbg.checked = true;
-      this.setMode(dbg ? dbg.checked : true, dry.checked);
+      if (dry.checked) {
+        if (dbg) dbg.checked = false;
+        this.setMode(true, true, false);
+      } else {
+        this.setMode(false, false, false);
+      }
+    });
+
+    if (lio) lio.addEventListener('change', () => {
+      if (!this.state.debug) return;           // مالهاش معنى بره الديباج
+      this.setMode(true, false, lio.checked);
     });
 
     const t1 = $('btnTrigS1');

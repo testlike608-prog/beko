@@ -51,6 +51,10 @@ global NO_CSV_ERROR
 NO_CSV_ERROR = False
 global NO_CSV_ERROR2
 NO_CSV_ERROR2 = False
+# اسم ملف الـ CSV الناقص لكل محطة — عشان الأليرت يقول الملف اللي مش لاقيه
+global NO_CSV_FILE, NO_CSV_FILE2
+NO_CSV_FILE = ""
+NO_CSV_FILE2 = ""
 global Buzzer_Flag_to_OFF
 global Buzzer_Flag_to_OFF2
 global is_waiting
@@ -176,6 +180,7 @@ queue_manual2_FOR_Proessing = queue.Queue()
 def auto_load_csv_by_product_number(product_number: str, part: str, server_instance , queue: queue): # type: ignore # server_instance = client intense
     """Automatically load CSV file based on ProductNumber"""
     global NO_CSV_ERROR, NO_CSV_ERROR2,Buzzer_Flag_to_OFF, Buzzer_Flag_to_OFF2
+    global NO_CSV_FILE, NO_CSV_FILE2
     try:
         if not product_number:
             server_instance._log_add("ERROR", "No ProductNumber provided for CSV auto-load")
@@ -203,8 +208,10 @@ def auto_load_csv_by_product_number(product_number: str, part: str, server_insta
             server_instance._log_add("WARNING", f"CSV file not found: {filename}")
             if part == "S1":
                 NO_CSV_ERROR = True
+                NO_CSV_FILE = filename
             elif part == "S2":
                 NO_CSV_ERROR2 = True
+                NO_CSV_FILE2 = filename
 
             server = TCPClient(Ip_write_IO, Port_write_IO)
             if part == "S1":
@@ -222,6 +229,13 @@ def auto_load_csv_by_product_number(product_number: str, part: str, server_insta
                     break
             
             time.sleep(60)  # انتظر 60 ثانية قبل إعادة التحقق من وجود الملف
+
+        # الملف بقى موجود — نمسح اسمه من الأليرت
+        if part == "S1":
+            NO_CSV_FILE = ""
+        else:
+            NO_CSV_FILE2 = ""
+
         csv_data = hlb._load_csv_file(csv_path)
         
         # 1. الحصول على جميع العناوين (الأعمدة) من ملف الـ CSV
@@ -719,6 +733,13 @@ class App():
         # علم الإيقاف العام للعملية (Start / Stop من الواجهة)
         self._stop_event = threading.Event()
 
+        # قفل إعادة الدخول لكل محطة.
+        # سيكونس المحطة ممكن يفضل شغال ثواني (مستني الصورة من VisionMaster)،
+        # ولو الحساس فضل قارئ أو جت قراءة غلط كان بيتفتح ثريد تاني فوق الأول
+        # ونفس التلاجة تتفحص مرتين. الفلاج ده بيمنع ده تمامًا.
+        self._station_busy = {1: False, 2: False}
+        self._station_busy_lock = threading.Lock()
+
         #auto connnect with data base
         #self.auto_connect_db()
         #db.auto_connect_db()
@@ -798,6 +819,7 @@ class App():
         global your_s1_result, your_s2_result
         global Manual_Scanner_MODE, Manual_Scanner_MODE2
         global NO_CSV_ERROR, NO_CSV_ERROR2
+        global NO_CSV_FILE, NO_CSV_FILE2
         your_s1_arrived_flag = False
         your_s2_arrived_flag = False
         your_s1_result = None
@@ -806,6 +828,8 @@ class App():
         Manual_Scanner_MODE2 = False
         NO_CSV_ERROR = False
         NO_CSV_ERROR2 = False
+        NO_CSV_FILE = ""
+        NO_CSV_FILE2 = ""
 
     def Start_connetion(self):
 
@@ -863,39 +887,102 @@ class App():
     
     
 # servers handling
+    # ------------------------------------------------------------------
+    # نقطة الدخول الوحيدة لسيكونس المحطة
+    #
+    # سواء التريجر جه من حافة صاعدة على الـ DI أو من زرار في تاب المطوّر،
+    # الاتنين بيعدّوا من هنا — فالسيكونس اللي بيتنفّذ واحد بالظبط.
+    # ------------------------------------------------------------------
+    def trigger_station(self, station: int, source: str = "io") -> bool:
+        """
+        بترجع True لو السيكونس اتشغّل فعلًا، و False لو المحطة لسه شغالة.
+        """
+        global your_s1_arrived_flag, your_s2_arrived_flag
+
+        if station not in (1, 2):
+            return False
+
+        with self._station_busy_lock:
+            if self._station_busy[station]:
+                self.client_read_io._log_add(
+                    "INFO", f"station {station} is still busy - trigger from {source} ignored")
+                return False
+            self._station_busy[station] = True
+
+        # نفس ترتيب الكود الأصلي: المحطة 2 بتبعت أمر التصوير قبل ما ترفع الفلاج
+        if station == 2:
+            try:
+                self.cam_cap_s2.send_request("S2")
+            except Exception as exc:  # noqa: BLE001
+                self.client_read_io._log_add("ERROR", f"cam_cap_s2 request failed: {exc}")
+
+        if station == 1:
+            your_s1_arrived_flag = True
+        else:
+            your_s2_arrived_flag = True
+
+        self.client_read_io._log_add(
+            "INFO", f"found fridge in station {station} (source: {source})")
+
+        target = self._IO_Writer_station_1 if station == 1 else self._IO_Writer_station_2
+
+        def _runner():
+            try:
+                target()
+            except Exception as exc:  # noqa: BLE001
+                self.client_read_io._log_add(
+                    "FATAL", f"station {station} sequence crashed: {exc}")
+            finally:
+                with self._station_busy_lock:
+                    self._station_busy[station] = False
+
+        threading.Thread(target=_runner, name=f"beko-station{station}", daemon=True).start()
+        return True
+
+    def is_station_busy(self, station: int) -> bool:
+        with self._station_busy_lock:
+            return bool(self._station_busy.get(station))
+
     def _IO_read(self):
-            global your_s1_arrived_flag, your_s2_arrived_flag
-            self.client_read_io._log_add("INFO", f"start reading from io")
-            last_DI0 = b"\x00"
-            last_DI1 = b"\x00"
+            self.client_read_io._log_add("INFO", "start reading from io")
+
+            # None = لسه ماقريناش حاجة مؤكدة.
+            # مهم: القراءة الفاشلة *مش* بتصفّر الحالة السابقة. قبل كده كانت
+            # بتصفّرها، فلو جت قراءة فاضية والتلاجة لسه قدام الحساس، القراءة
+            # اللي بعدها كانت بتتحسب "حافة صاعدة" جديدة والسيكونس يتكرر
+            # طول ما الحساس قارئ.
+            last_DI0 = None
+            last_DI1 = None
 
             while self.client_read_io.connected and not self._stop_event.is_set():
                 try:
-                    # توليد كود القراءة بناءً على إعدادات الويب
+                    # ---------------- محطة 1 ----------------
                     cmd_di0 = generate_modbus_command("READ_DI0", "READ_DI")
                     DI0_respond = self.client_read_io.send_request(message=cmd_di0, is_hex=True)
-                    
-                    if DI0_respond and DI0_respond[-1:] == b"\x01" and last_DI0 == b"\x00":
-                        threading.Thread(target=self._IO_Writer_station_1, daemon=True).start()
-                        self.client_read_io._log_add("INFO", f"found fridg in station 1")
-                        your_s1_arrived_flag = True
-                    last_DI0 = DI0_respond[-1:] if DI0_respond else b"\x00"
-                    
+
+                    if DI0_respond:
+                        bit = DI0_respond[-1:]
+                        if bit == b"\x01" and last_DI0 == b"\x00":
+                            self.trigger_station(1, source="io")
+                        last_DI0 = bit
+                    # لو مفيش رد: بنسيب last_DI0 زي ما هي
+
                     time.sleep(0.01)
 
+                    # ---------------- محطة 2 ----------------
                     cmd_di1 = generate_modbus_command("READ_DI1", "READ_DI")
                     DI1_respond = self.client_read_io.send_request(message=cmd_di1, is_hex=True)
-                    
-                    if DI1_respond and DI1_respond[-1:] == b"\x01" and last_DI1 == b"\x00":
-                        threading.Thread(target=self._IO_Writer_station_2, daemon=True).start()
-                        result2 =self.cam_cap_s2.send_request("S2")
-                        self.client_read_io._log_add("INFO", f"found fridg in station 2")
-                        your_s2_arrived_flag = True
-                    last_DI1 = DI1_respond[-1:] if DI1_respond else b"\x00"
-                    
+
+                    if DI1_respond:
+                        bit = DI1_respond[-1:]
+                        if bit == b"\x01" and last_DI1 == b"\x00":
+                            self.trigger_station(2, source="io")
+                        last_DI1 = bit
+
                 except Exception as e:
-                    self.client_read_io._log_add("INFO", f"خطأ في القراءة: {e}")
-        
+                    self.client_read_io._log_add("INFO", f"IO read error: {e}")
+
+
     def _vision_station_1(self):
         """
         تستقبل نص من الـ Queue، تقسمه حرفين حرفين، وترسله إلى Vision Master 1

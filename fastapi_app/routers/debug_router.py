@@ -51,7 +51,12 @@ def _state() -> dict:
         "ok": True,
         "debug": bool(status.get("debug")),
         "dry_run": bool(status.get("dry_run")),
+        "listen_io": bool(status.get("listen_io")),
         "running": bool(status.get("running")),
+        "station_busy": {
+            "1": bool(controller.app.is_station_busy(1)) if controller.app else False,
+            "2": bool(controller.app.is_station_busy(2)) if controller.app else False,
+        },
         "state": status.get("state"),
         "outputs": [name for name in OUTPUT_FUNCTIONS if name in ioSetting.io_mapping],
         "flags": {
@@ -81,8 +86,11 @@ async def debug_mode(request: Request):
     payload = await request.json()
     enabled = bool(payload.get("enabled"))
     dry_run = bool(payload.get("dry_run"))
+    # لو الواجهة ما بعتتش القيمة، الافتراضي إننا نسمع للـ I/O كمان
+    listen_io = bool(payload.get("listen_io", True))
 
-    result = await asyncio.to_thread(controller.set_debug_mode, enabled, dry_run)
+    result = await asyncio.to_thread(
+        controller.set_debug_mode, enabled, dry_run, listen_io)
 
     # الترتيب مهم: _state() الأول عشان result يفضل هو صاحب الكلمة
     # الأخيرة في ok/message — العكس كان بيخفي أي فشل.
@@ -165,10 +173,19 @@ def debug_io_off_all(request: Request):
     if denied is not None:
         return denied
 
+    if controller.is_dry_run():
+        return JSONResponse(
+            {"ok": False, "sent": False,
+             "message": "Dry-run has no connection to the I/O - switch to Debug mode"},
+            status_code=409,
+        )
+
     app = controller.app
     if app is None:
         return JSONResponse(
-            {"ok": True, "sent": False, "message": "No hardware connection - nothing sent"}
+            {"ok": False, "sent": False,
+             "message": "Process is not running - start Debug mode first"},
+            status_code=409,
         )
 
     try:
@@ -195,6 +212,8 @@ def debug_reset_flags(request: Request):
     cc.your_s2_sku = ""
     cc.NO_CSV_ERROR = False
     cc.NO_CSV_ERROR2 = False
+    cc.NO_CSV_FILE = ""
+    cc.NO_CSV_FILE2 = ""
     cc.Manual_Scanner_MODE = False
     cc.Manual_Scanner_MODE2 = False
 

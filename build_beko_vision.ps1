@@ -33,6 +33,7 @@ python -m nuitka `
     --experimental=force-dependencies-pefile `
     --assume-yes-for-downloads `
     --windows-console-mode=force `
+    --windows-icon-from-ico=app.ico `
     --output-dir=$outDir `
     --output-filename=BekoVision.exe `
     @dataArgs `

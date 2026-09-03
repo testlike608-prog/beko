@@ -30,6 +30,7 @@ python -m nuitka ^
   --file-version=2.0.0 ^
   --product-version=2.0.0 ^
   --windows-console-mode=force ^
+  --windows-icon-from-ico=app.ico ^
   --include-data-dir=templates=templates ^
   --include-data-dir=static=static ^
   --include-package=uvicorn ^

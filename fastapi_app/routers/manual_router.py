@@ -49,7 +49,11 @@ async def csv_popup_ack():
 async def check_flags():
     cc.Buzzer_Flag_to_OFF = False
     return JSONResponse(
-        {"manual_scanner": cc.Manual_Scanner_MODE, "no_csv_error": cc.NO_CSV_ERROR}
+        {
+            "manual_scanner": cc.Manual_Scanner_MODE,
+            "no_csv_error": cc.NO_CSV_ERROR,
+            "no_csv_file": getattr(cc, "NO_CSV_FILE", ""),
+        }
     )
 
 
@@ -57,7 +61,11 @@ async def check_flags():
 async def check_flags2():
     cc.Buzzer_Flag_to_OFF = False
     return JSONResponse(
-        {"manual_scanner": cc.Manual_Scanner_MODE2, "no_csv_error": cc.NO_CSV_ERROR2}
+        {
+            "manual_scanner": cc.Manual_Scanner_MODE2,
+            "no_csv_error": cc.NO_CSV_ERROR2,
+            "no_csv_file": getattr(cc, "NO_CSV_FILE2", ""),
+        }
     )
 
 
@@ -105,6 +113,7 @@ async def handle_station_data2(request: Request):
 async def control():
     try:
         cc.NO_CSV_ERROR = False
+        cc.NO_CSV_FILE = ""
         cc.Buzzer_Flag_to_OFF = True
         return JSONResponse({"status": "success"}, status_code=200)
     except Exception as e:  # noqa: BLE001
@@ -115,6 +124,7 @@ async def control():
 async def control2():
     try:
         cc.NO_CSV_ERROR2 = False
+        cc.NO_CSV_FILE2 = ""
         cc.Buzzer_Flag_to_OFF = True
         return JSONResponse({"status": "success"}, status_code=200)
     except Exception as e:  # noqa: BLE001

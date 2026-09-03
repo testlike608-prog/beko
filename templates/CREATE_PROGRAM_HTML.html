@@ -8,6 +8,8 @@
   <meta name="color-scheme" content="light dark" />
   <script src="/static/tailwind.cdn.js"></script>
   <link rel="stylesheet" href="/static/styles.css?v={{ static_v('styles.css') }}">
+  <link rel="icon" type="image/x-icon" href="/static/favicon.ico?v={{ static_v('favicon.ico') }}">
+  <link rel="apple-touch-icon" href="/static/app_icon.png?v={{ static_v('app_icon.png') }}">
   <script>
     /* TESTS injected from Flask — must come before main.js */
     let TESTS = {{ tests|tojson }};

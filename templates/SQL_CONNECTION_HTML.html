@@ -52,6 +52,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark">
   <title>Connection to Database</title>
+  <link rel="icon" type="image/x-icon" href="/static/favicon.ico?v={{ static_v('favicon.ico') }}">
+  <link rel="apple-touch-icon" href="/static/app_icon.png?v={{ static_v('app_icon.png') }}">
   <script src="/static/tailwind.cdn.js"></script>
 {% if static_exists('socket.io.min.js') %}  <script src="/static/socket.io.min.js?v={{ static_v('socket.io.min.js') }}"></script>
 {% endif %}
@@ -519,7 +521,9 @@ function applyFlags1(data) {
     if (modal) modal.classList.toggle('hidden', data.manual_scanner !== true);
     SqlAlerts.sync('no_csv_s1', data.no_csv_error === true, {
         title: 'NO CSV - Outer station',
-        detail: 'No CSV file was found for the scanned product number.',
+        detail: (data.no_csv_file || '').trim()
+            ? 'Missing file: ' + data.no_csv_file + '  (looked in the Programs folder)'
+            : 'No CSV file was found for the scanned product number.',
         ackUrl: '/control'
     });
 }
@@ -582,7 +586,9 @@ function applyFlags2(data) {
     if (modal) modal.classList.toggle('hidden', data.manual_scanner !== true);
     SqlAlerts.sync('no_csv_s2', data.no_csv_error === true, {
         title: 'NO CSV - Inner station',
-        detail: 'No CSV file was found for the scanned product number.',
+        detail: (data.no_csv_file || '').trim()
+            ? 'Missing file: ' + data.no_csv_file + '  (looked in the Programs folder)'
+            : 'No CSV file was found for the scanned product number.',
         ackUrl: '/control2'
     });
 }
@@ -632,8 +638,12 @@ const SqlAlerts = {
 
   sync(id, active, meta) {
     if (active) {
-      if (!this.items.has(id)) {
+      const existing = this.items.get(id);
+      if (!existing) {
         this.items.set(id, { id, time: new Date(), ...meta });
+        this.render();
+      } else if (meta.detail && meta.detail !== existing.detail) {
+        existing.detail = meta.detail;
         this.render();
       }
     } else if (this.items.has(id)) {
